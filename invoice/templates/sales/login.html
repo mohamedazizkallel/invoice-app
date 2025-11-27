@@ -40,49 +40,39 @@
   </head>
   <body class="text-center">
 
-<main class="form-signin">
+  <main class="form-signin w-100 m-auto" style="max-width: 400px;">
 
+    <form method="post">
+      {% csrf_token %}
 
-  <form action="#" method="post">
-    <img class="mb-4" src="{% static 'assets/img/logo.png' %}" alt="" width="72" height="57">
-    <h1 class="h3 mb-3 fw-normal">Please sign in</h1>
+      <img class="mb-4" src="{% static 'assets/img/logo.png' %}" alt="" width="80">
 
-    {% csrf_token %}
+      <h1 class="h3 mb-3 fw-normal">Sign in</h1>
 
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
 
-    {% if messages %}
-    {% for message in messages %}
+      <div class="form-floating mb-3">
+          {{ form.username }}
+          <label for="floatingInput">Username</label>
+      </div>
 
-    {% if message.tags == 'error' %}
-    <div class="alert alert-danger">
-    {{message}}
-    </div>
-    {% else %}
-    <div class="alert alert-{{message.tags}}">
-    {{message}}
-    </div>
-    {% endif %}
-
-    {% endfor %}
-    {% endif %}
-
+      <div class="form-floating mb-3">
+          {{ form.password }}
+          <label for="floatingPassword">Password</label>
+      </div>
 
 
 
-    <div class="form-floating">
-      {{form.username}}
-      <label for="floatingInput">Email address</label>
-    </div>
-    <div class="form-floating">
-      {{form.password}}
-      <label for="floatingPassword">Password</label>
-    </div>
+      <button class="btn btn-primary w-100 py-2" type="submit">Sign in</button>
 
+      <p class="mt-4 mb-3 text-muted">&copy; 2025 Swift Tech</p>
+    </form>
 
-    <button class="w-100 btn btn-lg btn-primary" type="submit">Sign in</button>
-    <p class="mt-5 mb-3 text-muted">&copy; 2021 Skolo Online</p>
-  </form>
-</main>
+  </main>
 
 
 
