@@ -36,6 +36,10 @@ class ProductForm(forms.ModelForm):
     class Meta:
         model=Product
         fields=["title","currency","description","price","quantity"]
+        widgets = {
+            'quantity': forms.NumberInput(attrs={'min': 0, 'class': 'form-control'}),
+            'price': forms.NumberInput(attrs={'min': 0, 'step': '0.01', 'class': 'form-control'}),
+        }
 
 class InvoiceForm(forms.ModelForm):
     
