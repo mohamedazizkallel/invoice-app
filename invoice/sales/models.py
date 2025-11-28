@@ -94,7 +94,8 @@ class Invoice(models.Model):
     notes = models.TextField(null=True, blank=True)
 
     client = models.ForeignKey('Client', blank=True, null=True, on_delete=models.SET_NULL)
-    product = models.ForeignKey('Product', blank=True, null=True, on_delete=models.SET_NULL)
+    # product = models.ForeignKey('Product', blank=True, null=True, on_delete=models.SET_NULL)
+    product = models.ManyToManyField('Product', blank=True)  # <-- changed
 
     uniqueId = models.CharField(null=True, blank=True, max_length=100)
     slug = models.SlugField(max_length=500, unique=True, null=True)

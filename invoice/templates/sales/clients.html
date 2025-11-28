@@ -3,7 +3,6 @@
 {% load crispy_forms_tags %}
 
 {% block css %}
-<link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 
 <style>
@@ -83,7 +82,7 @@
   <div class="empty-state">
     <h3>No Clients Yet</h3>
     <p class="text-muted">Click below to add your first client.</p>
-    <img src="{% static 'assets/img/empty.svg' %}" width="200">
+    <img src="{% static 'assets/img/clientBackground.svg' %}" width="200">
     <br><br>
     <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClientModal">
       <i class="bi bi-plus-circle me-2"></i> Add Client

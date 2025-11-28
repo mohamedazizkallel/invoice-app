@@ -80,6 +80,31 @@
     font-weight: 400;
     margin-bottom: 1rem;
   }
+
+  .import-export-card {
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  
+  .modal-content {
+    animation: fadeSlide 0.25s ease-out;
+    border: none;
+  }
+
+  @keyframes fadeSlide {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 </style>
 {% endblock %}
 
@@ -90,12 +115,12 @@
     <h1 class="h2 mb-0">Invoices</h1>
     <div class="btn-toolbar">
       <div class="btn-group me-2">
-        <button type="button" class="btn btn-outline-secondary">
+        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
           <i class="bi bi-printer me-1"></i> Print
         </button>
-        <button type="button" class="btn btn-outline-secondary">
-          <i class="bi bi-download me-1"></i> Export
-        </button>
+        <a href="{% url 'export_invoices' %}" class="btn btn-outline-secondary">
+          <i class="bi bi-download me-1"></i> Export to Excel
+        </a>
       </div>
       <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createInvoiceModal">
         <i class="bi bi-plus-circle me-1"></i> Create Invoice
@@ -103,17 +128,41 @@
     </div>
   </div>
 
+  <!-- Import/Export Card -->
+  <div class="import-export-card">
+    <div class="row align-items-center">
+      <div class="col-md-6 text-md-start text-center mb-3 mb-md-0">
+        <h5 class="mb-2">
+          <i class="bi bi-upload me-2"></i> Import Invoices from Excel
+        </h5>
+        <p class="text-muted mb-0">Upload an Excel file (.xlsx, .xls) to import multiple invoices at once</p>
+      </div>
+      <div class="col-md-6 text-md-end text-center">
+        <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#importInvoiceModal">
+          <i class="bi bi-file-earmark-arrow-up me-1"></i> Import from Excel
+        </button>
+        <a href="{% url 'download_invoice_template' %}" class="btn btn-outline-secondary">
+          <i class="bi bi-file-earmark-spreadsheet me-1"></i> Download Template
+        </a>
+      </div>
+    </div>
+  </div>
+
   <!-- Filter Section -->
   <div class="filter-section">
     <form method="get" class="row g-3 align-items-end">
       <div class="col-md-3">
+        <label for="filterSearch" class="form-label">Search</label>
+        <input type="text" class="form-control" id="filterSearch" name="search" placeholder="Search invoices..." value="{{ request.GET.search }}">
+      </div>
+      <div class="col-md-3">
         <label for="filterStatus" class="form-label">Status</label>
         <select class="form-select" id="filterStatus" name="status">
           <option value="">All Statuses</option>
-          <option value="draft">Draft</option>
-          <option value="current">Current</option>
-          <option value="overdue">Overdue</option>
-          <option value="paid">Paid</option>
+          <option value="DRAFT" {% if request.GET.status == "DRAFT" %}selected{% endif %}>Draft</option>
+          <option value="CURRENT" {% if request.GET.status == "CURRENT" %}selected{% endif %}>Current</option>
+          <option value="OVERDUE" {% if request.GET.status == "OVERDUE" %}selected{% endif %}>Overdue</option>
+          <option value="PAID" {% if request.GET.status == "PAID" %}selected{% endif %}>Paid</option>
         </select>
       </div>
       <div class="col-md-3">
@@ -121,17 +170,15 @@
         <select class="form-select" id="filterClient" name="client">
           <option value="">All Clients</option>
           {% for client in clients %}
-          <option value="{{ client.id }}">{{ client.clientName }}</option>
+          <option value="{{ client.id }}" {% if request.GET.client == client.id|stringformat:"s" %}selected{% endif %}>
+            {{ client.clientName }}
+          </option>
           {% endfor %}
         </select>
       </div>
       <div class="col-md-3">
-        <label for="filterDate" class="form-label">Date Range</label>
-        <input type="date" class="form-control" id="filterDate" name="date_from">
-      </div>
-      <div class="col-md-3">
         <button type="submit" class="btn btn-primary w-100">
-          <i class="bi bi-funnel me-1"></i> Apply Filters
+          <i class="bi bi-funnel me-1"></i> Apply Filter
         </button>
       </div>
     </form>
@@ -145,10 +192,9 @@
         <thead class="table-light">
           <tr>
             <th scope="col">Invoice #</th>
+            <th scope="col">Title</th>
             <th scope="col">Client</th>
-            <th scope="col">Issue Date</th>
-            <th scope="col">Due Date</th>
-            <th scope="col" class="text-end">Amount</th>
+            <th scope="col">Date Created</th>
             <th scope="col">Status</th>
             <th scope="col" class="text-end">Actions</th>
           </tr>
@@ -157,14 +203,13 @@
           {% for invoice in invoices %}
           <tr class="invoice-row">
             <td class="align-middle">
-              <a href="{% url 'invoice_detail' invoice.id %}" class="text-decoration-none">
-                INV-{{ invoice.id|stringformat:"04d" }}
+              <a href="{% url 'invoice_detail' invoice.id %}" class="text-decoration-none fw-bold">
+                INV-{{ invoice.uniqueId|default:invoice.id }}
               </a>
             </td>
-            <td class="align-middle">{{ invoice.client.clientName }}</td>
-            <td class="align-middle">{{ invoice.issue_date|date:"M d, Y" }}</td>
-            <td class="align-middle">{{ invoice.due_date|date:"M d, Y" }}</td>
-            <td class="align-middle text-end">R{{ invoice.total_amount|floatformat:2 }}</td>
+            <td class="align-middle">{{ invoice.title }}</td>
+            <td class="align-middle">{{ invoice.client.clientname|default:"No Client" }}</td>
+            <td class="align-middle">{{ invoice.date_created|date:"M d, Y"|default:"N/A" }}</td>
             <td class="align-middle">
               <span class="status-badge status-{{ invoice.status|lower }}">{{ invoice.status }}</span>
             </td>
@@ -173,10 +218,10 @@
                 <a href="{% url 'invoice_detail' invoice.id %}" class="btn btn-outline-primary" title="View">
                   <i class="bi bi-eye"></i>
                 </a>
-                <a href="{% url 'invoice_edit' invoice.id %}" class="btn btn-outline-secondary" title="Edit">
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editInvoiceModal{{ invoice.id }}" title="Edit">
                   <i class="bi bi-pencil"></i>
-                </a>
-                <button type="button" class="btn btn-outline-danger" title="Delete" data-bs-toggle="modal" data-bs-target="#deleteModal{{ invoice.id }}">
+                </button>
+                <button type="button" class="btn btn-outline-danger" title="Delete" data-bs-toggle="modal" data-bs-target="#deleteInvoiceModal{{ invoice.id }}">
                   <i class="bi bi-trash"></i>
                 </button>
               </div>
@@ -193,7 +238,7 @@
       <ul class="pagination justify-content-center mb-0">
         {% if page_obj.has_previous %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}">Previous</a>
         </li>
         {% else %}
         <li class="page-item disabled">
@@ -205,13 +250,13 @@
         {% if page_obj.number == num %}
         <li class="page-item active"><span class="page-link">{{ num }}</span></li>
         {% else %}
-        <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}">{{ num }}</a></li>
         {% endif %}
         {% endfor %}
 
         {% if page_obj.has_next %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}">Next</a>
         </li>
         {% else %}
         <li class="page-item disabled">
@@ -230,7 +275,7 @@
         <div class="col-lg-6">
           <h3>No Invoices Found</h3>
           <p class="text-muted">Get started by creating your first invoice or adjust your filters to see more results.</p>
-          <img src="{% static 'assets/img/empty.svg' %}" alt="No invoices illustration">
+          <img src="{% static 'assets/img/InvBackground.svg' %}" alt="No invoices illustration">
           <div class="mt-4">
             <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#createInvoiceModal">
               <i class="bi bi-plus-circle me-2"></i> Create Your First Invoice
@@ -245,20 +290,24 @@
   <!-- Create Invoice Modal -->
   <div class="modal fade" id="createInvoiceModal" tabindex="-1" aria-labelledby="createInvoiceModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content">
-        <form action="{% url 'invoices' %}" method="post">
+      <div class="modal-content shadow-lg rounded-4">
+        <form action="{% url 'invoice_create' %}" method="post">
           {% csrf_token %}
           
-          <div class="modal-header">
-            <h5 class="modal-title" id="createInvoiceModalLabel">Create New Invoice</h5>
+          <!-- Modal Header -->
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-semibold" id="createInvoiceModalLabel">
+              <i class="bi bi-file-earmark-plus me-2 text-primary"></i> Create New Invoice
+            </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           
-          <div class="modal-body">
+          <!-- Modal Body -->
+          <div class="modal-body pt-2">
             {% if form.errors %}
-            <div class="alert alert-danger" role="alert">
-              <strong>Please correct the following errors:</strong>
-              <ul class="mb-0 mt-2">
+            <div class="alert alert-danger rounded-3" role="alert">
+              <strong><i class="bi bi-exclamation-triangle me-2"></i> Please correct the following errors:</strong>
+              <ul class="mt-2 mb-0">
                 {% for field, errors in form.errors.items %}
                   {% for error in errors %}
                   <li>{{ field }}: {{ error }}</li>
@@ -268,16 +317,233 @@
             </div>
             {% endif %}
             
-            {{ form.as_p }}
+            <div class="row g-3">
+              {% for field in form %}
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">{{ field.label }}</label>
+
+                {% if field.name == 'product' %}
+                <!-- Multiple select for ManyToMany products -->
+                <select class="form-select" name="product" id="id_product" multiple size="5">
+                  {% for product in products %}
+                  <option value="{{ product.id }}">
+                    {{ product.title }} - {{ product.currency|default:"TND" }} {{ product.price }}
+                  </option>
+                  {% endfor %}
+                </select>
+                <small class="form-text text-muted">Hold Ctrl (Cmd on Mac) to select multiple products.</small>
+
+                {% else %}
+                {{ field }}
+                {% endif %}
+
+                {% if field.help_text %}
+                <small class="form-text text-muted">{{ field.help_text }}</small>
+                {% endif %}
+
+                {% if field.errors %}
+                <div class="text-danger small mt-1">
+                  {% for error in field.errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
           </div>
           
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Create Invoice</button>
+          <!-- Modal Footer -->
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-check-circle me-1"></i> Create Invoice
+            </button>
           </div>
         </form>
       </div>
     </div>
   </div>
+
+
+  <!-- Import Invoice Modal -->
+  <div class="modal fade" id="importInvoiceModal" tabindex="-1" aria-labelledby="importInvoiceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg rounded-4">
+        <form action="{% url 'import_invoices' %}" method="post" enctype="multipart/form-data" id="importInvoiceForm">
+          {% csrf_token %}
+          
+          <!-- Modal Header -->
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-semibold" id="importInvoiceModalLabel">
+              <i class="bi bi-file-earmark-arrow-up me-2 text-success"></i> Import Invoices from Excel
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          
+          <!-- Modal Body -->
+          <div class="modal-body pt-2">
+            <div class="alert alert-info rounded-3" role="alert">
+              <strong><i class="bi bi-info-circle me-2"></i> File Requirements:</strong>
+              <ul class="mb-0 mt-2">
+                <li>File format: .xlsx or .xls</li>
+                <li>Required columns: Title, Client Name</li>
+                <li>Optional columns: Product Title, Status, Notes</li>
+                <li>Download our template to ensure correct formatting</li>
+              </ul>
+            </div>
+            
+            <div class="mb-3">
+              <label for="invoiceExcelFile" class="form-label fw-semibold">Select Excel File</label>
+              <input class="form-control" type="file" id="invoiceExcelFile" name="excel_file" accept=".xlsx,.xls" required>
+              <div class="form-text">Maximum file size: 5MB</div>
+            </div>
+
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="updateExistingInvoice" name="update_existing">
+              <label class="form-check-label" for="updateExistingInvoice">
+                Update existing invoices (match by Title)
+              </label>
+            </div>
+          </div>
+          
+          <!-- Modal Footer -->
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success px-4">
+              <i class="bi bi-upload me-1"></i> Import Invoices
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit and Delete Modals for Each Invoice -->
+  {% for invoice in invoices %}
+  
+  <!-- Edit Invoice Modal -->
+  <div class="modal fade" id="editInvoiceModal{{ invoice.id }}" tabindex="-1" aria-labelledby="editInvoiceModalLabel{{ invoice.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content shadow-lg rounded-4">
+        <form action="{% url 'invoice_edit' invoice.id %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+
+
+          <!-- Modal Header -->
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-semibold" id="editInvoiceModalLabel{{ invoice.id }}">
+              <i class="bi bi-pencil me-2 text-secondary"></i> Edit Invoice
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body pt-2">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Title</label>
+                <input type="text" class="form-control" name="title" value="{{ invoice.title }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Status</label>
+                <select class="form-select" name="status" required>
+                  <option value="DRAFT" {% if invoice.status == "DRAFT" %}selected{% endif %}>Draft</option>
+                  <option value="CURRENT" {% if invoice.status == "CURRENT" %}selected{% endif %}>Current</option>
+                  <option value="OVERDUE" {% if invoice.status == "OVERDUE" %}selected{% endif %}>Overdue</option>
+                  <option value="PAID" {% if invoice.status == "PAID" %}selected{% endif %}>Paid</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Client</label>
+                <select class="form-select" name="client" required>
+                  {% for client in clients %}
+                  <option value="{{ client.id }}" {% if invoice.client.id == client.id %}selected{% endif %}>
+                    {{ client.clientname }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Product</label>
+                <select class="form-select" name="product" multiple>
+                  {% for product in products %}
+                  <option value="{{ product.id }}" {% if product in invoice.product.all %}selected{% endif %}>
+                    {{ product.title }} - {{ product.currency|default:"TND" }} {{ product.price }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Notes</label>
+                <textarea class="form-control" name="notes" rows="3">{{ invoice.notes }}</textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-check-circle me-1"></i> Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Invoice Modal -->
+  <div class="modal fade" id="deleteInvoiceModal{{ invoice.id }}" tabindex="-1" aria-labelledby="deleteInvoiceModalLabel{{ invoice.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg rounded-4">
+        <form action="{% url 'invoice_delete' invoice.id %}" method="post">
+          {% csrf_token %}
+
+          <!-- Modal Header -->
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-semibold text-danger" id="deleteInvoiceModalLabel{{ invoice.id }}">
+              <i class="bi bi-trash me-2"></i> Delete Invoice
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body pt-2">
+            <div class="alert alert-danger rounded-3" role="alert">
+              <i class="bi bi-exclamation-triangle me-2"></i>
+              <strong>Warning!</strong> This action cannot be undone.
+            </div>
+            <p class="mb-0">Are you sure you want to delete the invoice <strong>"{{ invoice.title }}"</strong>?</p>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-danger px-4">
+              <i class="bi bi-trash me-1"></i> Delete Invoice
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {% endfor %}
+
 </main>
+
+<script>
+  // Display selected file name
+  document.getElementById('invoiceExcelFile')?.addEventListener('change', function(e) {
+    const fileName = e.target.files[0]?.name;
+    if (fileName) {
+      const label = document.querySelector('label[for="invoiceExcelFile"]');
+      if (label) {
+        label.textContent = `Selected: ${fileName}`;
+      }
+    }
+  });
+</script>
 {% endblock %}

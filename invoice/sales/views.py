@@ -1,13 +1,16 @@
 from django.contrib.auth.decorators import login_required,user_passes_test
 from django.shortcuts import render, redirect, get_object_or_404
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.urls import reverse
 from django.contrib import messages
 from django.http import HttpResponse
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q,Sum, Count
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
 from django.conf import settings
+from datetime import datetime
 from .forms import ClientForm, InvoiceForm,ProductForm, UserLoginForm
 from .models import Product,Client,Invoice,Settings
 from django.contrib.auth.models import User
@@ -65,10 +68,7 @@ def dashboard(request):
     context = {}
     return render(request,"sales/dashboard.html", context)
 
-@login_required
-def invoices(request):
-    context = {}
-    return render(request,"sales/invoices.html", context)
+
 
 @login_required
 def products(request):
@@ -489,3 +489,484 @@ def import_products(request):
             return redirect('products_list')
     
     return redirect('products_list')
+
+
+@login_required
+def invoices_list(request):
+    """Display all invoices with filtering and search"""
+    invoices = Invoice.objects.all().select_related('client').prefetch_related('product')
+    
+    # Search filter
+    search_query = request.GET.get('search', '')
+    if search_query:
+        invoices = invoices.filter(
+            Q(title__icontains=search_query) | 
+            Q(client__clientname__icontains=search_query) |
+            Q(notes__icontains=search_query) |
+            Q(uniqueId__icontains=search_query)
+        )
+    
+    # Status filter
+    status = request.GET.get('status', '')
+    if status:
+        invoices = invoices.filter(status=status)
+    
+    # Client filter
+    client_id = request.GET.get('client', '')
+    if client_id:
+        invoices = invoices.filter(client_id=client_id)
+    
+    # Date filter
+    date_from = request.GET.get('date_from', '')
+    if date_from:
+        invoices = invoices.filter(date_created__gte=date_from)
+    
+    # Sorting
+    sort_by = request.GET.get('sort', '-date_created')
+    invoices = invoices.order_by(sort_by)
+    
+    # Pagination
+    paginator = Paginator(invoices, 20)  # 20 invoices per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get all clients and products for dropdowns
+    clients = Client.objects.all().order_by('clientname')
+    products = Product.objects.all().order_by('title')
+    
+    # Calculate statistics
+    total_invoices = invoices.count()
+    current_invoices = invoices.filter(status='CURRENT').count()
+    overdue_invoices = invoices.filter(status='OVERDUE').count()
+    paid_invoices = invoices.filter(status='PAID').count()
+    
+    context = {
+        'invoices': page_obj,
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'clients': clients,
+        'products': products,
+        'form': InvoiceForm(),
+        'total_invoices': total_invoices,
+        'current_invoices': current_invoices,
+        'overdue_invoices': overdue_invoices,
+        'paid_invoices': paid_invoices,
+    }
+    
+    return render(request, 'sales/invoices.html', context)
+
+@login_required
+def invoice_create(request):
+    """Create a new invoice"""
+    if request.method == 'POST':
+        form = InvoiceForm(request.POST)
+        if form.is_valid():
+            invoice = form.save(commit=False)
+            # The save method in the model will automatically set date_created, uniqueId, and slug
+            invoice.save()
+            messages.success(request, f'Invoice "{invoice.title}" created successfully! (ID: {invoice.uniqueId})')
+            return redirect('invoices_list')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+            # Return with errors
+            invoices = Invoice.objects.all().order_by('-date_created')
+            clients = Client.objects.all().order_by('clientName')
+            products = Product.objects.all().order_by('title')
+            context = {
+                'invoices': invoices,
+                'clients': clients,
+                'products': products,
+                'form': form,
+            }
+            return render(request, 'sales/invoices.html', context)
+    
+    return redirect('invoices_list')
+
+@login_required
+def invoice_detail(request, invoice_id):
+    """View invoice details"""
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    products = invoice.product.all()  # Get all products from ManyToMany
+    
+    # Calculate total amount and prepare products with line totals
+    invoice_total = 0
+    invoice_currency = 'TND'
+    products_with_totals = []
+    
+    for product in products:
+        line_total = 0
+        if product.price and product.quantity:
+            line_total = product.price * product.quantity
+            invoice_total += line_total
+            # Use the first product's currency
+            if not invoice_currency or invoice_currency == 'TND':
+                invoice_currency = product.currency or 'TND'
+        
+        # Add line total to product data
+        products_with_totals.append({
+            'product': product,
+            'line_total': line_total
+        })
+    
+    # Get all clients and products for the edit modal
+    clients = Client.objects.all().order_by('clientname')
+    all_products = Product.objects.all().order_by('title')
+    
+    # Get settings for company info
+    try:
+        from .models import Settings
+        p_settings = Settings.objects.first()
+    except Exception as e:
+        p_settings = None
+    
+    context = {
+        'invoice': invoice,
+        'products': products,  # Original queryset for edit modal
+        'products_with_totals': products_with_totals,  # Products with calculated line totals
+        'invoiceTotal': invoice_total,
+        'invoiceCurrency': invoice_currency,
+        'clients': clients,
+        'all_products': all_products,
+        'p_settings': p_settings,
+    }
+    
+    return render(request, 'sales/invoice_detail.html', context)
+
+
+@login_required
+def invoice_edit(request, invoice_id):
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+
+    if request.method == 'POST':
+
+        title = request.POST.get('title')
+        status = request.POST.get('status')
+        notes = request.POST.get('notes', '')
+        client_id = request.POST.get('client')
+        product_ids = request.POST.getlist('product')
+
+        # Capture where the user came from
+        next_url = request.POST.get('next') or reverse('invoices_list')
+
+        try:
+            if title:
+                invoice.title = title
+            if status:
+                invoice.status = status
+
+            invoice.notes = notes
+
+            if client_id:
+                invoice.client_id = client_id
+
+            invoice.save()
+
+            # Update ManyToMany field
+            invoice.product.set(product_ids)
+
+            messages.success(request, f'Invoice "{invoice.title}" updated successfully!')
+
+        except Exception as e:
+            messages.error(request, f"Error updating invoice: {str(e)}")
+
+        # --- Safe Redirect ---
+        if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+
+        return redirect('invoices_list')
+
+    return redirect('invoices_list')
+
+@login_required
+def invoice_delete(request, invoice_id):
+    """Delete an invoice"""
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    
+    if request.method == 'POST':
+        invoice_title = invoice.title
+        invoice.delete()
+        messages.success(request, f'Invoice "{invoice_title}" deleted successfully!')
+    
+    return redirect('invoices_list')
+
+
+@login_required
+def export_invoices(request):
+    """Export all invoices to Excel"""
+    invoices = Invoice.objects.all().select_related('client', 'product').order_by('-date_created')
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Invoices"
+    
+    # Define headers
+    headers = ['Invoice ID', 'Unique ID', 'Title', 'Client', 'Product', 'Status', 'Date Created', 'Last Updated', 'Notes']
+    ws.append(headers)
+    
+    # Style the header row
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Add invoice data
+    for invoice in invoices:
+        ws.append([
+            invoice.id,
+            invoice.uniqueId if invoice.uniqueId else '',
+            invoice.title if invoice.title else '',
+            invoice.client.clientName if invoice.client else 'No Client',
+            invoice.product.title if invoice.product else 'No Product',
+            invoice.status,
+            invoice.date_created.strftime('%Y-%m-%d %H:%M') if invoice.date_created else '',
+            invoice.last_updated.strftime('%Y-%m-%d %H:%M') if invoice.last_updated else '',
+            invoice.notes if invoice.notes else '',
+        ])
+    
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 12
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 30
+    ws.column_dimensions['D'].width = 25
+    ws.column_dimensions['E'].width = 25
+    ws.column_dimensions['F'].width = 12
+    ws.column_dimensions['G'].width = 18
+    ws.column_dimensions['H'].width = 18
+    ws.column_dimensions['I'].width = 40
+    
+    # Save to response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename=invoices_export.xlsx'
+    
+    wb.save(response)
+    return response
+
+
+@login_required
+def download_invoice_template(request):
+    """Download an Excel template for importing invoices"""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Invoices Template"
+    
+    # Define headers
+    headers = ['Title', 'Client Name', 'Product Title', 'Status', 'Notes']
+    ws.append(headers)
+    
+    # Style the header row
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Add sample data
+    ws.append([
+        'Sample Invoice 1',
+        'Sample Client',
+        'Sample Product',
+        'CURRENT',
+        'This is a sample invoice note'
+    ])
+    ws.append([
+        'Sample Invoice 2',
+        'Another Client',
+        'Another Product',
+        'PAID',
+        'Another sample note'
+    ])
+    
+    # Add instructions
+    ws_instructions = wb.create_sheet("Instructions")
+    instructions = [
+        ['Invoice Import Template - Instructions'],
+        [''],
+        ['Required Columns:'],
+        ['1. Title - Invoice title (required)'],
+        ['2. Client Name - Exact client name from your system (required)'],
+        ['3. Product Title - Exact product title from your system'],
+        ['4. Status - Invoice status: CURRENT, PAID, or OVERDUE'],
+        ['5. Notes - Additional notes or comments'],
+        [''],
+        ['Important Notes:'],
+        ['- Do not modify the header row'],
+        ['- Title and Client Name are required'],
+        ['- Client Name must match exactly with existing clients'],
+        ['- Product Title must match exactly with existing products'],
+        ['- Status values are case-sensitive (use UPPERCASE)'],
+        ['- Default status is CURRENT if not specified'],
+        ['- Unique ID and slug will be auto-generated'],
+    ]
+    
+    for row in instructions:
+        ws_instructions.append(row)
+    
+    ws_instructions.column_dimensions['A'].width = 60
+    ws_instructions['A1'].font = Font(bold=True, size=14)
+    
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 25
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 40
+    
+    # Save to response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename=invoice_import_template.xlsx'
+    
+    wb.save(response)
+    return response
+
+
+@login_required
+def import_invoices(request):
+    """Import invoices from Excel file"""
+    if request.method == 'POST':
+        excel_file = request.FILES.get('excel_file')
+        update_existing = request.POST.get('update_existing') == 'on'
+        
+        if not excel_file:
+            messages.error(request, 'Please select an Excel file to upload.')
+            return redirect('invoices_list')
+        
+        # Validate file extension
+        if not excel_file.name.endswith(('.xlsx', '.xls')):
+            messages.error(request, 'Invalid file format. Please upload an Excel file (.xlsx or .xls).')
+            return redirect('invoices_list')
+        
+        # Validate file size (5MB limit)
+        if excel_file.size > 5 * 1024 * 1024:
+            messages.error(request, 'File size exceeds 5MB limit.')
+            return redirect('invoices_list')
+        
+        try:
+            # Load workbook
+            wb = load_workbook(excel_file)
+            ws = wb.active
+            
+            # Get headers
+            headers = [cell.value for cell in ws[1]]
+            
+            # Validate required columns
+            required_columns = ['Title', 'Client Name']
+            for col in required_columns:
+                if col not in headers:
+                    messages.error(request, f'Missing required column: {col}')
+                    return redirect('invoices_list')
+            
+            # Get column indices
+            title_idx = headers.index('Title')
+            client_name_idx = headers.index('Client Name')
+            product_title_idx = headers.index('Product Title') if 'Product Title' in headers else None
+            status_idx = headers.index('Status') if 'Status' in headers else None
+            notes_idx = headers.index('Notes') if 'Notes' in headers else None
+            
+            # Process rows
+            created_count = 0
+            updated_count = 0
+            error_count = 0
+            
+            for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                try:
+                    # Get values
+                    title = row[title_idx]
+                    client_name = row[client_name_idx]
+                    
+                    # Skip empty rows
+                    if not title or not client_name:
+                        continue
+                    
+                    # Get or validate client
+                    try:
+                        client = Client.objects.get(clientName=client_name)
+                    except Client.DoesNotExist:
+                        error_count += 1
+                        print(f"Row {row_num}: Client '{client_name}' not found")
+                        continue
+                    
+                    # Get product if specified
+                    product = None
+                    if product_title_idx is not None and row[product_title_idx]:
+                        try:
+                            product = Product.objects.get(title=row[product_title_idx])
+                        except Product.DoesNotExist:
+                            print(f"Row {row_num}: Product '{row[product_title_idx]}' not found, skipping product")
+                    
+                    status = row[status_idx] if status_idx is not None and row[status_idx] else 'CURRENT'
+                    notes = row[notes_idx] if notes_idx is not None and row[notes_idx] else ''
+                    
+                    # Validate status
+                    if status not in ['CURRENT', 'OVERDUE', 'PAID']:
+                        status = 'CURRENT'
+                    
+                    # Create or update invoice
+                    if update_existing:
+                        invoice, created = Invoice.objects.get_or_create(
+                            title=title,
+                            defaults={
+                                'client': client,
+                                'product': product,
+                                'status': status,
+                                'notes': notes,
+                            }
+                        )
+                        
+                        if not created:
+                            invoice.client = client
+                            invoice.product = product
+                            invoice.status = status
+                            invoice.notes = notes
+                            invoice.save()
+                            updated_count += 1
+                        else:
+                            created_count += 1
+                    else:
+                        invoice = Invoice.objects.create(
+                            title=title,
+                            client=client,
+                            product=product,
+                            status=status,
+                            notes=notes,
+                        )
+                        created_count += 1
+                        
+                except Exception as e:
+                    error_count += 1
+                    print(f"Error processing row {row_num}: {str(e)}")
+                    continue
+            
+            # Success message
+            if created_count > 0 or updated_count > 0:
+                msg_parts = []
+                if created_count > 0:
+                    msg_parts.append(f'{created_count} invoice(s) created')
+                if updated_count > 0:
+                    msg_parts.append(f'{updated_count} invoice(s) updated')
+                
+                success_msg = ' and '.join(msg_parts) + ' successfully!'
+                messages.success(request, success_msg)
+                
+                if error_count > 0:
+                    messages.warning(request, f'{error_count} row(s) had errors and were skipped.')
+            else:
+                if error_count > 0:
+                    messages.error(request, f'Import failed. {error_count} row(s) had errors.')
+                else:
+                    messages.warning(request, 'No invoices were imported. Please check your file.')
+                    
+        except Exception as e:
+            messages.error(request, f'Error processing file: {str(e)}')
+            return redirect('invoices_list')
+    
+    return redirect('invoices_list')

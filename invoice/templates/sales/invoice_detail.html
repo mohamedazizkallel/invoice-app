@@ -1,0 +1,370 @@
+{% extends 'partials/base.html' %}
+{% load static %}
+
+{% block css %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    body {
+        font-family: 'Inter', sans-serif !important;
+        background: #f5f6f7;
+    }
+
+    .wrapper-invoice {
+        display: flex;
+        justify-content: center;
+        padding: 40px 15px;
+    }
+
+    .invoice {
+        background: #fff;
+        max-width: 900px;
+        width: 100%;
+        box-shadow: 0px 10px 40px rgba(0,0,0,0.08);
+        border-radius: 12px;
+        padding: 40px;
+        animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .invoice-information p {
+        margin: 0;
+        line-height: 1.6;
+        font-size: 15px;
+    }
+
+    .invoice-logo-brand img {
+        width: 130px;
+        margin-top: 10px;
+        filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.2));
+    }
+
+    .invoice-head {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 35px;
+        gap: 20px;
+    }
+
+    .invoice-body { 
+        margin-top: 40px; 
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table thead {
+        background: #fafafa;
+        border-bottom: 2px solid #eee;
+    }
+
+    .table th, .table td {
+        padding: 14px 10px;
+        font-size: 15px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .invoice-total-amount {
+        margin-top: 25px;
+        text-align: right;
+        font-size: 22px;
+        font-weight: 700;
+        color: #2f2f2f;
+    }
+
+    .invoice-footer {
+        margin-top: 40px;
+        text-align: center;
+        font-size: 15px;
+        color: #888;
+        border-top: 1px solid #eee;
+        padding-top: 25px;
+    }
+
+    .btn-custom {
+        padding: 10px 22px;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+
+    .btn-edit {
+        background: #4c6ef5;
+        color: white;
+        border: none;
+    }
+
+    .btn-edit:hover {
+        background: #3b5bdb;
+        color: white;
+    }
+
+    .btn-back {
+        border: 1px solid #adb5bd;
+        color: #495057;
+        background: white;
+    }
+
+    .btn-back:hover {
+        background: #f8f9fa;
+    }
+
+    .btn-print {
+        background: #12b886;
+        color: white;
+        border: none;
+    }
+
+    .btn-print:hover {
+        background: #0ca678;
+        color: white;
+    }
+
+    .modal-content {
+        animation: modalFade 0.25s ease-out;
+        border: none;
+    }
+
+    @keyframes modalFade {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (max-width: 700px) {
+        .invoice-head {
+            flex-direction: column;
+            text-align: left;
+        }
+        
+        .head.client-data {
+            text-align: left !important;
+        }
+    }
+
+    /* ---------------- PRINT ONLY INVOICE ---------------- */
+    @media print {
+        body {
+            background: white !important;
+        }
+
+        /* hide UI elements */
+        .btn,
+        .btn-custom,
+        .navbar,
+        .sidebar,
+        .modal,
+        .modal-backdrop,
+        .invoice-footer,
+        .mt-4,
+        nav {
+            display: none !important;
+        }
+
+        /* print only invoice */
+        .wrapper-invoice {
+            padding: 0 !important;
+        }
+
+        .invoice {
+            box-shadow: none !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 20px !important;
+        }
+
+        @page {
+            margin: 15mm;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block main %}
+<main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+    <!-- ========= INVOICE CONTENT ========= -->
+    <section class="wrapper-invoice">
+        <div class="invoice" id="invoiceArea">
+
+            <div class="invoice-information">
+                <p><b>Invoice #</b> : {{ invoice.uniqueId }}</p>
+                <p><b>Created Date</b> : {{ invoice.date_created|date:"M d, Y" }}</p>
+                <p><b>Status</b> : <span class="badge {% if invoice.status == 'PAID' %}bg-success{% elif invoice.status == 'OVERDUE' %}bg-danger{% elif invoice.status == 'CURRENT' %}bg-info{% else %}bg-secondary{% endif %}">{{ invoice.status }}</span></p>
+            </div>
+
+            <div class="invoice-logo-brand">
+                <img src="{% static 'assets/img/logo.png' %}" alt="Company Logo">
+            </div>
+
+            <div class="invoice-head">
+                <div class="head client-info">
+                    <p><strong>From:</strong></p>
+                    <p><strong>{{ p_settings.clientname|default:"Your Company Name" }}</strong></p>
+                    <p>{{ p_settings.adress|default:"Your Address" }}</p>
+                    {% if p_settings.mf %}<p>MF: {{ p_settings.mf }}</p>{% endif %}
+                </div>
+
+                <div class="head client-data" style="text-align:right;">
+                    <p><strong>Bill To:</strong></p>
+                    <p><strong>{{ invoice.client.clientname }}</strong></p>
+                    <p>{{ invoice.client.adress }}</p>
+                    {% if invoice.client.emailAddress %}<p>{{ invoice.client.emailAddress }}</p>{% endif %}
+                    {% if invoice.client.mf %}<p>MF: {{ invoice.client.mf }}</p>{% endif %}
+                </div>
+            </div>
+
+            <div class="invoice-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Item Description</th>
+                            <th style="text-align:center;">Qty</th>
+                            <th style="text-align:right;">Unit Price</th>
+                            <th style="text-align:right;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% if products_with_totals %}
+                        {% for item in products_with_totals %}
+                        <tr>
+                            <td>{{ item.product.title }}</td>
+                            <td style="text-align:center;">{{ item.product.quantity|floatformat:0 }}</td>
+                            <td style="text-align:right;">{{ item.product.currency|default:"TND" }} {{ item.product.price|floatformat:2 }}</td>
+                            <td style="text-align:right;">{{ item.product.currency|default:"TND" }} {{ item.line_total|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" style="text-align:center; color: #888;">No products assigned to this invoice</td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+
+                {% if products_with_totals %}
+                <div class="invoice-total-amount">
+                    Total: {{ invoiceCurrency }} {{ invoiceTotal|floatformat:2 }}
+                </div>
+                {% endif %}
+            </div>
+
+            {% if invoice.notes %}
+            <div style="margin-top:25px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <strong>Notes:</strong>
+                <p style="margin: 5px 0 0 0;">{{ invoice.notes }}</p>
+            </div>
+            {% endif %}
+
+            <div class="invoice-footer">
+                <p>Thank you for your business!</p>
+            </div>
+
+            <!-- Buttons -->
+            <div class="mt-4 d-flex gap-2 justify-content-between flex-wrap">
+                <a href="{% url 'invoices_list' %}" class="btn btn-back btn-custom">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Invoices
+                </a>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-print btn-custom" onclick="window.print()">
+                        <i class="bi bi-printer me-1"></i> Print Invoice
+                    </button>
+
+                    <button class="btn btn-edit btn-custom" data-bs-toggle="modal" data-bs-target="#editInvoiceModal">
+                        <i class="bi bi-pencil me-1"></i> Edit Invoice
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ========= EDIT MODAL ========= -->
+    <div class="modal fade" id="editInvoiceModal" tabindex="-1" aria-labelledby="editInvoiceModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow-lg rounded-4">
+                <form action="{% url 'invoice_edit' invoice.id %}" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.path }}">
+
+                    <!-- Modal Header -->
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-semibold" id="editInvoiceModalLabel">
+                            <i class="bi bi-pencil me-2 text-secondary"></i> Edit Invoice
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body pt-2">
+                        <div class="row g-3">
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Title</label>
+                                <input type="text" class="form-control" name="title" value="{{ invoice.title }}" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Status</label>
+                                <select class="form-select" name="status" required>
+                                    <option value="CURRENT" {% if invoice.status == "CURRENT" %}selected{% endif %}>Current</option>
+                                    <option value="OVERDUE" {% if invoice.status == "OVERDUE" %}selected{% endif %}>Overdue</option>
+                                    <option value="PAID" {% if invoice.status == "PAID" %}selected{% endif %}>Paid</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Client</label>
+                                <select class="form-select" name="client" required>
+                                    {% for client in clients %}
+                                    <option value="{{ client.id }}" {% if invoice.client.id == client.id %}selected{% endif %}>
+                                        {{ client.clientname }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Products</label>
+                                <select class="form-select" name="product" multiple size="4">
+                                    {% for product in all_products %}
+                                    <option value="{{ product.id }}" {% if product in products %}selected{% endif %}>
+                                        {{ product.title }} - {{ product.currency|default:"TND" }} {{ product.price }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple products</small>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Notes</label>
+                                <textarea class="form-control" name="notes" rows="3">{{ invoice.notes }}</textarea>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-check-circle me-1"></i> Save Changes
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
