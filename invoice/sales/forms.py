@@ -42,8 +42,35 @@ class ProductForm(forms.ModelForm):
         }
 
 class InvoiceForm(forms.ModelForm):
-    
-    class Meta:
-        model=Invoice
-        fields=["title","status","notes","client","product"]
+    tva = forms.DecimalField(
+        label="TVA",
+        max_digits=5,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 0})
+    )
 
+    class Meta:
+        model = Invoice
+        fields = ["title", "status", "notes", "client", "product", "settings", "tva"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Editing existing invoice
+        if self.instance and self.instance.pk:
+            self.fields['tva'].initial = self.instance.tva
+        # Creating new invoice: check if a settings instance is passed in initial
+        elif kwargs.get('initial') and kwargs['initial'].get('settings'):
+            setting_instance = kwargs['initial']['settings']
+            self.fields['tva'].initial = setting_instance.tva
+
+
+class SettingsForm(forms.ModelForm):
+    class Meta:
+        model=Settings
+        fields=["clientname","clientLogo","adress","mf","dt","tva"]
+        widgets = {
+            'dt': forms.NumberInput(attrs={'min': 0, 'class': 'form-control'}),
+            'tva': forms.NumberInput(attrs={'min': 0, 'class': 'form-control'}),
+        }

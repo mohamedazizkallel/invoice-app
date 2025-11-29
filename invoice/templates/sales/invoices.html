@@ -332,7 +332,12 @@
                   {% endfor %}
                 </select>
                 <small class="form-text text-muted">Hold Ctrl (Cmd on Mac) to select multiple products.</small>
-
+                {% elif field.name == 'tva' %}
+                <!-- TVA field -->
+                <div class="input-group">
+                  {{ field }}
+                  <span class="input-group-text">%</span>
+                </div>
                 {% else %}
                 {{ field }}
                 {% endif %}
@@ -535,15 +540,33 @@
 </main>
 
 <script>
+document.addEventListener('DOMContentLoaded', function() {
   // Display selected file name
-  document.getElementById('invoiceExcelFile')?.addEventListener('change', function(e) {
-    const fileName = e.target.files[0]?.name;
-    if (fileName) {
-      const label = document.querySelector('label[for="invoiceExcelFile"]');
-      if (label) {
-        label.textContent = `Selected: ${fileName}`;
+  const fileInput = document.getElementById('invoiceExcelFile');
+  if (fileInput) {
+    fileInput.addEventListener('change', function(e) {
+      const fileName = e.target.files[0]?.name;
+      if (fileName) {
+        const label = document.querySelector('label[for="invoiceExcelFile"]');
+        if (label) {
+          label.textContent = `Selected: ${fileName}`;
+        }
       }
-    }
-  });
+    });
+  }
+
+  // Prefill TVA based on selected settings
+  const settingsSelect = document.getElementById('id_settings');
+  const tvaInput = document.getElementById('id_tva');
+
+  if (settingsSelect && tvaInput) {
+    settingsSelect.addEventListener('change', function() {
+      const selectedOption = settingsSelect.selectedOptions[0];
+      const tvaValue = selectedOption.dataset.tva;
+      tvaInput.value = tvaValue || '';
+    });
+  }
+});
 </script>
+
 {% endblock %}

@@ -52,7 +52,7 @@ class Product(models.Model):
     currency = models.CharField(choices=CURRENCY, default='TND', max_length=200)
     description = models.TextField(null=True, blank=True)
     price = models.FloatField(null=True, blank=True)
-    quantity = models.FloatField(null=True, blank=True)
+    quantity = models.IntegerField(null=True, blank=True)
 
     uniqueId = models.CharField(null=True, blank=True, max_length=100)
     slug = models.SlugField(max_length=500, unique=True, blank=True, null=True)
@@ -94,7 +94,7 @@ class Invoice(models.Model):
     notes = models.TextField(null=True, blank=True)
 
     client = models.ForeignKey('Client', blank=True, null=True, on_delete=models.SET_NULL)
-    # product = models.ForeignKey('Product', blank=True, null=True, on_delete=models.SET_NULL)
+    settings = models.ForeignKey('Settings', blank=True, null=True, on_delete=models.SET_NULL)
     product = models.ManyToManyField('Product', blank=True)  # <-- changed
 
     uniqueId = models.CharField(null=True, blank=True, max_length=100)
@@ -126,9 +126,12 @@ class Settings(models.Model):
     uniqueId = models.CharField(null=True, blank=True, max_length=100)
     adress = models.CharField(null=True, blank=True, max_length=200)
     mf = models.CharField(null=True, blank=True, max_length=100)
+    dt = models.FloatField(null=True, blank=True)
+    tva = models.IntegerField(null=True, blank=True)
     slug = models.SlugField(max_length=500, unique=True, blank=True, null=True)
     date_created = models.DateTimeField(blank=True, null=True)
     last_updated = models.DateTimeField(blank=True, null=True)
+
 
     def __str__(self):
         return f"{self.clientname} {self.uniqueId}"

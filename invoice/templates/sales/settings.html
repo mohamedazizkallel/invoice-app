@@ -41,13 +41,13 @@
 <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
 
   <div class="page-header d-flex justify-content-between align-items-center">
-    <h1 class="h2 mb-0">Clients</h1>
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClientModal">
-      <i class="bi bi-plus-circle me-1"></i> Add New Client
+    <h1 class="h2 mb-0">Settings</h1>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSettingsModal">
+      <i class="bi bi-plus-circle me-1"></i> Add New Settings
     </button>
   </div>
 
-  {% if clients %}
+  {% if settings %}
   <div class="table-container bg-white rounded shadow-sm p-3">
     <table class="table table-hover table-striped">
       <thead class="table-light">
@@ -59,16 +59,16 @@
         </tr>
       </thead>
       <tbody>
-        {% for client in clients %}
+        {% for setting in settings %}
         <tr>
-          <td>{{ client.clientname }}</td>
-          <td>{{ client.emailAddress }}</td>
-          <td>{{ client.adress }}</td>
+          <td>{{ setting.clientname }}</td>
+          <td>{{ setting.uniqueId }}</td>
+          <td>{{ setting.adress }}</td>
           <td class="text-end">
             <a href="#" class="btn btn-sm btn-outline-primary">
               <i class="bi bi-pencil"></i>
             </a>
-            <a href="{% url 'delete-client' client.id %}" class="btn btn-sm btn-outline-danger">
+            <a href="{% url 'delete-settings' setting.id %}" class="btn btn-sm btn-outline-danger">
               <i class="bi bi-trash"></i>
             </a>
           </td>
@@ -81,24 +81,24 @@
   {% else %}
   <div class="empty-state">
     <h3>No Clients Yet</h3>
-    <p class="text-muted">Click below to add your first client.</p>
+    <p class="text-muted">Click below to add your settings.</p>
     <img src="{% static 'assets/img/clientBackground.svg' %}" width="200">
     <br><br>
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClientModal">
-      <i class="bi bi-plus-circle me-2"></i> Add Client
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSettingsModal">
+      <i class="bi bi-plus-circle me-2"></i> Add Settings
     </button>
   </div>
   {% endif %}
 
   <!-- Modal -->
-  <div class="modal fade" id="addClientModal" tabindex="-1">
+  <div class="modal fade" id="addSettingsModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <form method="post" enctype="multipart/form-data">
           {% csrf_token %}
 
           <div class="modal-header">
-            <h5 class="modal-title">Add New Client</h5>
+            <h5 class="modal-title">Add New Settings</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
 

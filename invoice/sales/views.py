@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
 from django.conf import settings
 from datetime import datetime
-from .forms import ClientForm, InvoiceForm,ProductForm, UserLoginForm
+from .forms import ClientForm, InvoiceForm,ProductForm, UserLoginForm, SettingsForm
 from .models import Product,Client,Invoice,Settings
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,logout,login as auth_login
@@ -55,6 +55,7 @@ def login_view(request):  # changed name
         else:
             messages.error(request, 'Invalid Credentials')
             return render(request, 'sales/login.html', {'form': form})
+        
 def logout_view(request):
     logout(request)
     return redirect('index')
@@ -68,22 +69,6 @@ def dashboard(request):
     context = {}
     return render(request,"sales/dashboard.html", context)
 
-
-
-@login_required
-def products(request):
-    products_qs = Product.objects.all()
-    if request.method == 'Post':
-        form = ProductForm(request.POST, request.FILES)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "New Product Added")
-            return redirect('products')
-        else:
-            messages.error(request,'Problem processing your request')
-            return redirect('products')
-    form = ProductForm()
-    return render(request,"sales/products.html", {'products': products_qs, 'form': form})
 
 @login_required
 def clients(request):
@@ -102,6 +87,27 @@ def clients(request):
     form = ClientForm()
     return render(request, 'sales/clients.html', {'clients': clients_qs, 'form': form})
 
+@login_required
+def companysettings(request):
+    settings_qs = Settings.objects.all()
+    if request.method == "POST":
+        form = SettingsForm(request.POST,request.FILES)
+        if form.is_valid():
+            form.save()
+            messages.success(request,"Settings Added")
+            return redirect("settings")
+        else:
+            messages.error(request,"Problem processing your request")
+            return redirect("settings")
+    form = SettingsForm()
+    return render(request, 'sales/settings.html', {'settings': settings_qs, 'form': form})
+
+@login_required
+def delete_settings(request, pk):
+    settings = get_object_or_404(Settings, pk=pk)
+    settings.delete()
+    messages.success(request, "Settings removed successfully")
+    return redirect('settings')
 
 @login_required
 def delete_client(request, pk):
@@ -572,8 +578,10 @@ def invoice_create(request):
             invoices = Invoice.objects.all().order_by('-date_created')
             clients = Client.objects.all().order_by('clientName')
             products = Product.objects.all().order_by('title')
+            settings = Settings.objects.all()
             context = {
                 'invoices': invoices,
+                'settings': settings,
                 'clients': clients,
                 'products': products,
                 'form': form,
