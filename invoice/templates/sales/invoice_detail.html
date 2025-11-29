@@ -203,7 +203,11 @@
             </div>
 
             <div class="invoice-logo-brand">
-                <img src="{% static 'assets/img/logo.png' %}" alt="Company Logo">
+                {% if p_settings and p_settings.clientLogo %}
+                    <img src="{{ p_settings.clientLogo.url }}" alt="Company Logo">
+                {% else %}
+                    <img src="{% static 'assets/img/logo.png' %}" alt="Company Logo">
+                {% endif %}
             </div>
 
             <div class="invoice-head">
@@ -252,8 +256,35 @@
                 </table>
 
                 {% if products_with_totals %}
-                <div class="invoice-total-amount">
-                    Total: {{ invoiceCurrency }} {{ invoiceTotal|floatformat:2 }}
+                <div style="margin-top: 25px; text-align: right;">
+                    <table style="width: 300px; margin-left: auto; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px; border-top: 1px solid #eee;"><strong>Subtotal HT:</strong></td>
+                            <td style="padding: 8px; text-align: right; border-top: 1px solid #eee;">{{ invoiceCurrency }} {{ subtotal|floatformat:3 }}</td>
+                        </tr>
+                        {% if invoice.discount > 0 %}
+                        <tr>
+                            <td style="padding: 8px;"><strong>Discount ({{ invoice.discount }}%):</strong></td>
+                            <td style="padding: 8px; text-align: right; color: #dc3545;">-{{ invoiceCurrency }} {{ discount_amount|floatformat:3 }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px;"><strong>Subtotal after discount:</strong></td>
+                            <td style="padding: 8px; text-align: right;">{{ invoiceCurrency }} {{ subtotal_after_discount|floatformat:3 }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td style="padding: 8px;"><strong>TVA ({{ invoice.tva }}%):</strong></td>
+                            <td style="padding: 8px; text-align: right;">{{ invoiceCurrency }} {{ tva_amount|floatformat:3 }}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px;"><strong>Timbre Fiscal (D):</strong></td>
+                            <td style="padding: 8px; text-align: right;">{{ invoiceCurrency }} {{ invoice.timbre_fiscal|floatformat:3 }}</td>
+                        </tr>
+                        <tr style="border-top: 2px solid #2f2f2f;">
+                            <td style="padding: 12px;"><strong style="font-size: 18px;">Total TTC:</strong></td>
+                            <td style="padding: 12px; text-align: right; font-size: 18px; font-weight: 700;">{{ invoiceCurrency }} {{ total|floatformat:3 }}</td>
+                        </tr>
+                    </table>
                 </div>
                 {% endif %}
             </div>
@@ -295,8 +326,8 @@
             <div class="modal-content shadow-lg rounded-4">
                 <form action="{% url 'invoice_edit' invoice.id %}" method="post">
                     {% csrf_token %}
-                    <input type="hidden" name="next" value="{{ request.path }}">
-
+                    <input type="hidden" name="next" value="detail">
+                    
                     <!-- Modal Header -->
                     <div class="modal-header border-0 pb-0">
                         <h5 class="modal-title fw-semibold" id="editInvoiceModalLabel">
@@ -344,6 +375,21 @@
                                     {% endfor %}
                                 </select>
                                 <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple products</small>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">TVA (%)</label>
+                                <input type="number" step="0.01" class="form-control" name="tva" value="{{ invoice.tva }}" placeholder="19.00">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Timbre Fiscal (D)</label>
+                                <input type="number" step="0.001" class="form-control" name="timbre_fiscal" value="{{ invoice.timbre_fiscal }}" placeholder="1.000">
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Discount (%)</label>
+                                <input type="number" step="0.01" class="form-control" name="discount" value="{{ invoice.discount }}" placeholder="0.00">
                             </div>
 
                             <div class="col-12">

@@ -82,6 +82,8 @@ class Product(models.Model):
         self.last_updated = now
         super(Product, self).save(*args, **kwargs)
 
+# Add these fields to your Invoice model in models.py
+
 class Invoice(models.Model):
     STATUS = [
         ('CURRENT','CURRENT'),
@@ -94,8 +96,12 @@ class Invoice(models.Model):
     notes = models.TextField(null=True, blank=True)
 
     client = models.ForeignKey('Client', blank=True, null=True, on_delete=models.SET_NULL)
-    settings = models.ForeignKey('Settings', blank=True, null=True, on_delete=models.SET_NULL)
-    product = models.ManyToManyField('Product', blank=True)  # <-- changed
+    product = models.ManyToManyField('Product', blank=True)
+    
+    # New fields for Tunisian invoicing requirements
+    tva = models.DecimalField(max_digits=5, decimal_places=2, default=19.00, help_text="TVA percentage")
+    timbre_fiscal = models.DecimalField(max_digits=10, decimal_places=3, default=1.000, help_text="Timbre fiscal amount (D)")
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Discount percentage")
 
     uniqueId = models.CharField(null=True, blank=True, max_length=100)
     slug = models.SlugField(max_length=500, unique=True, null=True)
@@ -107,6 +113,47 @@ class Invoice(models.Model):
 
     def get_absolute_url(self):
         return reversed('invoice-detail', kwargs={'slug': self.slug})
+    
+    def calculate_subtotal(self):
+        """Calculate subtotal (before TVA and fees)"""
+        from decimal import Decimal
+        subtotal = Decimal('0')
+        for product in self.product.all():
+            if product.price and product.quantity:
+                # Convert float to Decimal
+                price = Decimal(str(product.price))
+                quantity = Decimal(str(product.quantity))
+                subtotal += price * quantity
+        return subtotal
+    
+    def calculate_discount_amount(self):
+        """Calculate discount amount"""
+        from decimal import Decimal
+        if self.discount:
+            return (self.calculate_subtotal() * self.discount) / Decimal('100')
+        return Decimal('0')
+    
+    def calculate_subtotal_after_discount(self):
+        """Calculate subtotal after discount"""
+        return self.calculate_subtotal() - self.calculate_discount_amount()
+    
+    def calculate_tva_amount(self):
+        """Calculate TVA amount"""
+        from decimal import Decimal
+        if self.tva:
+            return (self.calculate_subtotal_after_discount() * self.tva) / Decimal('100')
+        return Decimal('0')
+    
+    def calculate_total(self):
+        """Calculate final total (subtotal - discount + TVA + timbre fiscal)"""
+        from decimal import Decimal
+        subtotal = self.calculate_subtotal()
+        discount_amount = self.calculate_discount_amount()
+        tva_amount = self.calculate_tva_amount()
+        timbre = self.timbre_fiscal or Decimal('0')
+        
+        total = subtotal - discount_amount + tva_amount + timbre
+        return total
 
     def save(self, *args, **kwargs):
         now = timezone.localtime(timezone.now())
@@ -119,7 +166,7 @@ class Invoice(models.Model):
             self.slug = f"{base_slug}-{self.uniqueId}"
         self.last_updated = now
         super().save(*args, **kwargs)
-
+   
 class Settings(models.Model):
     clientname = models.CharField(null=True, blank=True, max_length=200)
     clientLogo = models.ImageField(default='default_logo.jpg', upload_to='company_logos')

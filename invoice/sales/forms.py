@@ -27,50 +27,102 @@ class UserLoginForm(forms.ModelForm):
         model = User
         fields = ["username", "password"]
         
-class ClientForm(forms.ModelForm):
+class SettingsForm(forms.ModelForm):
+    """Form for company settings"""
     class Meta:
-        model=Client
-        fields=["clientname","adress","mf","emailAddress"]
-
-class ProductForm(forms.ModelForm):
-    class Meta:
-        model=Product
-        fields=["title","currency","description","price","quantity"]
+        model = Settings
+        fields = ['clientname', 'clientLogo', 'adress', 'mf']
+        labels = {
+            'clientname': 'Company Name',
+            'clientLogo': 'Company Logo',
+            'adress': 'Company Address',
+            'mf': 'Tax Registration Number (MF)',
+        }
         widgets = {
-            'quantity': forms.NumberInput(attrs={'min': 0, 'class': 'form-control'}),
-            'price': forms.NumberInput(attrs={'min': 0, 'step': '0.01', 'class': 'form-control'}),
+            'clientname': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter company name'}),
+            'adress': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter company address'}),
+            'mf': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter MF number'}),
+            'clientLogo': forms.FileInput(attrs={'class': 'form-control'}),
         }
 
+
 class InvoiceForm(forms.ModelForm):
+    """Enhanced invoice form with auto-populated fields from Settings"""
+    
+    # Additional fields from settings (can be modified per invoice)
     tva = forms.DecimalField(
-        label="TVA",
-        max_digits=5,
+        max_digits=5, 
+        decimal_places=2, 
+        required=False,
+        label='TVA (%)',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '19.00', 'step': '0.01'})
+    )
+    
+    timbre_fiscal = forms.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        required=False,
+        label='Timbre Fiscal (D)',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '1.000', 'step': '0.001'})
+    )
+    
+    discount = forms.DecimalField(
+        max_digits=10,
         decimal_places=2,
         required=False,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 0})
+        label='Discount (%)',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00', 'step': '0.01'})
     )
-
+    
     class Meta:
         model = Invoice
-        fields = ["title", "status", "notes", "client", "product", "settings", "tva"]
-
+        fields = ['title', 'status', 'notes', 'client', 'product']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Invoice title'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Additional notes'}),
+            'client': forms.Select(attrs={'class': 'form-select'}),
+            'product': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 4}),
+        }
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        # Auto-populate from settings if creating new invoice
+        if not self.instance.pk:
+            try:
+                settings = Settings.objects.first()
+                if settings:
+                    # Set default TVA (typically 19% in Tunisia)
+                    self.fields['tva'].initial = 19.00
+                    # Set default timbre fiscal (typically 1.000 TND in Tunisia)
+                    self.fields['timbre_fiscal'].initial = 1.000
+            except Settings.DoesNotExist:
+                pass
 
-        # Editing existing invoice
-        if self.instance and self.instance.pk:
-            self.fields['tva'].initial = self.instance.tva
-        # Creating new invoice: check if a settings instance is passed in initial
-        elif kwargs.get('initial') and kwargs['initial'].get('settings'):
-            setting_instance = kwargs['initial']['settings']
-            self.fields['tva'].initial = setting_instance.tva
 
-
-class SettingsForm(forms.ModelForm):
+class ClientForm(forms.ModelForm):
+    """Form for client management"""
     class Meta:
-        model=Settings
-        fields=["clientname","clientLogo","adress","mf","dt","tva"]
+        model = Client
+        fields = ['clientname', 'emailAddress', 'adress', 'mf']
         widgets = {
-            'dt': forms.NumberInput(attrs={'min': 0, 'class': 'form-control'}),
-            'tva': forms.NumberInput(attrs={'min': 0, 'class': 'form-control'}),
+            'clientname': forms.TextInput(attrs={'class': 'form-control'}),
+            'emailAddress': forms.EmailInput(attrs={'class': 'form-control'}),
+            'adress': forms.TextInput(attrs={'class': 'form-control'}),
+            'mf': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+
+class ProductForm(forms.ModelForm):
+    """Form for product management"""
+    class Meta:
+        model = Product
+        fields = ['title', 'currency', 'description', 'price', 'quantity']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'currency': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
         }

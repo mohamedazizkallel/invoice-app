@@ -88,19 +88,36 @@ def clients(request):
     return render(request, 'sales/clients.html', {'clients': clients_qs, 'form': form})
 
 @login_required
-def companysettings(request):
-    settings_qs = Settings.objects.all()
-    if request.method == "POST":
-        form = SettingsForm(request.POST,request.FILES)
+def settings_view(request):
+    """View and edit company settings"""
+    settings = Settings.objects.first()
+    
+    if request.method == 'POST':
+        if settings:
+            form = SettingsForm(request.POST, request.FILES, instance=settings)
+        else:
+            form = SettingsForm(request.POST, request.FILES)
+        
         if form.is_valid():
             form.save()
-            messages.success(request,"Settings Added")
-            return redirect("settings")
+            messages.success(request, 'Settings updated successfully!')
+            return redirect('settings_view')
         else:
-            messages.error(request,"Problem processing your request")
-            return redirect("settings")
-    form = SettingsForm()
-    return render(request, 'sales/settings.html', {'settings': settings_qs, 'form': form})
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        if settings:
+            form = SettingsForm(instance=settings)
+        else:
+            form = SettingsForm()
+    
+    context = {
+        'form': form,
+        'settings': settings,
+    }
+    
+    return render(request, 'sales/settings.html', context)
+
+
 
 @login_required
 def delete_settings(request, pk):
@@ -563,75 +580,87 @@ def invoices_list(request):
 
 @login_required
 def invoice_create(request):
-    """Create a new invoice"""
+    """Create a new invoice with auto-populated settings"""
     if request.method == 'POST':
         form = InvoiceForm(request.POST)
         if form.is_valid():
             invoice = form.save(commit=False)
-            # The save method in the model will automatically set date_created, uniqueId, and slug
+            
+            # Save additional fields from form
+            invoice.tva = form.cleaned_data.get('tva', 19.00)
+            invoice.timbre_fiscal = form.cleaned_data.get('timbre_fiscal', 1.000)
+            invoice.discount = form.cleaned_data.get('discount', 0.00)
+            
             invoice.save()
+            # Save many-to-many relationships
+            form.save_m2m()
+            
             messages.success(request, f'Invoice "{invoice.title}" created successfully! (ID: {invoice.uniqueId})')
-            return redirect('invoices_list')
+            return redirect('invoice_detail', invoice_id=invoice.id)
         else:
             messages.error(request, 'Please correct the errors below.')
             # Return with errors
             invoices = Invoice.objects.all().order_by('-date_created')
-            clients = Client.objects.all().order_by('clientName')
+            clients = Client.objects.all().order_by('clientname')
             products = Product.objects.all().order_by('title')
-            settings = Settings.objects.all()
             context = {
                 'invoices': invoices,
-                'settings': settings,
                 'clients': clients,
                 'products': products,
                 'form': form,
             }
-            return render(request, 'sales/invoices.html', context)
+            return render(request, 'sales/invoices_list.html', context)
     
     return redirect('invoices_list')
 
 @login_required
 def invoice_detail(request, invoice_id):
-    """View invoice details"""
+    """View invoice details with calculations"""
     invoice = get_object_or_404(Invoice, id=invoice_id)
-    products = invoice.product.all()  # Get all products from ManyToMany
+    products = invoice.product.all()
     
-    # Calculate total amount and prepare products with line totals
-    invoice_total = 0
-    invoice_currency = 'TND'
+    # Calculate amounts
+    subtotal = invoice.calculate_subtotal()
+    discount_amount = invoice.calculate_discount_amount()
+    subtotal_after_discount = invoice.calculate_subtotal_after_discount()
+    tva_amount = invoice.calculate_tva_amount()
+    total = invoice.calculate_total()
+    
+    # Prepare products with line totals
     products_with_totals = []
+    invoice_currency = 'TND'
     
     for product in products:
         line_total = 0
         if product.price and product.quantity:
             line_total = product.price * product.quantity
-            invoice_total += line_total
-            # Use the first product's currency
             if not invoice_currency or invoice_currency == 'TND':
                 invoice_currency = product.currency or 'TND'
         
-        # Add line total to product data
         products_with_totals.append({
             'product': product,
             'line_total': line_total
         })
     
-    # Get all clients and products for the edit modal
+    # Get all clients and products for edit modal
     clients = Client.objects.all().order_by('clientname')
     all_products = Product.objects.all().order_by('title')
     
-    # Get settings for company info
+    # Get settings
     try:
-        from .models import Settings
         p_settings = Settings.objects.first()
     except Exception as e:
         p_settings = None
     
     context = {
         'invoice': invoice,
-        'products': products,  # Original queryset for edit modal
-        'products_with_totals': products_with_totals,  # Products with calculated line totals
-        'invoiceTotal': invoice_total,
+        'products': products,
+        'products_with_totals': products_with_totals,
+        'subtotal': subtotal,
+        'discount_amount': discount_amount,
+        'subtotal_after_discount': subtotal_after_discount,
+        'tva_amount': tva_amount,
+        'total': total,
         'invoiceCurrency': invoice_currency,
         'clients': clients,
         'all_products': all_products,
@@ -640,50 +669,81 @@ def invoice_detail(request, invoice_id):
     
     return render(request, 'sales/invoice_detail.html', context)
 
-
 @login_required
 def invoice_edit(request, invoice_id):
+    """Edit an existing invoice"""
     invoice = get_object_or_404(Invoice, id=invoice_id)
-
+    
+    # Get the next parameter to determine where to redirect
+    next_page = request.POST.get('next', 'detail')
+    
     if request.method == 'POST':
-
+        # Get form data
         title = request.POST.get('title')
         status = request.POST.get('status')
         notes = request.POST.get('notes', '')
         client_id = request.POST.get('client')
         product_ids = request.POST.getlist('product')
-
-        # Capture where the user came from
-        next_url = request.POST.get('next') or reverse('invoices_list')
-
+        
+        # Get additional fields
+        tva = request.POST.get('tva')
+        timbre_fiscal = request.POST.get('timbre_fiscal')
+        discount = request.POST.get('discount')
+        
         try:
+            # Update basic fields
             if title:
                 invoice.title = title
             if status:
                 invoice.status = status
-
             invoice.notes = notes
-
+            
+            # Update TVA, timbre fiscal, and discount
+            if tva:
+                invoice.tva = float(tva)
+            if timbre_fiscal:
+                invoice.timbre_fiscal = float(timbre_fiscal)
+            if discount:
+                invoice.discount = float(discount)
+            
+            # Update client
             if client_id:
-                invoice.client_id = client_id
-
+                try:
+                    client = Client.objects.get(id=client_id)
+                    invoice.client = client
+                except Client.DoesNotExist:
+                    messages.error(request, 'Selected client does not exist.')
+                    if next_page == 'detail':
+                        return redirect('invoice_detail', invoice_id=invoice.id)
+                    else:
+                        return redirect('invoices_list')
+            
+            # Save the invoice
             invoice.save()
-
-            # Update ManyToMany field
-            invoice.product.set(product_ids)
-
+            
+            # Update products (ManyToMany)
+            if product_ids:
+                product_ids_int = [int(pid) for pid in product_ids if pid]
+                invoice.product.set(product_ids_int)
+            else:
+                invoice.product.clear()
+            
             messages.success(request, f'Invoice "{invoice.title}" updated successfully!')
-
+            
+        except (ValueError, TypeError) as e:
+            messages.error(request, f'Invalid data provided: {str(e)}')
         except Exception as e:
-            messages.error(request, f"Error updating invoice: {str(e)}")
+            messages.error(request, f'Error updating invoice: {str(e)}')
+        
+        # Redirect based on next parameter
+        if next_page == 'detail':
+            return redirect('invoice_detail', invoice_id=invoice.id)
+        else:
+            return redirect('invoices_list')
+    
+    # If GET request, redirect based on referer or default to detail
+    return redirect('invoice_detail', invoice_id=invoice.id)
 
-        # --- Safe Redirect ---
-        if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
-            return redirect(next_url)
-
-        return redirect('invoices_list')
-
-    return redirect('invoices_list')
 
 @login_required
 def invoice_delete(request, invoice_id):
