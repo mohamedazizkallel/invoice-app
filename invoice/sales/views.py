@@ -195,7 +195,6 @@ def products_list(request):
     
     return render(request, 'sales/products.html', context)
 
-
 @login_required
 def add_product(request):
     """Add a single product"""
@@ -219,7 +218,6 @@ def add_product(request):
             return render(request, 'sales/products.html', context)
     
     return redirect('products_list')
-
 
 @login_required
 def edit_product(request, product_id):
@@ -254,7 +252,6 @@ def edit_product(request, product_id):
     
     return redirect('products_list')
 
-
 @login_required
 def delete_product(request, product_id):
     """Delete a product"""
@@ -266,7 +263,6 @@ def delete_product(request, product_id):
         messages.success(request, f'Product "{product_title}" deleted successfully!')
     
     return redirect('products_list')
-
 
 @login_required
 def export_products(request):
@@ -318,7 +314,6 @@ def export_products(request):
     
     wb.save(response)
     return response
-
 
 @login_required
 def download_product_template(request):
@@ -398,7 +393,6 @@ def download_product_template(request):
     
     wb.save(response)
     return response
-
 
 @login_required
 def import_products(request):
@@ -535,7 +529,6 @@ def import_products(request):
     
     return redirect('products_list')
 
-
 @login_required
 def invoices_list(request):
     """Display all invoices with filtering and search"""
@@ -599,7 +592,6 @@ def invoices_list(request):
     }
     
     return render(request, 'sales/invoices.html', context)
-
 
 @login_required
 def invoice_create(request):
@@ -677,7 +669,6 @@ def invoice_create(request):
         return redirect('invoices_list')
     
     return redirect('invoices_list')
-
 
 @login_required
 def invoice_edit(request, invoice_id):
@@ -828,7 +819,6 @@ def invoice_detail(request, invoice_id):
     
     return render(request, 'sales/invoice_detail.html', context)
 
-
 @login_required
 def invoice_delete(request, invoice_id):
     """Delete an invoice and restore inventory"""
@@ -841,7 +831,6 @@ def invoice_delete(request, invoice_id):
         messages.success(request, f'Invoice "{invoice_title}" deleted and inventory restored!')
     
     return redirect('invoices_list')
-
 
 @login_required
 def check_product_stock(request, product_id):
@@ -863,7 +852,6 @@ def check_product_stock(request, product_id):
             'success': False,
             'error': 'Product not found'
         }, status=404)
-
 
 @login_required
 def export_invoices(request):
@@ -921,7 +909,6 @@ def export_invoices(request):
     
     wb.save(response)
     return response
-
 
 @login_required
 def download_invoice_template(request):
@@ -1002,7 +989,6 @@ def download_invoice_template(request):
     
     wb.save(response)
     return response
-
 
 @login_required
 def import_invoices(request):
