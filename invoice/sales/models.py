@@ -82,7 +82,33 @@ class Product(models.Model):
         self.last_updated = now
         super(Product, self).save(*args, **kwargs)
 
-# Add these fields to your Invoice model in models.py
+
+class InvoiceProduct(models.Model):
+    """Intermediate model to track products in invoices with specific quantities"""
+    invoice = models.ForeignKey('Invoice', on_delete=models.CASCADE, related_name='invoice_products')
+    product = models.ForeignKey('Product', on_delete=models.CASCADE)
+    quantity = models.IntegerField(default=1, help_text="Quantity of this product in the invoice")
+    unit_price = models.FloatField(help_text="Price at the time of invoice creation")
+    
+    class Meta:
+        unique_together = ('invoice', 'product')
+        verbose_name = "Invoice Product"
+        verbose_name_plural = "Invoice Products"
+    
+    def __str__(self):
+        return f"{self.product.title} x {self.quantity} in {self.invoice.uniqueId}"
+    
+    def get_line_total(self):
+        """Calculate line total (quantity × unit price)"""
+        from decimal import Decimal
+        return Decimal(str(self.unit_price)) * Decimal(str(self.quantity))
+    
+    def save(self, *args, **kwargs):
+        # Store the current price when adding product to invoice
+        if not self.unit_price:
+            self.unit_price = self.product.price
+        super().save(*args, **kwargs)
+
 
 class Invoice(models.Model):
     STATUS = [
@@ -96,12 +122,13 @@ class Invoice(models.Model):
     notes = models.TextField(null=True, blank=True)
 
     client = models.ForeignKey('Client', blank=True, null=True, on_delete=models.SET_NULL)
-    product = models.ManyToManyField('Product', blank=True)
+    product = models.ManyToManyField('Product', through='InvoiceProduct', blank=True)
     
-    # New fields for Tunisian invoicing requirements
-    tva = models.DecimalField(max_digits=5, decimal_places=2, default=19.00, help_text="TVA percentage")
-    timbre_fiscal = models.DecimalField(max_digits=10, decimal_places=3, default=1.000, help_text="Timbre fiscal amount (D)")
-    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Discount percentage")
+    # NEW FIELDS - Add these to your existing model
+    inventory_adjusted = models.BooleanField(default=False, help_text="Has inventory been deducted?")
+    tva = models.DecimalField(max_digits=5, decimal_places=2, default=19.00, help_text="TVA percentage", null=True, blank=True)
+    timbre_fiscal = models.DecimalField(max_digits=10, decimal_places=3, default=1.000, help_text="Timbre fiscal amount (D)", null=True, blank=True)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Discount percentage", null=True, blank=True)
 
     uniqueId = models.CharField(null=True, blank=True, max_length=100)
     slug = models.SlugField(max_length=500, unique=True, null=True)
@@ -114,16 +141,44 @@ class Invoice(models.Model):
     def get_absolute_url(self):
         return reversed('invoice-detail', kwargs={'slug': self.slug})
     
+    def adjust_inventory(self):
+        """Deduct invoice quantities from product inventory"""
+        if self.inventory_adjusted:
+            return False  # Already adjusted
+        
+        for invoice_product in self.invoice_products.all():
+            product = invoice_product.product
+            if product.quantity >= invoice_product.quantity:
+                product.quantity -= invoice_product.quantity
+                product.save()
+            else:
+                # Not enough stock
+                return False
+        
+        self.inventory_adjusted = True
+        self.save()
+        return True
+    
+    def restore_inventory(self):
+        """Restore inventory when invoice is deleted or reversed"""
+        if not self.inventory_adjusted:
+            return False
+        
+        for invoice_product in self.invoice_products.all():
+            product = invoice_product.product
+            product.quantity += invoice_product.quantity
+            product.save()
+        
+        self.inventory_adjusted = False
+        self.save()
+        return True
+    
     def calculate_subtotal(self):
         """Calculate subtotal (before TVA and fees)"""
         from decimal import Decimal
         subtotal = Decimal('0')
-        for product in self.product.all():
-            if product.price and product.quantity:
-                # Convert float to Decimal
-                price = Decimal(str(product.price))
-                quantity = Decimal(str(product.quantity))
-                subtotal += price * quantity
+        for invoice_product in self.invoice_products.all():
+            subtotal += invoice_product.get_line_total()
         return subtotal
     
     def calculate_discount_amount(self):
@@ -166,7 +221,12 @@ class Invoice(models.Model):
             self.slug = f"{base_slug}-{self.uniqueId}"
         self.last_updated = now
         super().save(*args, **kwargs)
-   
+    
+    def delete(self, *args, **kwargs):
+        # Restore inventory before deleting invoice
+        self.restore_inventory()
+        super().delete(*args, **kwargs)
+
 class Settings(models.Model):
     clientname = models.CharField(null=True, blank=True, max_length=200)
     clientLogo = models.ImageField(default='default_logo.jpg', upload_to='company_logos')

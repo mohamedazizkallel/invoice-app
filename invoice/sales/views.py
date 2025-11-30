@@ -6,17 +6,19 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.core.paginator import Paginator
 from django.db.models import Q,Sum, Count
+from django.db import transaction
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
 from django.conf import settings
 from datetime import datetime
 from .forms import ClientForm, InvoiceForm,ProductForm, UserLoginForm, SettingsForm
-from .models import Product,Client,Invoice,Settings
+from .models import Product,Client,Invoice,Settings, InvoiceProduct
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,logout,login as auth_login
 from random import randint
 from uuid import uuid4
+import json
 
 
 def anonymous_required(function=None, redirect_url=None):
@@ -145,7 +147,6 @@ def settings_view(request):
     }
     
     return render(request, 'sales/settings.html', context)
-
 
 @login_required
 def delete_client(request, pk):
@@ -599,46 +600,181 @@ def invoices_list(request):
     
     return render(request, 'sales/invoices.html', context)
 
+
 @login_required
 def invoice_create(request):
-    """Create a new invoice with auto-populated settings"""
+    """Create a new invoice with inventory management"""
     if request.method == 'POST':
-        form = InvoiceForm(request.POST)
-        if form.is_valid():
-            invoice = form.save(commit=False)
-            
-            # Save additional fields from form
-            invoice.tva = form.cleaned_data.get('tva', 19.00)
-            invoice.timbre_fiscal = form.cleaned_data.get('timbre_fiscal', 1.000)
-            invoice.discount = form.cleaned_data.get('discount', 0.00)
-            
-            invoice.save()
-            # Save many-to-many relationships
-            form.save_m2m()
-            
-            messages.success(request, f'Invoice "{invoice.title}" created successfully! (ID: {invoice.uniqueId})')
-            return redirect('invoice_detail', invoice_id=invoice.id)
-        else:
-            messages.error(request, 'Please correct the errors below.')
-            # Return with errors
-            invoices = Invoice.objects.all().order_by('-date_created')
-            clients = Client.objects.all().order_by('clientname')
-            products = Product.objects.all().order_by('title')
-            context = {
-                'invoices': invoices,
-                'clients': clients,
-                'products': products,
-                'form': form,
-            }
-            return render(request, 'sales/invoices_list.html', context)
+        try:
+            with transaction.atomic():
+                # Get basic invoice data
+                title = request.POST.get('title')
+                status = request.POST.get('status', 'CURRENT')
+                notes = request.POST.get('notes', '')
+                client_id = request.POST.get('client')
+                tva = float(request.POST.get('tva', 19.00))
+                timbre_fiscal = float(request.POST.get('timbre_fiscal', 1.000))
+                discount = float(request.POST.get('discount', 0.00))
+                
+                # Get products and quantities from JSON
+                products_data = request.POST.get('products_data')
+                if products_data:
+                    products_list = json.loads(products_data)
+                else:
+                    messages.error(request, 'No products selected.')
+                    return redirect('invoices_list')
+                
+                # Validate client
+                client = Client.objects.get(id=client_id)
+                
+                # Create invoice
+                invoice = Invoice.objects.create(
+                    title=title,
+                    status=status,
+                    notes=notes,
+                    client=client,
+                    tva=tva,
+                    timbre_fiscal=timbre_fiscal,
+                    discount=discount
+                )
+                
+                # Add products with quantities
+                for product_data in products_list:
+                    product_id = product_data['product_id']
+                    quantity = int(product_data['quantity'])
+                    
+                    product = Product.objects.get(id=product_id)
+                    
+                    # Check if enough inventory
+                    if product.quantity < quantity:
+                        raise ValueError(f'Insufficient inventory for {product.title}. Available: {product.quantity}, Requested: {quantity}')
+                    
+                    # Create InvoiceProduct
+                    InvoiceProduct.objects.create(
+                        invoice=invoice,
+                        product=product,
+                        quantity=quantity,
+                        unit_price=product.price
+                    )
+                
+                # Adjust inventory
+                if invoice.adjust_inventory():
+                    messages.success(request, f'Invoice "{invoice.title}" created successfully! Inventory updated.')
+                else:
+                    raise ValueError('Failed to adjust inventory. Insufficient stock.')
+                
+                return redirect('invoice_detail', invoice_id=invoice.id)
+                
+        except Client.DoesNotExist:
+            messages.error(request, 'Selected client does not exist.')
+        except Product.DoesNotExist:
+            messages.error(request, 'One or more selected products do not exist.')
+        except ValueError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, f'Error creating invoice: {str(e)}')
+        
+        return redirect('invoices_list')
     
     return redirect('invoices_list')
 
+
+@login_required
+def invoice_edit(request, invoice_id):
+    """Edit an existing invoice with inventory restoration/adjustment"""
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    next_page = request.POST.get('next', 'detail')
+    
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Get form data
+                title = request.POST.get('title')
+                status = request.POST.get('status')
+                notes = request.POST.get('notes', '')
+                client_id = request.POST.get('client')
+                
+                # Get additional fields
+                tva = request.POST.get('tva')
+                timbre_fiscal = request.POST.get('timbre_fiscal')
+                discount = request.POST.get('discount')
+                
+                # Get products data
+                products_data = request.POST.get('products_data')
+                
+                # Update basic fields
+                if title:
+                    invoice.title = title
+                if status:
+                    invoice.status = status
+                invoice.notes = notes
+                
+                if tva:
+                    invoice.tva = float(tva)
+                if timbre_fiscal:
+                    invoice.timbre_fiscal = float(timbre_fiscal)
+                if discount:
+                    invoice.discount = float(discount)
+                
+                # Update client
+                if client_id:
+                    client = Client.objects.get(id=client_id)
+                    invoice.client = client
+                
+                # Handle product changes
+                if products_data:
+                    products_list = json.loads(products_data)
+                    
+                    # Restore inventory from old quantities
+                    invoice.restore_inventory()
+                    
+                    # Clear existing invoice products
+                    invoice.invoice_products.all().delete()
+                    
+                    # Add new products with quantities
+                    for product_data in products_list:
+                        product_id = product_data['product_id']
+                        quantity = float(product_data['quantity'])
+                        
+                        product = Product.objects.get(id=product_id)
+                        
+                        # Check inventory
+                        if product.quantity < quantity:
+                            raise ValueError(f'Insufficient inventory for {product.title}. Available: {product.quantity}')
+                        
+                        InvoiceProduct.objects.create(
+                            invoice=invoice,
+                            product=product,
+                            quantity=quantity,
+                            unit_price=product.price
+                        )
+                    
+                    # Adjust inventory with new quantities
+                    if not invoice.adjust_inventory():
+                        raise ValueError('Failed to adjust inventory.')
+                
+                invoice.save()
+                messages.success(request, f'Invoice "{invoice.title}" updated successfully!')
+                
+        except (ValueError, TypeError) as e:
+            messages.error(request, f'Invalid data: {str(e)}')
+        except Exception as e:
+            messages.error(request, f'Error updating invoice: {str(e)}')
+        
+        if next_page == 'detail':
+            return redirect('invoice_detail', invoice_id=invoice.id)
+        else:
+            return redirect('invoices_list')
+    
+    return redirect('invoice_detail', invoice_id=invoice.id)
+
 @login_required
 def invoice_detail(request, invoice_id):
-    """View invoice details with calculations"""
+    """View invoice details with inventory-tracked products"""
     invoice = get_object_or_404(Invoice, id=invoice_id)
-    products = invoice.product.all()
+    
+    # Get invoice products with their quantities
+    invoice_products = invoice.invoice_products.select_related('product').all()
     
     # Calculate amounts
     subtotal = invoice.calculate_subtotal()
@@ -651,16 +787,17 @@ def invoice_detail(request, invoice_id):
     products_with_totals = []
     invoice_currency = 'TND'
     
-    for product in products:
-        line_total = 0
-        if product.price and product.quantity:
-            line_total = product.price * product.quantity
-            if not invoice_currency or invoice_currency == 'TND':
-                invoice_currency = product.currency or 'TND'
+    for invoice_product in invoice_products:
+        product = invoice_product.product
+        if not invoice_currency or invoice_currency == 'TND':
+            invoice_currency = product.currency or 'TND'
         
         products_with_totals.append({
             'product': product,
-            'line_total': line_total
+            'invoice_quantity': invoice_product.quantity,  # Quantity in invoice
+            'unit_price': invoice_product.unit_price,      # Price at time of invoice
+            'line_total': invoice_product.get_line_total(),
+            'current_stock': product.quantity,             # Current inventory
         })
     
     # Get all clients and products for edit modal
@@ -669,13 +806,14 @@ def invoice_detail(request, invoice_id):
     
     # Get settings
     try:
+        from .models import Settings
         p_settings = Settings.objects.first()
     except Exception as e:
         p_settings = None
     
     context = {
         'invoice': invoice,
-        'products': products,
+        'invoice_products': invoice_products,
         'products_with_totals': products_with_totals,
         'subtotal': subtotal,
         'discount_amount': discount_amount,
@@ -690,93 +828,41 @@ def invoice_detail(request, invoice_id):
     
     return render(request, 'sales/invoice_detail.html', context)
 
-@login_required
-def invoice_edit(request, invoice_id):
-    """Edit an existing invoice"""
-    invoice = get_object_or_404(Invoice, id=invoice_id)
-    
-    # Get the next parameter to determine where to redirect
-    next_page = request.POST.get('next', 'detail')
-    
-    if request.method == 'POST':
-        # Get form data
-        title = request.POST.get('title')
-        status = request.POST.get('status')
-        notes = request.POST.get('notes', '')
-        client_id = request.POST.get('client')
-        product_ids = request.POST.getlist('product')
-        
-        # Get additional fields
-        tva = request.POST.get('tva')
-        timbre_fiscal = request.POST.get('timbre_fiscal')
-        discount = request.POST.get('discount')
-        
-        try:
-            # Update basic fields
-            if title:
-                invoice.title = title
-            if status:
-                invoice.status = status
-            invoice.notes = notes
-            
-            # Update TVA, timbre fiscal, and discount
-            if tva:
-                invoice.tva = float(tva)
-            if timbre_fiscal:
-                invoice.timbre_fiscal = float(timbre_fiscal)
-            if discount:
-                invoice.discount = float(discount)
-            
-            # Update client
-            if client_id:
-                try:
-                    client = Client.objects.get(id=client_id)
-                    invoice.client = client
-                except Client.DoesNotExist:
-                    messages.error(request, 'Selected client does not exist.')
-                    if next_page == 'detail':
-                        return redirect('invoice_detail', invoice_id=invoice.id)
-                    else:
-                        return redirect('invoices_list')
-            
-            # Save the invoice
-            invoice.save()
-            
-            # Update products (ManyToMany)
-            if product_ids:
-                product_ids_int = [int(pid) for pid in product_ids if pid]
-                invoice.product.set(product_ids_int)
-            else:
-                invoice.product.clear()
-            
-            messages.success(request, f'Invoice "{invoice.title}" updated successfully!')
-            
-        except (ValueError, TypeError) as e:
-            messages.error(request, f'Invalid data provided: {str(e)}')
-        except Exception as e:
-            messages.error(request, f'Error updating invoice: {str(e)}')
-        
-        # Redirect based on next parameter
-        if next_page == 'detail':
-            return redirect('invoice_detail', invoice_id=invoice.id)
-        else:
-            return redirect('invoices_list')
-    
-    # If GET request, redirect based on referer or default to detail
-    return redirect('invoice_detail', invoice_id=invoice.id)
-
 
 @login_required
 def invoice_delete(request, invoice_id):
-    """Delete an invoice"""
+    """Delete an invoice and restore inventory"""
     invoice = get_object_or_404(Invoice, id=invoice_id)
     
     if request.method == 'POST':
         invoice_title = invoice.title
+        # The delete method in the model will automatically restore inventory
         invoice.delete()
-        messages.success(request, f'Invoice "{invoice_title}" deleted successfully!')
+        messages.success(request, f'Invoice "{invoice_title}" deleted and inventory restored!')
     
     return redirect('invoices_list')
+
+
+@login_required
+def check_product_stock(request, product_id):
+    """API endpoint to check available stock for a product"""
+    from django.http import JsonResponse
+    
+    try:
+        product = Product.objects.get(id=product_id)
+        return JsonResponse({
+            'success': True,
+            'product_id': product.id,
+            'product_title': product.title,
+            'available_quantity': product.quantity,
+            'price': float(product.price),
+            'currency': product.currency
+        })
+    except Product.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Product not found'
+        }, status=404)
 
 
 @login_required
