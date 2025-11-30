@@ -3,7 +3,7 @@ from django.urls import path
 from .views import (index,
                     dashboard,
                     login_view,
-                    logout_view,settings_view,delete_settings,
+                    logout_view,settings_view,edit_client,
                     invoice_delete,export_invoices,import_invoices,download_invoice_template
                     ,invoices_list,invoice_create,invoice_detail,invoice_edit,
                     clients,export_products,import_products,download_product_template,
@@ -16,8 +16,8 @@ urlpatterns = [
     path('dashboard', dashboard,name='dashboard'),
     path('settings', settings_view,name='settings_view'),
     path('clients', clients,name='clients'),
+    path('clients/<int:product_id>/edit/', edit_client,name='edit_client'),
     path('client/<int:pk>/delete/',delete_client, name='delete-client'),
-    path('settings/<int:pk>/delete/',delete_settings, name='delete-settings'),
     path('products/', products_list, name='products_list'),
     path('products/add/', add_product, name='add_product'),
     path('products/<int:product_id>/edit/', edit_product, name='edit_product'),

@@ -65,10 +65,13 @@
           <td>{{ client.emailAddress }}</td>
           <td>{{ client.adress }}</td>
           <td class="text-end">
-            <a href="#" class="btn btn-sm btn-outline-primary">
+            <a href="#" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewClientModal{{ client.id }}">
+              <i class="bi bi-eye"></i>
+            </a>
+            <a href="#" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editClientModal{{ client.id }}">
               <i class="bi bi-pencil"></i>
             </a>
-            <a href="{% url 'delete-client' client.id %}" class="btn btn-sm btn-outline-danger">
+            <a href="#" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteClientModal{{ client.id }}">
               <i class="bi bi-trash"></i>
             </a>
           </td>
@@ -90,7 +93,7 @@
   </div>
   {% endif %}
 
-  <!-- Modal -->
+  <!-- Add Client Modal -->
   <div class="modal fade" id="addClientModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -115,6 +118,134 @@
       </div>
     </div>
   </div>
-  
+
+  <!-- View Client Modal -->
+  {% for client in clients %}
+  <div class="modal fade" id="viewClientModal{{ client.id }}" tabindex="-1" aria-labelledby="viewClientModalLabel{{ client.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content shadow-lg rounded-4">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="viewClientModalLabel{{ client.id }}">
+            <i class="bi bi-eye me-2 text-primary"></i> Client Details
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body pt-2">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold text-muted">Client ID</label>
+              <p class="form-control-plaintext">CT-{{ client.id|stringformat:"04d" }}</p>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold text-muted">Client Name</label>
+              <p class="form-control-plaintext">{{ client.clientname }}</p>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold text-muted">Email</label>
+              <p class="form-control-plaintext">
+                <span class="badge bg-secondary">{{ client.emailAddress }}</span>
+              </p>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold text-muted">Address</label>
+              <p class="form-control-plaintext">{{ client.adress }}</p>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold text-muted">Description</label>
+              <p class="form-control-plaintext">{{ client.description|default:"No details available" }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Edit Client Modal -->
+  {% for client in clients %}
+  <div class="modal fade" id="editClientModal{{ client.id }}" tabindex="-1" aria-labelledby="editClientModalLabel{{ client.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content shadow-lg rounded-4">
+        <form action="{% url 'edit_client' client.id %}" method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-semibold" id="editClientModalLabel{{ client.id }}">
+              <i class="bi bi-pencil me-2 text-secondary"></i> Edit Client
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <div class="modal-body pt-2">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Name</label>
+                <input type="text" class="form-control" name="clientname" value="{{ client.clientname }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Email</label>
+                <input type="email" class="form-control" name="emailAddress" value="{{ client.emailAddress }}" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">Address</label>
+                <input type="text" class="form-control" name="adress" value="{{ client.adress }}" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">MF</label>
+                <input type="text" class="form-control" name="adress" value="{{ client.mf }}" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary px-4">
+              <i class="bi bi-check-circle me-1"></i> Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Delete Client Modal -->
+  {% for client in clients %}
+  <div class="modal fade" id="deleteClientModal{{ client.id }}" tabindex="-1" aria-labelledby="deleteClientModalLabel{{ client.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg rounded-4">
+        <form action="{% url 'delete-client' client.id %}" method="post">
+          {% csrf_token %}
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-semibold text-danger" id="deleteClientModalLabel{{ client.id }}">
+              <i class="bi bi-trash me-2"></i> Delete Client
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <div class="modal-body pt-2">
+            <div class="alert alert-danger rounded-3" role="alert">
+              <i class="bi bi-exclamation-triangle me-2"></i>
+              <strong>Warning!</strong> This action cannot be undone.
+            </div>
+            <p class="mb-0">Are you sure you want to delete the client <strong>"{{ client.clientname }}"</strong>?</p>
+          </div>
+
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-danger px-4">
+              <i class="bi bi-trash me-1"></i> Delete Client
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
 </main>
 {% endblock %}

@@ -88,6 +88,35 @@ def clients(request):
     return render(request, 'sales/clients.html', {'clients': clients_qs, 'form': form})
 
 @login_required
+def edit_client(request, client_id):
+    """Edit an existing product"""
+    client = get_object_or_404(Client, id=client_id)
+    
+    if request.method == 'POST':
+        # Manually handle form data
+        clientname = request.POST.get('clientname')
+        emailAddress = request.POST.get('emailAddress')
+        adress = request.POST.get('adress')
+        mf = request.POST.get('mf')
+        
+        try:
+            # Update product fields
+            client.clientname = clientname
+            client.emailAddress = emailAddress if emailAddress else ''
+            client.adress = adress if adress else ''
+            client.mf = mf if mf else ''
+
+            
+
+            client.save()
+            messages.success(request, f'Client "{client.clientname}" updated successfully!')
+            
+        except (ValueError, TypeError) as e:
+            messages.error(request, f'Invalid data provided: {str(e)}')
+    
+    return redirect('clients')
+
+@login_required
 def settings_view(request):
     """View and edit company settings"""
     settings = Settings.objects.first()
@@ -117,14 +146,6 @@ def settings_view(request):
     
     return render(request, 'sales/settings.html', context)
 
-
-
-@login_required
-def delete_settings(request, pk):
-    settings = get_object_or_404(Settings, pk=pk)
-    settings.delete()
-    messages.success(request, "Settings removed successfully")
-    return redirect('settings')
 
 @login_required
 def delete_client(request, pk):
