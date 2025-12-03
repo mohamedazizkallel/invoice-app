@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.forms import widgets
-from .models import Product,Client,Invoice,Settings
+from .models import Client,Invoice,Settings,Service
 import json
 
 class DateInput(forms.DateInput):
@@ -31,17 +31,21 @@ class SettingsForm(forms.ModelForm):
     """Form for company settings"""
     class Meta:
         model = Settings
-        fields = ['clientname', 'clientLogo', 'adress', 'mf']
+        fields = ['clientname', 'clientLogo', 'adress', 'mf','tva','dt']
         labels = {
             'clientname': 'Company Name',
             'clientLogo': 'Company Logo',
             'adress': 'Company Address',
             'mf': 'Tax Registration Number (MF)',
+            'tva': 'Taxe sur la Valeur Ajoutée (TVA)',
+            'dt': 'Droit de Timbre (DT)',
         }
         widgets = {
             'clientname': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter company name'}),
             'adress': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter company address'}),
             'mf': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter MF number'}),
+            'tva': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter TVA '}),
+            'dt': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter DT'}),
             'clientLogo': forms.FileInput(attrs={'class': 'form-control'}),
         }
 
@@ -76,13 +80,13 @@ class InvoiceForm(forms.ModelForm):
     
     class Meta:
         model = Invoice
-        fields = ['title', 'status', 'notes', 'client', 'product']
+        fields = ['title', 'status', 'notes', 'client', 'service']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Invoice title'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Additional notes'}),
             'client': forms.Select(attrs={'class': 'form-select'}),
-            'product': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 4}),
+            'service': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 4}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -114,15 +118,17 @@ class ClientForm(forms.ModelForm):
         }
 
 
-class ProductForm(forms.ModelForm):
-    """Form for product management"""
+class ServiceForm(forms.ModelForm):
+    """Form for service management"""
     class Meta:
-        model = Product
-        fields = ['title', 'currency', 'description', 'price', 'quantity']
+        model = Service
+        fields = ['title', 'currency','billing_type', 'description','duration_days', 'duration_hours', 'price']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'currency': forms.Select(attrs={'class': 'form-select'}),
+            'billing_type': forms.Select(attrs={'class': 'form-select'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+            'duration_days': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'duration_hours': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'})
         }

@@ -106,6 +106,28 @@
           {% endif %}
         </div>
 
+        <!-- TVA -->
+        <div class="col-12">
+          <label for="{{ form.tva.id_for_label }}" class="form-label fw-semibold">
+            {{ form.tva.label }}
+          </label>
+          {{ form.tva }}
+          {% if form.tva.help_text %}
+          <small class="form-text text-muted">{{ form.tva.help_text }}</small>
+          {% endif %}
+        </div>
+
+        <!-- DT -->
+        <div class="col-12">
+          <label for="{{ form.dt.id_for_label }}" class="form-label fw-semibold">
+            {{ form.dt.label }}
+          </label>
+          {{ form.dt }}
+          {% if form.dt.help_text %}
+          <small class="form-text text-muted">{{ form.dt.help_text }}</small>
+          {% endif %}
+        </div>
+
         <!-- Company Logo -->
         <div class="col-12">
           <label for="{{ form.clientLogo.id_for_label }}" class="form-label fw-semibold">

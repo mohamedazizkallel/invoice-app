@@ -27,12 +27,12 @@
     padding: 1.5rem;
   }
   
-  .product-row {
+  .service-row {
     cursor: pointer;
     transition: background-color 0.15s ease-in-out;
   }
   
-  .product-row:hover {
+  .service-row:hover {
     background-color: #f8f9fa;
   }
   
@@ -77,6 +77,30 @@
       transform: translateY(0);
     }
   }
+  
+  button[data-bs-toggle="collapse"] .bi {
+    transition: transform 0.3s;
+  }
+
+  button[data-bs-toggle="collapse"][aria-expanded="true"] .bi-chevron-down {
+    transform: rotate(180deg);
+  }
+
+  button[data-bs-toggle="collapse"][aria-expanded="false"] .bi-chevron-down {
+    transform: rotate(0deg);
+  }
+
+  .collapse-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    text-align: left;
+  }
+
+  .collapse-toggle-btn i {
+    transition: transform 0.3s ease;
+  }
 </style>
 {% endblock %}
 
@@ -84,39 +108,16 @@
 <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
   <!-- Page Header -->
   <div class="page-header d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center">
-    <h1 class="h2 mb-0">Products</h1>
+    <h1 class="h2 mb-0">Services</h1>
     <div class="btn-toolbar">
       <div class="btn-group me-2">
         <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
           <i class="bi bi-printer me-1"></i> Print
         </button>
-        <a href="{% url 'export_products' %}" class="btn btn-outline-secondary">
-          <i class="bi bi-download me-1"></i> Export to Excel
-        </a>
       </div>
-      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
-        <i class="bi bi-plus-circle me-1"></i> Add Product
+      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServiceModal">
+        <i class="bi bi-plus-circle me-1"></i> Add Service
       </button>
-    </div>
-  </div>
-
-  <!-- Import/Export Card -->
-  <div class="import-export-card">
-    <div class="row align-items-center">
-      <div class="col-md-6 text-md-start text-center mb-3 mb-md-0">
-        <h5 class="mb-2">
-          <i class="bi bi-upload me-2"></i> Import Products from Excel
-        </h5>
-        <p class="text-muted mb-0">Upload an Excel file (.xlsx, .xls) to import multiple products at once</p>
-      </div>
-      <div class="col-md-6 text-md-end text-center">
-        <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#importModal">
-          <i class="bi bi-file-earmark-arrow-up me-1"></i> Import from Excel
-        </button>
-        <a href="{% url 'download_product_template' %}" class="btn btn-outline-secondary">
-          <i class="bi bi-file-earmark-spreadsheet me-1"></i> Download Template
-        </a>
-      </div>
     </div>
   </div>
 
@@ -124,7 +125,7 @@
   <div class="filter-section">
     <form method="get" class="row g-3 align-items-end">
       <div class="col-md-5">
-        <label for="filterSearch" class="form-label">Search Products</label>
+        <label for="filterSearch" class="form-label">Search Services</label>
         <input type="text" class="form-control" id="filterSearch" name="search" placeholder="Search by title or description" value="{{ request.GET.search }}">
       </div>
       <div class="col-md-4">
@@ -144,58 +145,49 @@
     </form>
   </div>
 
-  {% if products|length > 0 %}
+  {% if services|length > 0 %}
   <!-- Products Table -->
   <div class="table-container">
     <div class="table-responsive">
       <table class="table table-hover mb-0">
         <thead class="table-light">
           <tr>
-            <th scope="col">Product ID</th>
+            <th scope="col">Service ID</th>
             <th scope="col">Title</th>
             <th scope="col">Description</th>
             <th scope="col" class="text-center">Currency</th>
             <th scope="col" class="text-end">Price</th>
-            <th scope="col" class="text-center">Quantity</th>
             <th scope="col" class="text-end">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {% for product in products %}
-          <tr class="product-row">
+          {% for service in services %}
+          <tr class="service-row">
             <td class="align-middle">
-              <strong>PRD-{{ product.id|stringformat:"04d" }}</strong>
+              <strong>SER-{{ service.id|stringformat:"04d" }}</strong>
             </td>
-            <td class="align-middle">{{ product.title }}</td>
+            <td class="align-middle">{{ service.title }}</td>
             <td class="align-middle">
-              {% if product.description %}
-                {{ product.description|truncatewords:10 }}
+              {% if service.description %}
+                {{ service.description|truncatewords:10 }}
               {% else %}
                 <span class="text-muted">No description</span>
               {% endif %}
             </td>
             <td class="align-middle text-center">
-              <span class="badge bg-secondary">{{ product.currency|default:"ZAR" }}</span>
+              <span class="badge bg-secondary">{{ service.currency|default:"TND" }}</span>
             </td>
-            <td class="align-middle text-end">{{ product.currency|default:"R" }} {{ product.price|floatformat:2 }}</td>
-            <td class="align-middle text-center">
-              {% if product.quantity == 0 %}
-                <span class="badge bg-danger">Out of Stock</span>
-              {% elif product.quantity < 10 %}
-                <span class="badge bg-warning text-dark">{{ product.quantity }}</span>
-              {% else %}
-                <span class="badge bg-success">{{ product.quantity }}</span>
-              {% endif %}
-            </td>
+            <td class="align-middle text-end">{{ service.currency|default:"TND" }} {{ service.price|floatformat:2 }}</td>
+
             <td class="align-middle text-end">
               <div class="btn-group btn-group-sm">
-                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewProductModal{{ product.id }}" title="View">
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewServiceModal{{ service.id }}" title="View">
                   <i class="bi bi-eye"></i>
                 </button>
-                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editProductModal{{ product.id }}" title="Edit">
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editServiceModal{{ service.id }}" title="Edit"> 
                   <i class="bi bi-pencil"></i>
                 </button>
-                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteProductModal{{ product.id }}" title="Delete">
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteServiceModal{{ service.id }}" title="Delete">
                   <i class="bi bi-trash"></i>
                 </button>
               </div>
@@ -208,7 +200,7 @@
 
     <!-- Pagination -->
     {% if is_paginated %}
-    <nav aria-label="Product pagination" class="mt-4">
+    <nav aria-label="Service pagination" class="mt-4">
       <ul class="pagination justify-content-center mb-0">
         {% if page_obj.has_previous %}
         <li class="page-item">
@@ -247,15 +239,12 @@
     <div class="empty-state">
       <div class="row justify-content-center">
         <div class="col-lg-6">
-          <h3>No Products Found</h3>
-          <p class="text-muted">Get started by adding products manually or importing them from an Excel file.</p>
-          <img src="{% static 'assets/img/prodBackground.svg' %}" alt="No products illustration">
+          <h3>No Services Found</h3>
+          <p class="text-muted">Get started by adding Services manually or importing them from an Excel file.</p>
+          <img src="{% static 'assets/img/prodBackground.svg' %}" alt="No Services illustration">
           <div class="mt-4">
-            <button type="button" class="btn btn-primary btn-lg me-2" data-bs-toggle="modal" data-bs-target="#addProductModal">
-              <i class="bi bi-plus-circle me-2"></i> Add Product
-            </button>
-            <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#importModal">
-              <i class="bi bi-file-earmark-arrow-up me-2"></i> Import from Excel
+            <button type="button" class="btn btn-primary btn-lg me-2" data-bs-toggle="modal" data-bs-target="#addServicetModal">
+              <i class="bi bi-plus-circle me-2"></i> Add Service
             </button>
           </div>
         </div>
@@ -265,16 +254,16 @@
   {% endif %}
 
   <!-- Add Product Modal -->
-  <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+  <div class="modal fade" id="addServiceModal" tabindex="-1" aria-labelledby="addServiceModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content shadow-lg rounded-4">
-        <form action="{% url 'add_product' %}" method="post" enctype="multipart/form-data">
+        <form action="{% url 'add_service' %}" method="post" enctype="multipart/form-data">
           {% csrf_token %}
 
           <!-- Modal Header -->
           <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title fw-semibold" id="addProductModalLabel">
-              <i class="bi bi-box-seam me-2 text-primary"></i> Add New Product
+            <h5 class="modal-title fw-semibold" id="addServiceModalLabel">
+              <i class="bi bi-box-seam me-2 text-primary"></i> Add New Service
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
@@ -318,7 +307,7 @@
           <div class="modal-footer border-0">
             <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-primary px-4">
-              <i class="bi bi-check-circle me-1"></i> Add Product
+              <i class="bi bi-check-circle me-1"></i> Add Service
             </button>
           </div>
         </form>
@@ -326,69 +315,17 @@
     </div>
   </div>
 
-  <!-- Import Products Modal -->
-  <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content shadow-lg rounded-4">
-        <form action="{% url 'import_products' %}" method="post" enctype="multipart/form-data" id="importForm">
-          {% csrf_token %}
-          
-          <!-- Modal Header -->
-          <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title fw-semibold" id="importModalLabel">
-              <i class="bi bi-file-earmark-arrow-up me-2 text-success"></i> Import Products from Excel
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          
-          <!-- Modal Body -->
-          <div class="modal-body pt-2">
-            <div class="alert alert-info rounded-3" role="alert">
-              <strong><i class="bi bi-info-circle me-2"></i> File Requirements:</strong>
-              <ul class="mb-0 mt-2">
-                <li>File format: .xlsx or .xls</li>
-                <li>Required columns: Title, Currency, Description, Price, Quantity</li>
-                <li>Download our template to ensure correct formatting</li>
-              </ul>
-            </div>
-            
-            <div class="mb-3">
-              <label for="excelFile" class="form-label fw-semibold">Select Excel File</label>
-              <input class="form-control" type="file" id="excelFile" name="excel_file" accept=".xlsx,.xls" required>
-              <div class="form-text">Maximum file size: 5MB</div>
-            </div>
-
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="updateExisting" name="update_existing">
-              <label class="form-check-label" for="updateExisting">
-                Update existing products (match by Title)
-              </label>
-            </div>
-          </div>
-          
-          <!-- Modal Footer -->
-          <div class="modal-footer border-0">
-            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-success px-4">
-              <i class="bi bi-upload me-1"></i> Import Products
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- View, Edit, and Delete Modals for Each Product -->
-  {% for product in products %}
+  <!-- View, Edit, and Delete Modals for Each services -->
+  {% for service in services %}
   
   <!-- View Product Modal -->
-  <div class="modal fade" id="viewProductModal{{ product.id }}" tabindex="-1" aria-labelledby="viewProductModalLabel{{ product.id }}" aria-hidden="true">
+  <div class="modal fade" id="viewServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="viewServiceModalLabel{{ service.id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content shadow-lg rounded-4">
         <!-- Modal Header -->
         <div class="modal-header border-0 pb-0">
-          <h5 class="modal-title fw-semibold" id="viewProductModalLabel{{ product.id }}">
-            <i class="bi bi-eye me-2 text-primary"></i> Product Details
+          <h5 class="modal-title fw-semibold" id="viewServiceModalLabel{{ service.id }}">
+            <i class="bi bi-eye me-2 text-primary"></i> Service Details
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
@@ -397,38 +334,26 @@
         <div class="modal-body pt-2">
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label fw-semibold text-muted">Product ID</label>
-              <p class="form-control-plaintext">PRD-{{ product.id|stringformat:"04d" }}</p>
+              <label class="form-label fw-semibold text-muted">Service ID</label>
+              <p class="form-control-plaintext">SER-{{ service.id|stringformat:"04d" }}</p>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">Title</label>
-              <p class="form-control-plaintext">{{ product.title }}</p>
+              <p class="form-control-plaintext">{{ service.title }}</p>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">Currency</label>
               <p class="form-control-plaintext">
-                <span class="badge bg-secondary">{{ product.currency|default:"TND" }}</span>
+                <span class="badge bg-secondary">{{ service.currency|default:"TND" }}</span>
               </p>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">Price</label>
-              <p class="form-control-plaintext">{{ product.currency|default:"TND" }} {{ product.price|floatformat:2 }}</p>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold text-muted">Quantity</label>
-              <p class="form-control-plaintext">
-                {% if product.quantity == 0 %}
-                  <span class="badge bg-danger">Out of Stock</span>
-                {% elif product.quantity < 10 %}
-                  <span class="badge bg-warning text-dark">{{ product.quantity }}</span>
-                {% else %}
-                  <span class="badge bg-success">{{ product.quantity }}</span>
-                {% endif %}
-              </p>
+              <p class="form-control-plaintext">{{ service.currency|default:"TND" }} {{ service.price|floatformat:2 }}</p>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold text-muted">Description</label>
-              <p class="form-control-plaintext">{{ product.description|default:"No description available" }}</p>
+              <p class="form-control-plaintext">{{ service.description|default:"No description available" }}</p>
             </div>
           </div>
         </div>
@@ -436,8 +361,8 @@
         <!-- Modal Footer -->
         <div class="modal-footer border-0">
           <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary px-4" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#editProductModal{{ product.id }}">
-            <i class="bi bi-pencil me-1"></i> Edit Product
+          <button type="button" class="btn btn-primary px-4" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#editServicetModal{{ service.id }}">
+            <i class="bi bi-pencil me-1"></i> Edit Service
           </button>
         </div>
       </div>
@@ -445,16 +370,16 @@
   </div>
 
   <!-- Edit Product Modal -->
-  <div class="modal fade" id="editProductModal{{ product.id }}" tabindex="-1" aria-labelledby="editProductModalLabel{{ product.id }}" aria-hidden="true">
+  <div class="modal fade" id="editServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="editServiceModalLabel{{ service.id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content shadow-lg rounded-4">
-        <form action="{% url 'edit_product' product.id %}" method="post" enctype="multipart/form-data">
+        <form action="{% url 'edit_service' service.id %}" method="post" enctype="multipart/form-data">
           {% csrf_token %}
 
           <!-- Modal Header -->
           <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title fw-semibold" id="editProductModalLabel{{ product.id }}">
-              <i class="bi bi-pencil me-2 text-secondary"></i> Edit Product
+            <h5 class="modal-title fw-semibold" id="editServiceModalLabel{{ service.id }}">
+              <i class="bi bi-pencil me-2 text-secondary"></i> Edit Service
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
@@ -464,23 +389,19 @@
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Title</label>
-                <input type="text" class="form-control" name="title" value="{{ product.title }}" required>
+                <input type="text" class="form-control" name="title" value="{{ service.title }}" required>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Currency</label>
-                <input type="text" class="form-control" name="currency" value="{{ product.currency|default:'TND' }}">
+                <input type="text" class="form-control" name="currency" value="{{ service.currency|default:'TND' }}">
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Price</label>
-                <input type="number" step="0.01" class="form-control" name="price" value="{{ product.price }}" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Quantity</label>
-                <input type="number" class="form-control" name="quantity" value="{{ product.quantity }}" min="0" required>
+                <input type="number" step="10" class="form-control" name="price" value="{{ service.price }}" required>
               </div>
               <div class="col-12">
                 <label class="form-label fw-semibold">Description</label>
-                <textarea class="form-control" name="description" rows="3">{{ product.description }}</textarea>
+                <textarea class="form-control" name="description" rows="3">{{ service.description }}</textarea>
               </div>
             </div>
           </div>
@@ -498,16 +419,16 @@
   </div>
 
   <!-- Delete Product Modal -->
-  <div class="modal fade" id="deleteProductModal{{ product.id }}" tabindex="-1" aria-labelledby="deleteProductModalLabel{{ product.id }}" aria-hidden="true">
+  <div class="modal fade" id="deleteServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="deleteServiceModalLabel{{ service.id }}" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content shadow-lg rounded-4">
-        <form action="{% url 'delete_product' product.id %}" method="post">
+        <form action="{% url 'delete_service' service.id %}" method="post">
           {% csrf_token %}
 
           <!-- Modal Header -->
           <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title fw-semibold text-danger" id="deleteProductModalLabel{{ product.id }}">
-              <i class="bi bi-trash me-2"></i> Delete Product
+            <h5 class="modal-title fw-semibold text-danger" id="deleteServiceModalLabel{{ service.id }}">
+              <i class="bi bi-trash me-2"></i> Delete Service
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
@@ -518,14 +439,14 @@
               <i class="bi bi-exclamation-triangle me-2"></i>
               <strong>Warning!</strong> This action cannot be undone.
             </div>
-            <p class="mb-0">Are you sure you want to delete the product <strong>"{{ product.title }}"</strong>?</p>
+            <p class="mb-0">Are you sure you want to delete the Service <strong>"{{ service.title }}"</strong>?</p>
           </div>
 
           <!-- Modal Footer -->
           <div class="modal-footer border-0">
             <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-danger px-4">
-              <i class="bi bi-trash me-1"></i> Delete Product
+              <i class="bi bi-trash me-1"></i> Delete Service
             </button>
           </div>
         </form>
@@ -544,22 +465,13 @@
     if (fileName) {
       const label = document.querySelector('label[for="excelFile"]');
       if (label) {
-        label.textContent = `Selected: ${fileName}`;
+        const icon = '<i class="bi bi-file-earmark-spreadsheet me-2"></i>';
+        label.innerHTML = `${icon}Selected: ${fileName}`;
       }
     }
   });
 
-  // Prevent negative quantity in add form
-  document.getElementById('addProductModal')?.querySelector('form')?.addEventListener('submit', function(e) {
-    const qtyInput = this.querySelector('input[name="quantity"]');
-    if (qtyInput) {
-      const value = parseInt(qtyInput.value);
-      if (isNaN(value) || value < 0) {
-        e.preventDefault();
-        qtyInput.value = 0;
-        alert('Quantity cannot be negative');
-      }
-    }
-  });
+
 </script>
+
 {% endblock %}

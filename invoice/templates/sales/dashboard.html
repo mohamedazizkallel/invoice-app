@@ -129,103 +129,32 @@
         <thead class="table-light">
           <tr>
             <th scope="col">Invoice #</th>
+            <th scope="col">Title</th>
             <th scope="col">Client</th>
-            <th scope="col">Description</th>
-            <th scope="col" class="text-end">Amount</th>
+            <th scope="col">Date Created</th>
             <th scope="col">Status</th>
             <th scope="col" class="text-end">Actions</th>
           </tr>
         </thead>
         <tbody>
-          <tr class="invoice-row">
-            <td class="align-middle">1001</td>
-            <td class="align-middle">Sasol Mining</td>
-            <td class="align-middle">Generation of works related to the new project on Medupe</td>
-            <td class="align-middle text-end">R1,000.00</td>
-            <td class="align-middle">
-              <span class="status-badge status-current">Current</span>
-            </td>
-            <td class="align-middle text-end">
-              <button class="btn btn-sm btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-              </button>
-            </td>
-          </tr>
-          
-          <tr class="invoice-row">
-            <td class="align-middle">1002</td>
-            <td class="align-middle">Eskom</td>
-            <td class="align-middle">This was the realisation of dreaming chronicles on top of mount Sinai</td>
-            <td class="align-middle text-end">R3,020.00</td>
-            <td class="align-middle">
-              <span class="status-badge status-overdue">Overdue</span>
-            </td>
-            <td class="align-middle text-end">
-              <button class="btn btn-sm btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-              </button>
-            </td>
-          </tr>
-          
-          <tr class="invoice-row">
-            <td class="align-middle">1003</td>
-            <td class="align-middle">Tongaat Hullet</td>
-            <td class="align-middle">Building the website that was the rocking nations dream for centuries</td>
-            <td class="align-middle text-end">R10,020.00</td>
-            <td class="align-middle">
-              <span class="status-badge status-paid">Paid</span>
-            </td>
-            <td class="align-middle text-end">
-              <button class="btn btn-sm btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-              </button>
-            </td>
-          </tr>
-          
-          <tr class="invoice-row">
-            <td class="align-middle">1004</td>
-            <td class="align-middle">Sasol Mining</td>
-            <td class="align-middle">Generation of works related to the new project on Medupe</td>
-            <td class="align-middle text-end">R1,000.00</td>
-            <td class="align-middle">
-              <span class="status-badge status-current">Current</span>
-            </td>
-            <td class="align-middle text-end">
-              <button class="btn btn-sm btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-              </button>
-            </td>
-          </tr>
-          
-          <tr class="invoice-row">
-            <td class="align-middle">1005</td>
-            <td class="align-middle">Eskom</td>
-            <td class="align-middle">This was the realisation of dreaming chronicles on top of mount Sinai</td>
-            <td class="align-middle text-end">R3,020.00</td>
-            <td class="align-middle">
-              <span class="status-badge status-overdue">Overdue</span>
-            </td>
-            <td class="align-middle text-end">
-              <button class="btn btn-sm btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-              </button>
-            </td>
-          </tr>
-          
-          <tr class="invoice-row">
-            <td class="align-middle">1006</td>
-            <td class="align-middle">Tongaat Hullet</td>
-            <td class="align-middle">Building the website that was the rocking nations dream for centuries</td>
-            <td class="align-middle text-end">R10,020.00</td>
-            <td class="align-middle">
-              <span class="status-badge status-paid">Paid</span>
-            </td>
-            <td class="align-middle text-end">
-              <button class="btn btn-sm btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-              </button>
-            </td>
-          </tr>
+          {% for invoice in invoices %}
+            <tr class="invoice-row">
+              
+              <td class="align-middle">{{ invoice.id }}</td>
+              <td class="align-middle">{{ invoice.title }}</td>
+              <td class="align-middle">{{ invoice.client.clientname|default:"No Client" }}</td>
+              <td class="align-middle">{{ invoice.date_created|date:"M d, Y"|default:"N/A" }}</td>
+              <td class="align-middle">
+                <span class="status-badge status-{{ invoice.status|lower }}">{{ invoice.status }}</span>
+              </td>
+            
+              <td class="align-middle text-end">
+                <button class="btn btn-sm btn-outline-primary" title="View">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>
