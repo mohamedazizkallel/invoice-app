@@ -2,8 +2,9 @@
 {% load static %}
 
 {% block css %}
+<link rel="stylesheet" href="{% static 'css/inter.css' %}">
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    
 
     body {
         font-family: 'Inter', sans-serif !important;
@@ -180,19 +181,125 @@
             box-shadow: none !important;
             border: none !important;
             margin: 0 !important;
-            padding: 20px !important;
+            padding: 15px !important;
+            max-width: 100% !important;
         }
 
         @page {
-            margin: 15mm;
+            size: A4;
+            margin: 10mm;
+        }
+
+        /* Optimize spacing for single page */
+        .invoice-information {
+            margin-bottom: 8px !important;
+        }
+
+        .invoice-information p {
+            font-size: 11px !important;
+            line-height: 1.3 !important;
+            margin: 2px 0 !important;
+        }
+
+        .invoice-header-wrapper {
+            margin-bottom: 15px !important;
+        }
+
+        .invoice-logo-brand {
+            position: absolute !important;
+            top: 0 !important;
+            right: 0 !important;
+            margin: 0 !important;
+        }
+
+        .invoice-logo-brand img {
+            width: 90px !important;
+            margin: 0 !important;
+        }
+
+        .invoice-head {
+            margin-top: 15px !important;
+            gap: 15px !important;
+        }
+
+        .invoice-head p {
+            font-size: 11px !important;
+            line-height: 1.3 !important;
+            margin: 2px 0 !important;
+        }
+
+        .invoice-body {
+            margin-top: 15px !important;
+        }
+
+        .table th, .table td {
+            padding: 6px 5px !important;
+            font-size: 10px !important;
+        }
+
+        .table thead {
+            background: #f5f5f5 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .invoice-body > div {
+            margin-top: 10px !important;
+        }
+
+        .invoice-body table {
+            font-size: 10px !important;
+        }
+
+        .invoice-body table td {
+            padding: 4px !important;
+        }
+
+        .invoice-body table tr:last-child td {
+            font-size: 12px !important;
+            padding: 6px !important;
+        }
+
+        .invoice-body > div > div {
+            padding: 8px !important;
+            font-size: 10px !important;
+        }
+
+        .invoice-body > div > div p {
+            font-size: 10px !important;
+            margin: 3px 0 !important;
+        }
+
+        /* Ensure everything fits on one page */
+        * {
+            page-break-inside: avoid !important;
+        }
+
+        .invoice {
+            page-break-after: avoid !important;
         }
     }
+
     .modal-body {
-    overflow-y: auto !important;
+        overflow-y: auto !important;
     }
+
     .modal-dialog-scrollable .modal-body {
-        max-height: 70vh; /* limit height so it becomes scrollable */
-        }
+        max-height: 70vh;
+    }
+
+    /* New: Position logo in top right for screen view */
+    .invoice-header-wrapper {
+        position: relative;
+        min-height: 120px;
+    }
+
+    .invoice-logo-brand {
+        position: absolute;
+        top: 0;
+        right: 0;
+        margin: 0;
+    }
 </style>
 {% endblock %}
 
@@ -202,30 +309,32 @@
     <section class="wrapper-invoice">
         <div class="invoice" id="invoiceArea">
 
-            <div class="invoice-information">
-                <p><b>Invoice #</b> : {{ invoice.uniqueId }}</p>
-                <p><b>Created Date</b> : {{ invoice.date_created|date:"M d, Y" }}</p>
-                <p><b>Status</b> : <span class="badge {% if invoice.status == 'PAID' %}bg-success{% elif invoice.status == 'OVERDUE' %}bg-danger{% elif invoice.status == 'CURRENT' %}bg-info{% else %}bg-secondary{% endif %}">{{ invoice.status }}</span></p>
-            </div>
+            <div class="invoice-header-wrapper">
+                <div class="invoice-information">
+                    <p><b>Facture n°</b> : {{ invoice.uniqueId }}</p>
+                    <p><b>Date de création</b> : {{ invoice.date_created|date:"M d, Y" }}</p>
+                    <p><b>Statut</b> : <span class="badge {% if invoice.status == 'PAID' %}bg-success{% elif invoice.status == 'OVERDUE' %}bg-danger{% elif invoice.status == 'CURRENT' %}bg-info{% else %}bg-secondary{% endif %}">{{ invoice.status }}</span></p>
+                </div>
 
-            <div class="invoice-logo-brand">
-                {% if p_settings and p_settings.clientLogo %}
-                    <img src="{{ p_settings.clientLogo.url }}" alt="Company Logo">
-                {% else %}
-                    <img src="{% static 'assets/img/logo.png' %}" alt="Company Logo">
-                {% endif %}
+                <div class="invoice-logo-brand">
+                    {% if p_settings and p_settings.clientLogo %}
+                        <img src="{{ p_settings.clientLogo.url }}" alt="Company Logo">
+                    {% else %}
+                        <img src="{% static 'assets/img/logo.png' %}" alt="Company Logo">
+                    {% endif %}
+                </div>
             </div>
 
             <div class="invoice-head">
                 <div class="head client-info">
-                    <p><strong>From:</strong></p>
+                    <p><strong>De:</strong></p>
                     <p><strong>{{ p_settings.clientname|default:"Your Company Name" }}</strong></p>
                     <p>{{ p_settings.adress|default:"Your Address" }}</p>
                     {% if p_settings.mf %}<p>MF: {{ p_settings.mf }}</p>{% endif %}
                 </div>
 
                 <div class="head client-data" style="text-align:right;">
-                    <p><strong>Bill To:</strong></p>
+                    <p><strong>Facture à:</strong></p>
                     <p><strong>{{ invoice.client.clientname }}</strong></p>
                     <p>{{ invoice.client.adress }}</p>
                     {% if invoice.client.emailAddress %}<p>{{ invoice.client.emailAddress }}</p>{% endif %}
@@ -237,10 +346,10 @@
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Item Description</th>
-                            <th style="text-align:center;">work days</th>
-                            <th style="text-align:right;">Unit Price</th>
-                            <th style="text-align:right;">Amount</th>
+                            <th>Description de l'article/Service</th>
+                            <th style="text-align:center;"></th>
+                            <th style="text-align:right;">Prix unitaire</th>
+                            <th style="text-align:right;">Montant</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -257,7 +366,7 @@
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="4" style="text-align:center; color: #888;">No Service assigned to this invoice</td>
+                            <td colspan="4" style="text-align:center; color: #888;">Aucun service attribué à cette facture</td>
                         </tr>
                     {% endif %}
                     </tbody>
@@ -267,16 +376,16 @@
                 <div style="margin-top: 25px; text-align: right;">
                     <table style="width: 300px; margin-left: auto; border-collapse: collapse;">
                         <tr>
-                            <td style="padding: 8px; border-top: 1px solid #eee;"><strong>Subtotal HT:</strong></td>
+                            <td style="padding: 8px; border-top: 1px solid #eee;"><strong>Sous-total HT:</strong></td>
                             <td style="padding: 8px; text-align: right; border-top: 1px solid #eee;">{{ invoiceCurrency }} {{ subtotal|floatformat:3 }}</td>
                         </tr>
                         {% if invoice.discount > 0 %}
                         <tr>
-                            <td style="padding: 8px;"><strong>Discount ({{ invoice.discount }}%):</strong></td>
+                            <td style="padding: 8px;"><strong>Réduction ({{ invoice.discount }}%):</strong></td>
                             <td style="padding: 8px; text-align: right; color: #dc3545;">-{{ invoiceCurrency }} {{ discount_amount|floatformat:3 }}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 8px;"><strong>Subtotal after discount:</strong></td>
+                            <td style="padding: 8px;"><strong>Sous-total après remise:</strong></td>
                             <td style="padding: 8px; text-align: right;">{{ invoiceCurrency }} {{ subtotal_after_discount|floatformat:3 }}</td>
                         </tr>
                         {% endif %}
@@ -300,28 +409,31 @@
 
             {% if invoice.notes %}
             <div style="margin-top:25px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                <strong>Notes:</strong>
+                <strong>Remarques :</strong>
                 <p style="margin: 5px 0 0 0;">{{ invoice.notes }}</p>
             </div>
             {% endif %}
-
+            <div style="margin-top:25px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <strong>Total en lettre:</strong>
+                <p style="margin: 5px 0 0 0;">cette facture correspondait à un montant total {{ total_in_words }}</p>
+            </div>
             <div class="invoice-footer">
-                <p>Thank you for your business!</p>
+                <p>Merci de votre confiance !</p>
             </div>
 
             <!-- Buttons -->
             <div class="mt-4 d-flex gap-2 justify-content-between flex-wrap">
                 <a href="{% url 'invoices_list' %}" class="btn btn-back btn-custom">
-                    <i class="bi bi-arrow-left me-1"></i> Back to Invoices
+                    <i class="bi bi-arrow-left me-1"></i> Retour aux factures
                 </a>
 
                 <div class="d-flex gap-2">
                     <button class="btn btn-print btn-custom" onclick="window.print()">
-                        <i class="bi bi-printer me-1"></i> Print Invoice
+                        <i class="bi bi-printer me-1"></i> Imprimer la facture
                     </button>
 
                     <button class="btn btn-edit btn-custom" data-bs-toggle="modal" data-bs-target="#editInvoiceModal{{ invoice.id }}">
-                        <i class="bi bi-pencil me-1"></i> Edit Invoice
+                        <i class="bi bi-pencil me-1"></i> Modifier la facture
                     </button>
                 </div>
             </div>
@@ -340,7 +452,7 @@
                     <!-- Modal Header -->
                     <div class="modal-header border-0 pb-0">
                         <h5 class="modal-title fw-semibold" id="editInvoiceModalLabel{{ invoice.id }}">
-                            <i class="bi bi-pencil me-2 text-secondary"></i> Edit Invoice
+                            <i class="bi bi-pencil me-2 text-secondary"></i> Modifier la facture
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
@@ -349,7 +461,7 @@
                     <div class="modal-body pt-2">
                         {% if form.errors %}
                         <div class="alert alert-danger rounded-3" role="alert">
-                            <strong><i class="bi bi-exclamation-triangle me-2"></i> Please correct the following errors:</strong>
+                            <strong><i class="bi bi-exclamation-triangle me-2"></i> Veuillez corriger les erreurs suivantes :</strong>
                             <ul class="mt-2 mb-0">
                                 {% for field, errors in form.errors.items %}
                                     {% for error in errors %}
@@ -362,7 +474,7 @@
 
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold">Invoice Title</label>
+                                <label class="form-label fw-semibold">Titre de la facture</label>
                                 <input type="text" class="form-control" name="title" value="{{ invoice.title }}" required>
                             </div>
 
@@ -380,9 +492,9 @@
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold">Status</label>
                                 <select class="form-select" name="status">
-                                    <option value="CURRENT" {% if invoice.status == "CURRENT" %}selected{% endif %}>Current</option>
-                                    <option value="OVERDUE" {% if invoice.status == "OVERDUE" %}selected{% endif %}>Overdue</option>
-                                    <option value="PAID" {% if invoice.status == "PAID" %}selected{% endif %}>Paid</option>
+                                    <option value="CURRENT" {% if invoice.status == "CURRENT" %}selected{% endif %}>Actuel</option>
+                                    <option value="OVERDUE" {% if invoice.status == "OVERDUE" %}selected{% endif %}>En retard</option>
+                                    <option value="PAID" {% if invoice.status == "PAID" %}selected{% endif %}>Rémunéré</option>
                                 </select>
                             </div>
 
@@ -397,12 +509,12 @@
                             </div>
 
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold">Discount (%)</label>
+                                <label class="form-label fw-semibold">Réduction (%)</label>
                                 <input type="number" step="0.01" class="form-control" name="discount" value="{{ invoice.discount|default:0.00 }}">
                             </div>
 
                             <div class="col-12">
-                                <label class="form-label fw-semibold">Notes</label>
+                                <label class="form-label fw-semibold">Remarques</label>
                                 <textarea class="form-control" name="notes" rows="2">{{ invoice.notes }}</textarea>
                             </div>
 
@@ -411,10 +523,10 @@
                                 <hr class="my-3">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h6 class="mb-0 fw-semibold">
-                                        <i class="bi bi-briefcase me-2"></i> Add/Edit Services
+                                        <i class="bi bi-briefcase me-2"></i> Ajouter/Modifier des services
                                     </h6>
                                     <button type="button" class="btn btn-sm btn-outline-primary" id="addEditServiceRow_{{ invoice.id }}">
-                                        <i class="bi bi-plus-circle me-1"></i> Add Service
+                                        <i class="bi bi-plus-circle me-1"></i> Ajouter un service
                                     </button>
                                 </div>
 
@@ -455,7 +567,7 @@
                                 <div class="alert alert-info mt-3" role="alert">
                                     <small>
                                         <i class="bi bi-info-circle me-1"></i>
-                                        Click "Add Service" to add services to this invoice. Services are charged as a flat fee.
+                                        Cliquez sur « Ajouter un service » pour ajouter des services à cette facture. Les services sont facturés à un tarif forfaitaire.
                                     </small>
                                 </div>
                             </div>
@@ -464,9 +576,9 @@
 
                     <!-- Modal Footer -->
                     <div class="modal-footer border-0">
-                        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
                         <button type="submit" class="btn btn-primary px-4">
-                            <i class="bi bi-check-circle me-1"></i> Save Changes
+                            <i class="bi bi-check-circle me-1"></i> Enregistrer les modifications
                         </button>
                     </div>
                 </form>

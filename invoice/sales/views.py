@@ -19,8 +19,9 @@ from django.contrib.auth import authenticate,logout,login as auth_login
 from random import randint
 from uuid import uuid4
 import json
-
-
+from num2words import num2words
+from decimal import Decimal
+from .utilities import num2words_tnd_fr
 def anonymous_required(function=None, redirect_url=None):
     if not redirect_url:
         redirect_url="dashboard"
@@ -60,11 +61,8 @@ def login_view(request):  # changed name
         
 def logout_view(request):
     logout(request)
-    return redirect('index')
+    return redirect('login')
 
-def index(request):
-    context = {}
-    return render(request,'sales/index.html',context)
 
 @login_required
 def dashboard(request):
@@ -154,6 +152,7 @@ def delete_client(request, pk):
     client.delete()
     messages.success(request, "Client removed successfully")
     return redirect('clients')
+
 
 @login_required
 def invoices_list(request):
@@ -319,7 +318,6 @@ def invoice_create(request):
 
     return redirect('invoices_list')
 
-
 @login_required
 def invoice_edit(request, invoice_id):
     """Edit an existing invoice and adjust inventory properly"""
@@ -413,7 +411,7 @@ def invoice_detail(request, invoice_id):
     subtotal_after_discount = invoice.calculate_subtotal_after_discount()
     tva_amount = invoice.calculate_tva_amount()
     total = invoice.calculate_total()
-    
+    total_in_words = num2words_tnd_fr(Decimal(total))
     # Prepare services with line totals
     services_with_totals = []
     invoice_currency = 'TND'
@@ -429,6 +427,7 @@ def invoice_detail(request, invoice_id):
             'unit_price': invoice_service.unit_price,      # Price at time of invoice
             'line_total': invoice_service.get_line_total(),       
         })
+
     
     # Get all clients and services for edit modal
     clients = Client.objects.all().order_by('clientname')
@@ -448,6 +447,7 @@ def invoice_detail(request, invoice_id):
         'subtotal_after_discount': subtotal_after_discount,
         'tva_amount': tva_amount,
         'total': total,
+        'total_in_words': total_in_words,
         'invoiceCurrency': invoice_currency,
         'clients': clients,
         'all_services': all_services,
@@ -747,7 +747,8 @@ def import_invoices(request):
             return redirect('invoices_list')
     
     return redirect('invoices_list')
-
+    
+@login_required
 def service_view(request):
     """Display all services with filtering and search"""
     services = Service.objects.all()

@@ -1,7 +1,5 @@
-from django.contrib import admin
 from django.urls import path
-from .views import (index,
-                    dashboard,
+from .views import (dashboard,
                     login_view,add_service,
                     logout_view,settings_view,edit_client,service_view,edit_service,delete_service,
                     invoice_delete,export_invoices,import_invoices,download_invoice_template
@@ -10,9 +8,8 @@ from .views import (index,
                     delete_client)
 
 urlpatterns = [
-    path('', index,name='index'),
-    path('login', login_view,name='login'),
-    path('login', logout_view,name='logout'),
+    path('', login_view,name='login'),
+    path('logout', logout_view,name='logout'),
     path('dashboard', dashboard,name='dashboard'),
     path('settings', settings_view,name='settings_view'),
     path('clients', clients,name='clients'),
@@ -27,6 +24,7 @@ urlpatterns = [
     path('invoices/export/', export_invoices, name='export_invoices'),
     path('invoices/import/', import_invoices, name='import_invoices'),
     path('invoices/template/', download_invoice_template, name='download_invoice_template'),
+
         #services
     path('Services/', service_view, name='services_list'),
     path('Services/add/', add_service, name='add_service'),

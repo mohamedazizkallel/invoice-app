@@ -429,8 +429,8 @@
                           <label class="form-label small mb-1">Services</label>
                           <select class="form-select form-select-sm service-select" data-row="{{ forloop.counter0 }}">
                             {% for p in services %}
-                            <option value="{{ p.id }}" {% if p.id == service.id %}selected{% endif %}>
-                            </option>
+                              <option value="{{ p.id }}" {% if p.id == service.id %}selected{% endif %}>
+                              </option>
                             {% endfor %}
                           </select>
                         </div>

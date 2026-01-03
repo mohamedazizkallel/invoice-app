@@ -6,6 +6,8 @@ from django.contrib.auth.models import User
 from django.apps import apps
 from decimal import Decimal
 
+
+
 class Client(models.Model):
     clientname = models.CharField(null=True, blank=True, max_length=200)
     emailAddress = models.CharField(null=True, blank=True, max_length=100)
@@ -63,6 +65,7 @@ class Invoice(models.Model):
     timbre_fiscal = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True, help_text="Timbre fiscal amount (overrides Settings if set)")
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Discount percentage", null=True, blank=True)
 
+    is_locked = models.BooleanField(default=False)
     uniqueId = models.CharField(null=True, blank=True, max_length=100)
     slug = models.SlugField(max_length=500, unique=True, null=True)
     date_created = models.DateTimeField(blank=True, null=True)
@@ -127,13 +130,19 @@ class Invoice(models.Model):
             return (subtotal_after_discount * tva_rate) / Decimal('100')
         return Decimal('0')
 
-    def calculate_total(self):
+    def calculate_total_tva(self):
         """Final total: subtotal - discount + TVA + timbre fiscal"""
         subtotal_after_discount = self.calculate_subtotal_after_discount()
         tva_amount = self.calculate_tva_amount()
-        timbre = self.get_timbre_fiscal()  # Use getter method
 
-        total = subtotal_after_discount + tva_amount + timbre
+
+        total = subtotal_after_discount + tva_amount 
+        return total
+    
+    def calculate_total(self):
+        timbre = self.get_timbre_fiscal() 
+        tva_total = self.calculate_total_tva()
+        total = tva_total + timbre
         return total
 
     def save(self, *args, **kwargs):
@@ -150,8 +159,32 @@ class Invoice(models.Model):
         
         if not self.date_created:
             self.date_created = now
+        
+        # Generate sequential invoice number: NUMBER-YEAR (resets annually)
         if not self.uniqueId:
-            self.uniqueId = str(uuid4()).split('-')[4]
+            year = str(now.year)  # 2025
+            
+            # Find the highest invoice number for this year
+            # Example: "001-2025", "002-2025"
+            suffix = f"-{year}"
+            
+            # Get all invoices from this year
+            existing_invoices = Invoice.objects.filter(
+                uniqueId__endswith=suffix
+            ).order_by('-uniqueId')
+            
+            if existing_invoices.exists():
+                # Extract the number from the last invoice
+                last_id = existing_invoices.first().uniqueId
+                last_number = int(last_id.split('-')[0])
+                next_number = last_number + 1
+            else:
+                # First invoice of this year
+                next_number = 1
+            
+            # Format: 001-2025, 002-2025, etc.
+            self.uniqueId = f"{str(next_number).zfill(3)}-{year}"
+
         if not self.slug:
             base_slug = slugify(self.title or "invoice")
             self.slug = f"{base_slug}-{self.uniqueId}"
