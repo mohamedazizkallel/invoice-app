@@ -11,9 +11,10 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
 from django.conf import settings
-from datetime import datetime
-from .forms import ClientForm, InvoiceForm, UserLoginForm, SettingsForm, ServiceForm
-from .models import Client,Invoice,Settings,Service,InvoiceService
+from django.utils import timezone
+from .forms import ClientForm, InvoiceForm, SupplierForm, UserLoginForm, SettingsForm, ServiceForm
+from .models import Client,Invoice,Settings,Service,InvoiceService,Supplier
+from payment.models import Retenu  # Add this import at the top of the file
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,logout,login as auth_login
 from random import randint
@@ -22,6 +23,7 @@ import json
 from num2words import num2words
 from decimal import Decimal
 from .utilities import num2words_tnd_fr
+
 def anonymous_required(function=None, redirect_url=None):
     if not redirect_url:
         redirect_url="dashboard"
@@ -117,41 +119,62 @@ def edit_client(request, client_id):
     return redirect('clients')
 
 @login_required
-def settings_view(request):
-    """View and edit company settings"""
-    settings = Settings.objects.first()
-    
-    if request.method == 'POST':
-        if settings:
-            form = SettingsForm(request.POST, request.FILES, instance=settings)
-        else:
-            form = SettingsForm(request.POST, request.FILES)
-        
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Settings updated successfully!')
-            return redirect('settings_view')
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        if settings:
-            form = SettingsForm(instance=settings)
-        else:
-            form = SettingsForm()
-    
-    context = {
-        'form': form,
-        'settings': settings,
-    }
-    
-    return render(request, 'sales/settings.html', context)
-
-@login_required
 def delete_client(request, pk):
     client = get_object_or_404(Client, pk=pk)
     client.delete()
     messages.success(request, "Client removed successfully")
     return redirect('clients')
+
+@login_required
+def suppliers(request):
+    suppliers_qs = Supplier.objects.all()
+    
+    if request.method == 'POST':
+        form = SupplierForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'New Supplier Added')
+            return redirect('suppliers')
+        else:
+            messages.error(request, 'Problem processing your request')
+            return redirect('suppliers')
+    
+    form = SupplierForm()
+    return render(request, 'sales/supplier.html', {'Suppliers': suppliers_qs, 'form': form})
+
+@login_required
+def edit_supplier(request, client_id):
+    """Edit an existing service"""
+    supplier = get_object_or_404(Supplier, id=client_id)
+    
+    if request.method == 'POST':
+        # Manually handle form data
+        name = request.POST.get('name')
+        emailAddress = request.POST.get('emailAddress')
+        adress = request.POST.get('adress')
+        mf = request.POST.get('mf')
+        
+        try:
+            # Update service fields
+            supplier.name = name
+            supplier.emailAddress = emailAddress if emailAddress else ''
+            supplier.adress = adress if adress else ''
+            supplier.mf = mf if mf else ''            
+
+            supplier.save()
+            messages.success(request, f'Supplier "{supplier.name}" updated successfully!')
+            
+        except (ValueError, TypeError) as e:
+            messages.error(request, f'Invalid data provided: {str(e)}')
+    
+    return redirect('suppliers')
+
+@login_required
+def delete_supplier(request, pk):
+    supplier = get_object_or_404(Supplier, pk=pk)
+    supplier.delete()
+    messages.success(request, "Supplier removed successfully")
+    return redirect('suppliers')
 
 
 @login_required
@@ -189,15 +212,18 @@ def invoices_list(request):
     invoices = invoices.order_by(sort_by)
     
     # Pagination
-    paginator = Paginator(invoices, 20)  # 20 invoices per page
+    paginator = Paginator(invoices, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
     # Get all clients and services for dropdowns
     clients = Client.objects.all().order_by('clientname')
     services = Service.objects.all().order_by('title')
-        # Get Settings for form defaults
+    
+    # Get Settings for form defaults
     settings = Settings.objects.first()
+
+    retenu_types = Retenu.objects.filter(is_active=True).order_by('category', 'rate')
     
     # Calculate statistics
     total_invoices = invoices.count()
@@ -217,6 +243,8 @@ def invoices_list(request):
         'overdue_invoices': overdue_invoices,
         'paid_invoices': paid_invoices,
         'settings': settings,
+        'retenu_types': retenu_types,
+        'current_year': timezone.now().year, 
     }
     
     return render(request, 'sales/invoice_service.html', context)
@@ -851,3 +879,34 @@ def delete_service(request, service_id):
         messages.success(request, f'Service "{service_title}" deleted successfully!')
     
     return redirect('services_list')
+
+
+@login_required
+def settings_view(request):
+    """View and edit company settings"""
+    settings = Settings.objects.first()
+    
+    if request.method == 'POST':
+        if settings:
+            form = SettingsForm(request.POST, request.FILES, instance=settings)
+        else:
+            form = SettingsForm(request.POST, request.FILES)
+        
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Settings updated successfully!')
+            return redirect('settings_view')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        if settings:
+            form = SettingsForm(instance=settings)
+        else:
+            form = SettingsForm()
+    
+    context = {
+        'form': form,
+        'settings': settings,
+    }
+    
+    return render(request, 'sales/settings.html', context)

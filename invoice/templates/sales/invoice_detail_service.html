@@ -331,6 +331,7 @@
                     <p><strong>{{ p_settings.clientname|default:"Your Company Name" }}</strong></p>
                     <p>{{ p_settings.adress|default:"Your Address" }}</p>
                     {% if p_settings.mf %}<p>MF: {{ p_settings.mf }}</p>{% endif %}
+                    {% if p_settings.rib %}<p>R.I.B: {{ p_settings.rib }}</p>{% endif %}
                 </div>
 
                 <div class="head client-data" style="text-align:right;">
@@ -414,8 +415,7 @@
             </div>
             {% endif %}
             <div style="margin-top:25px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                <strong>Total en lettre:</strong>
-                <p style="margin: 5px 0 0 0;">cette facture correspondait à un montant total {{ total_in_words }}</p>
+                <p style="margin: 5px 0 0 0;">Arrêtée la présente facture à la somme de {{ total_in_words }}</p>
             </div>
             <div class="invoice-footer">
                 <p>Merci de votre confiance !</p>
