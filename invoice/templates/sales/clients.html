@@ -55,6 +55,7 @@
           <th>Client Name</th>
           <th>Email</th>
           <th>Address</th>
+          <th class="text-end">Solde</th>
           <th class="text-end">Actions</th>
         </tr>
       </thead>
@@ -65,6 +66,16 @@
           <td>{{ client.emailAddress }}</td>
           <td>{{ client.adress }}</td>
           <td class="text-end">
+            {% with balance=client.get_balance %}
+            <span class="badge {% if balance > 0 %}bg-danger{% elif balance < 0 %}bg-success{% else %}bg-secondary{% endif %}">
+              {{ balance|floatformat:3 }} TND
+            </span>
+            {% endwith %}
+          </td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-success" onclick="openLedgerModal({{ client.id }})" title="Grand Livre">
+              <i class="bi bi-journal-text"></i>
+            </button>
             <a href="#" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewClientModal{{ client.id }}">
               <i class="bi bi-eye"></i>
             </a>
@@ -196,7 +207,7 @@
               </div>
               <div class="col-6">
                 <label class="form-label fw-semibold">MF</label>
-                <input type="text" class="form-control" name="adress" value="{{ client.mf }}" required>
+                <input type="text" class="form-control" name="mf" value="{{ client.mf }}" required>
               </div>
             </div>
           </div>
@@ -247,5 +258,165 @@
   </div>
   {% endfor %}
 
+  <!-- Ledger Modal (shared, loaded via AJAX) -->
+  <div class="modal fade" id="ledgerModal" tabindex="-1" aria-labelledby="ledgerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content shadow-lg rounded-4">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="ledgerModalLabel">
+            <i class="bi bi-journal-text me-2 text-success"></i>
+            Grand Livre: <span id="ledgerClientName"></span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body pt-2">
+          <!-- Balance Summary -->
+          <div class="row mb-3">
+            <div class="col-md-4">
+              <div class="card border-0 bg-light">
+                <div class="card-body text-center py-3">
+                  <small class="text-muted d-block">Solde actuel</small>
+                  <h4 class="mb-0" id="ledgerBalance">0.000 TND</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Transaction History Table -->
+          <div class="table-responsive">
+            <table class="table table-hover table-sm">
+              <thead class="table-light">
+                <tr>
+                  <th>Date</th>
+                  <th>Source</th>
+                  <th>Description</th>
+                  <th class="text-end">Debit</th>
+                  <th class="text-end">Credit</th>
+                  <th class="text-end">Solde</th>
+                </tr>
+              </thead>
+              <tbody id="ledgerTableBody">
+                <tr id="ledgerLoading">
+                  <td colspan="6" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    Chargement...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div id="ledgerEmpty" class="text-center py-4 d-none">
+            <i class="bi bi-journal-x fs-1 text-muted"></i>
+            <p class="text-muted mt-2">Aucune transaction pour ce client.</p>
+          </div>
+
+          <!-- Manual Entry Form -->
+          <hr class="my-3">
+          <h6 class="fw-semibold"><i class="bi bi-plus-circle me-1"></i> Ajouter une transaction manuelle</h6>
+          <form id="manualTransactionForm" method="post">
+            {% csrf_token %}
+            <div class="row g-2 align-items-end">
+              <div class="col-md-3">
+                <label class="form-label small">Type</label>
+                <select name="transaction_type" class="form-select form-select-sm" required>
+                  <option value="CREDIT">Credit</option>
+                  <option value="DEBIT">Debit</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small">Montant</label>
+                <input type="number" step="0.001" min="0.001" name="amount"
+                       class="form-control form-control-sm" placeholder="0.000" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small">Description</label>
+                <input type="text" name="description" class="form-control form-control-sm"
+                       placeholder="Description...">
+              </div>
+              <div class="col-md-2">
+                <button type="submit" class="btn btn-sm btn-success w-100">
+                  <i class="bi bi-check-circle me-1"></i> Ajouter
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </main>
+
+<script>
+function openLedgerModal(clientId) {
+  const modal = new bootstrap.Modal(document.getElementById('ledgerModal'));
+  const tableBody = document.getElementById('ledgerTableBody');
+  const empty = document.getElementById('ledgerEmpty');
+  const balanceEl = document.getElementById('ledgerBalance');
+  const clientNameEl = document.getElementById('ledgerClientName');
+  const form = document.getElementById('manualTransactionForm');
+
+  // Set form action URL
+  form.action = `/clients/${clientId}/transactions/add/`;
+
+  // Reset state
+  tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4">
+    <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Chargement...
+  </td></tr>`;
+  empty.classList.add('d-none');
+
+  modal.show();
+
+  // Fetch transactions
+  fetch(`/clients/${clientId}/transactions/`)
+    .then(response => response.json())
+    .then(data => {
+      clientNameEl.textContent = data.client_name;
+
+      const balance = data.balance;
+      balanceEl.textContent = balance.toFixed(3) + ' TND';
+      balanceEl.className = 'mb-0';
+      if (balance > 0) balanceEl.classList.add('text-danger');
+      else if (balance < 0) balanceEl.classList.add('text-success');
+
+      if (data.transactions.length === 0) {
+        tableBody.innerHTML = '';
+        empty.classList.remove('d-none');
+        return;
+      }
+
+      let html = '';
+      data.transactions.forEach(txn => {
+        const balClass = txn.running_balance > 0 ? 'text-danger' : 'text-success';
+        const invoiceLink = txn.invoice_id
+          ? ` <a href="/invoices/${txn.invoice_id}/" class="text-decoration-none">(${txn.invoice_ref})</a>`
+          : '';
+        const debitCell = txn.type === 'DEBIT' ? `<span class="text-danger fw-semibold">${txn.amount.toFixed(3)}</span>` : '';
+        const creditCell = txn.type === 'CREDIT' ? `<span class="text-success fw-semibold">${txn.amount.toFixed(3)}</span>` : '';
+
+        html += `
+          <tr>
+            <td><small>${txn.date}</small></td>
+            <td><small class="text-muted">${txn.source}</small></td>
+            <td><small>${txn.description}${invoiceLink}</small></td>
+            <td class="text-end">${debitCell}</td>
+            <td class="text-end">${creditCell}</td>
+            <td class="text-end ${balClass} fw-semibold">${txn.running_balance.toFixed(3)}</td>
+          </tr>
+        `;
+      });
+      tableBody.innerHTML = html;
+    })
+    .catch(err => {
+      tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Erreur de chargement</td></tr>`;
+      console.error('Ledger fetch error:', err);
+    });
+}
+</script>
 {% endblock %}

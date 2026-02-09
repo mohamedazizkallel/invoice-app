@@ -403,6 +403,12 @@
                 <label class="form-label fw-semibold">Description</label>
                 <textarea class="form-control" name="description" rows="3">{{ service.description }}</textarea>
               </div>
+              <div class="col-md-6">
+                <div class="form-check mt-2">
+                  <input type="checkbox" class="form-check-input" name="apply_fodec" id="fodec_{{ service.id }}" {% if service.apply_fodec %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold" for="fodec_{{ service.id }}">Apply FODEC (1%) by default</label>
+                </div>
+              </div>
             </div>
           </div>
 

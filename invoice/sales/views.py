@@ -11,9 +11,11 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
 from django.conf import settings
-from datetime import datetime
-from .forms import ClientForm, InvoiceForm, UserLoginForm, SettingsForm, ServiceForm
-from .models import Client,Invoice,Settings,Service,InvoiceService
+from django.utils import timezone
+from django.http import JsonResponse
+from .forms import ClientForm, InvoiceForm, SupplierForm, UserLoginForm, SettingsForm, ServiceForm, ClientTransactionForm
+from .models import Client,Invoice,Settings,Service,InvoiceService,Supplier,ClientTransaction
+from payment.models import Retenu  # Add this import at the top of the file
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,logout,login as auth_login
 from random import randint
@@ -22,6 +24,7 @@ import json
 from num2words import num2words
 from decimal import Decimal
 from .utilities import num2words_tnd_fr
+
 def anonymous_required(function=None, redirect_url=None):
     if not redirect_url:
         redirect_url="dashboard"
@@ -87,7 +90,12 @@ def clients(request):
             return redirect('clients')
     
     form = ClientForm()
-    return render(request, 'sales/clients.html', {'clients': clients_qs, 'form': form})
+    transaction_form = ClientTransactionForm()
+    return render(request, 'sales/clients.html', {
+        'clients': clients_qs,
+        'form': form,
+        'transaction_form': transaction_form,
+    })
 
 @login_required
 def edit_client(request, client_id):
@@ -117,41 +125,115 @@ def edit_client(request, client_id):
     return redirect('clients')
 
 @login_required
-def settings_view(request):
-    """View and edit company settings"""
-    settings = Settings.objects.first()
-    
-    if request.method == 'POST':
-        if settings:
-            form = SettingsForm(request.POST, request.FILES, instance=settings)
-        else:
-            form = SettingsForm(request.POST, request.FILES)
-        
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Settings updated successfully!')
-            return redirect('settings_view')
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        if settings:
-            form = SettingsForm(instance=settings)
-        else:
-            form = SettingsForm()
-    
-    context = {
-        'form': form,
-        'settings': settings,
-    }
-    
-    return render(request, 'sales/settings.html', context)
-
-@login_required
 def delete_client(request, pk):
     client = get_object_or_404(Client, pk=pk)
     client.delete()
     messages.success(request, "Client removed successfully")
     return redirect('clients')
+
+
+@login_required
+def client_transactions(request, client_id):
+    """AJAX endpoint: return client transactions and balance as JSON"""
+    client = get_object_or_404(Client, id=client_id)
+    transactions = client.transactions.all().order_by('date_created')
+
+    running_balance = Decimal('0')
+    transaction_list = []
+    for txn in transactions:
+        if txn.transaction_type == 'DEBIT':
+            running_balance += txn.amount
+        else:
+            running_balance -= txn.amount
+
+        transaction_list.append({
+            'id': txn.id,
+            'date': txn.date_created.strftime('%Y-%m-%d %H:%M') if txn.date_created else '',
+            'type': txn.transaction_type,
+            'source': txn.get_source_display(),
+            'description': txn.description or '',
+            'amount': float(txn.amount),
+            'running_balance': float(running_balance),
+            'invoice_id': txn.invoice_id,
+            'invoice_ref': txn.invoice.uniqueId if txn.invoice else None,
+        })
+
+    return JsonResponse({
+        'success': True,
+        'client_name': client.clientname,
+        'balance': float(client.get_balance()),
+        'transactions': transaction_list,
+    })
+
+
+@login_required
+def client_add_transaction(request, client_id):
+    """Add a manual credit/debit entry for a client"""
+    client = get_object_or_404(Client, id=client_id)
+
+    if request.method == 'POST':
+        form = ClientTransactionForm(request.POST)
+        if form.is_valid():
+            txn = form.save(commit=False)
+            txn.client = client
+            txn.source = 'MANUAL'
+            txn.save()
+            messages.success(request, f'Transaction ajoutée pour "{client.clientname}"')
+        else:
+            messages.error(request, 'Données de transaction invalides')
+
+    return redirect('clients')
+
+@login_required
+def suppliers(request):
+    suppliers_qs = Supplier.objects.all()
+    
+    if request.method == 'POST':
+        form = SupplierForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'New Supplier Added')
+            return redirect('suppliers')
+        else:
+            messages.error(request, 'Problem processing your request')
+            return redirect('suppliers')
+    
+    form = SupplierForm()
+    return render(request, 'sales/supplier.html', {'Suppliers': suppliers_qs, 'form': form})
+
+@login_required
+def edit_supplier(request, client_id):
+    """Edit an existing service"""
+    supplier = get_object_or_404(Supplier, id=client_id)
+    
+    if request.method == 'POST':
+        # Manually handle form data
+        name = request.POST.get('name')
+        emailAddress = request.POST.get('emailAddress')
+        adress = request.POST.get('adress')
+        mf = request.POST.get('mf')
+        
+        try:
+            # Update service fields
+            supplier.name = name
+            supplier.emailAddress = emailAddress if emailAddress else ''
+            supplier.adress = adress if adress else ''
+            supplier.mf = mf if mf else ''            
+
+            supplier.save()
+            messages.success(request, f'Supplier "{supplier.name}" updated successfully!')
+            
+        except (ValueError, TypeError) as e:
+            messages.error(request, f'Invalid data provided: {str(e)}')
+    
+    return redirect('suppliers')
+
+@login_required
+def delete_supplier(request, pk):
+    supplier = get_object_or_404(Supplier, pk=pk)
+    supplier.delete()
+    messages.success(request, "Supplier removed successfully")
+    return redirect('suppliers')
 
 
 @login_required
@@ -189,15 +271,18 @@ def invoices_list(request):
     invoices = invoices.order_by(sort_by)
     
     # Pagination
-    paginator = Paginator(invoices, 20)  # 20 invoices per page
+    paginator = Paginator(invoices, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
     # Get all clients and services for dropdowns
     clients = Client.objects.all().order_by('clientname')
     services = Service.objects.all().order_by('title')
-        # Get Settings for form defaults
+    
+    # Get Settings for form defaults
     settings = Settings.objects.first()
+
+    retenu_types = Retenu.objects.filter(is_active=True).order_by('category', 'rate')
     
     # Calculate statistics
     total_invoices = invoices.count()
@@ -217,6 +302,8 @@ def invoices_list(request):
         'overdue_invoices': overdue_invoices,
         'paid_invoices': paid_invoices,
         'settings': settings,
+        'retenu_types': retenu_types,
+        'current_year': timezone.now().year, 
     }
     
     return render(request, 'sales/invoice_service.html', context)
@@ -291,20 +378,39 @@ def invoice_create(request):
             )
 
             # Add services (if you have a Service model and InvoiceService model)
-            for service_id in service_ids:
+            fodec_flags = request.POST.getlist('has_fodec[]')
+            unit_prices = request.POST.getlist('unit_price[]')
+            for i, service_id in enumerate(service_ids):
                 if not service_id:
                     continue
-                
+
                 try:
                     service = Service.objects.get(id=service_id)
-                    # Assuming you have InvoiceService model
+                    has_fodec = fodec_flags[i] == '1' if i < len(fodec_flags) else False
+                    # Use submitted price if provided, otherwise fall back to service price
+                    if i < len(unit_prices) and unit_prices[i]:
+                        price = Decimal(str(unit_prices[i]))
+                    else:
+                        price = service.price
                     InvoiceService.objects.create(
                         invoice=invoice,
                         service=service,
-                        unit_price=service.price
+                        unit_price=price,
+                        has_fodec=has_fodec
                     )
                 except Service.DoesNotExist:
                     pass  # Skip if service doesn't exist
+
+            # Auto-DEBIT ledger entry
+            invoice_total = invoice.calculate_total()
+            ClientTransaction.objects.create(
+                client=client,
+                invoice=invoice,
+                transaction_type='DEBIT',
+                source='INVOICE_CREATED',
+                amount=invoice_total,
+                description=f'Facture {invoice.uniqueId} - {invoice.title}'
+            )
 
             messages.success(request, f'Invoice "{invoice.title}" created successfully.')
             return redirect('invoice_detail', invoice.id)
@@ -370,21 +476,71 @@ def invoice_edit(request, invoice_id):
             # If you have services: invoice.invoice_services.all().delete()
 
             # Add new services
-            for service_id in service_ids:
+            fodec_flags = request.POST.getlist('has_fodec[]')
+            unit_prices = request.POST.getlist('unit_price[]')
+            for i, service_id in enumerate(service_ids):
                 if not service_id:
                     continue
-                
+
                 try:
                     service = Service.objects.get(id=service_id)
+                    has_fodec = fodec_flags[i] == '1' if i < len(fodec_flags) else False
+                    if i < len(unit_prices) and unit_prices[i]:
+                        price = Decimal(str(unit_prices[i]))
+                    else:
+                        price = service.price
                     InvoiceService.objects.create(
                         invoice=invoice,
                         service=service,
-                        unit_price=service.price
+                        unit_price=price,
+                        has_fodec=has_fodec
                     )
                 except Service.DoesNotExist:
                     pass
 
             invoice.save()
+
+            # Update ledger: adjust DEBIT amount to new total
+            new_total = invoice.calculate_total()
+            if invoice.client:
+                debit_entry = ClientTransaction.objects.filter(
+                    invoice=invoice,
+                    source='INVOICE_CREATED',
+                    transaction_type='DEBIT'
+                ).first()
+
+                if debit_entry:
+                    debit_entry.amount = new_total
+                    debit_entry.description = f'Facture {invoice.uniqueId} - {invoice.title}'
+                    debit_entry.save()
+                else:
+                    # Invoice existed before ledger system
+                    ClientTransaction.objects.create(
+                        client=invoice.client,
+                        invoice=invoice,
+                        transaction_type='DEBIT',
+                        source='INVOICE_CREATED',
+                        amount=new_total,
+                        description=f'Facture {invoice.uniqueId} - {invoice.title}'
+                    )
+
+                # Auto-CREDIT when status changes to PAID
+                if status == 'PAID':
+                    existing_credit = ClientTransaction.objects.filter(
+                        invoice=invoice,
+                        source='INVOICE_PAID',
+                        transaction_type='CREDIT'
+                    ).exists()
+                    if not existing_credit:
+                        ClientTransaction.objects.create(
+                            client=invoice.client,
+                            invoice=invoice,
+                            transaction_type='CREDIT',
+                            source='INVOICE_PAID',
+                            amount=new_total,
+                            description=f'Paiement facture {invoice.uniqueId} - {invoice.title}'
+                        )
+
             messages.success(request, f'Invoice "{invoice.title}" updated successfully.')
 
     except (ValueError, TypeError) as e:
@@ -409,6 +565,7 @@ def invoice_detail(request, invoice_id):
     subtotal = invoice.calculate_service_subtotal()
     discount_amount = invoice.calculate_discount_amount()
     subtotal_after_discount = invoice.calculate_subtotal_after_discount()
+    total_fodec = invoice.calculate_total_fodec()
     tva_amount = invoice.calculate_tva_amount()
     total = invoice.calculate_total()
     total_in_words = num2words_tnd_fr(Decimal(total))
@@ -421,11 +578,13 @@ def invoice_detail(request, invoice_id):
         service = invoice_service.service
         if not invoice_currency or invoice_currency == 'TND':
             invoice_currency = service.currency or 'TND'
-        
+
         services_with_totals.append({
             'service': service,
-            'unit_price': invoice_service.unit_price,      # Price at time of invoice
-            'line_total': invoice_service.get_line_total(),       
+            'unit_price': invoice_service.unit_price,
+            'line_total': invoice_service.get_line_ht(),
+            'has_fodec': invoice_service.has_fodec,
+            'fodec_amount': invoice_service.get_fodec_amount(),
         })
 
     
@@ -445,6 +604,7 @@ def invoice_detail(request, invoice_id):
         'subtotal': subtotal,
         'discount_amount': discount_amount,
         'subtotal_after_discount': subtotal_after_discount,
+        'total_fodec': total_fodec,
         'tva_amount': tva_amount,
         'total': total,
         'total_in_words': total_in_words,
@@ -463,10 +623,40 @@ def invoice_delete(request, invoice_id):
     
     if request.method == 'POST':
         invoice_title = invoice.title
-        # The delete method in the model will automatically restore inventory
+
+        # Create reversal ledger entries before deletion
+        if invoice.client:
+            invoice_total = invoice.calculate_total()
+
+            had_debit = ClientTransaction.objects.filter(
+                invoice=invoice, source='INVOICE_CREATED', transaction_type='DEBIT'
+            ).exists()
+            if had_debit:
+                ClientTransaction.objects.create(
+                    client=invoice.client,
+                    invoice=None,
+                    transaction_type='CREDIT',
+                    source='INVOICE_DELETED',
+                    amount=invoice_total,
+                    description=f'Annulation facture {invoice.uniqueId} - {invoice_title}'
+                )
+
+            had_credit = ClientTransaction.objects.filter(
+                invoice=invoice, source='INVOICE_PAID', transaction_type='CREDIT'
+            ).exists()
+            if had_credit:
+                ClientTransaction.objects.create(
+                    client=invoice.client,
+                    invoice=None,
+                    transaction_type='DEBIT',
+                    source='INVOICE_DELETED',
+                    amount=invoice_total,
+                    description=f'Annulation paiement facture {invoice.uniqueId} - {invoice_title}'
+                )
+
         invoice.delete()
         messages.success(request, f'Invoice "{invoice_title}" deleted and inventory restored!')
-    
+
     return redirect('invoices_list')
 
 @login_required
@@ -830,8 +1020,8 @@ def edit_service(request, service_id):
             service.currency = currency if currency else 'TND'
             service.description = description if description else ''
             service.price = float(price) if price else 0.0
+            service.apply_fodec = request.POST.get('apply_fodec') == 'on'
 
-            
             service.save()
             messages.success(request, f'Service "{service.title}" updated successfully!')
             
@@ -851,3 +1041,34 @@ def delete_service(request, service_id):
         messages.success(request, f'Service "{service_title}" deleted successfully!')
     
     return redirect('services_list')
+
+
+@login_required
+def settings_view(request):
+    """View and edit company settings"""
+    settings = Settings.objects.first()
+    
+    if request.method == 'POST':
+        if settings:
+            form = SettingsForm(request.POST, request.FILES, instance=settings)
+        else:
+            form = SettingsForm(request.POST, request.FILES)
+        
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Settings updated successfully!')
+            return redirect('settings_view')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        if settings:
+            form = SettingsForm(instance=settings)
+        else:
+            form = SettingsForm()
+    
+    context = {
+        'form': form,
+        'settings': settings,
+    }
+    
+    return render(request, 'sales/settings.html', context)

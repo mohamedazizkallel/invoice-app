@@ -153,13 +153,21 @@
         }
     }
 
-    /* ---------------- PRINT ONLY INVOICE ---------------- */
     @media print {
-        body {
-            background: white !important;
+        /* Reset everything to match screen view */
+        @page {
+        size: A4;
+        margin: 0 !important; /* Removes "URL/Date" headers and white borders */
         }
 
-        /* hide UI elements */
+        html, body {
+        height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important; /* Prevents an accidental 2nd blank page */
+        }
+
+        /* Hide UI elements only */
         .btn,
         .btn-custom,
         .navbar,
@@ -168,118 +176,147 @@
         .modal-backdrop,
         .invoice-footer,
         .mt-4,
-        nav {
+        nav,
+        header,
+        footer {
             display: none !important;
         }
 
-        /* print only invoice */
+        /* Keep invoice container as-is from screen */
         .wrapper-invoice {
-            padding: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                height: 100vh !important;
+                width: 100vw !important;
+                display: block !important;
         }
 
         .invoice {
-            box-shadow: none !important;
+            height: 100vh !important;
+            width: 100% !important;
+            padding: 40px !important; /* Standard inner margin so text isn't touching the paper edge */
+            box-sizing: border-box !important;
+            
+            /* Flexbox layout to push footer to the bottom */
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important; 
+            
             border: none !important;
-            margin: 0 !important;
-            padding: 15px !important;
-            max-width: 100% !important;
+            box-shadow: none !important;
         }
 
-        @page {
-            size: A4;
-            margin: 10mm;
+        /* Preserve all original styling - don't override font sizes */
+        .invoice-information,
+        .invoice-information p,
+        .invoice-header-wrapper,
+        .invoice-logo-brand,
+        .invoice-logo-brand img,
+        .invoice-head,
+        .invoice-head > div,
+        .invoice-head p,
+        .invoice-body,
+        .invoice-body > div,
+        .invoice-body > div > div,
+        .invoice-body > div > div p {
+            /* Inherit all screen styles - no overrides */
         }
 
-        /* Optimize spacing for single page */
-        .invoice-information {
-            margin-bottom: 8px !important;
-        }
-
-        .invoice-information p {
-            font-size: 11px !important;
-            line-height: 1.3 !important;
-            margin: 2px 0 !important;
-        }
-
-        .invoice-header-wrapper {
-            margin-bottom: 15px !important;
-        }
-
-        .invoice-logo-brand {
-            position: absolute !important;
-            top: 0 !important;
-            right: 0 !important;
-            margin: 0 !important;
-        }
-
-        .invoice-logo-brand img {
-            width: 90px !important;
-            margin: 0 !important;
-        }
-
-        .invoice-head {
-            margin-top: 15px !important;
-            gap: 15px !important;
-        }
-
-        .invoice-head p {
-            font-size: 11px !important;
-            line-height: 1.3 !important;
-            margin: 2px 0 !important;
-        }
-
-        .invoice-body {
-            margin-top: 15px !important;
-        }
-
-        .table th, .table td {
-            padding: 6px 5px !important;
-            font-size: 10px !important;
+        /* Only ensure tables print properly */
+        .table {
+            width: 100% !important;
         }
 
         .table thead {
-            background: #f5f5f5 !important;
+            background: #f0f0f0 !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
 
-        .invoice-body > div {
-            margin-top: 10px !important;
+        /* Remove container constraints but keep content width */
+        .container,
+        .container-fluid {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding-left: 15px !important;
+            padding-right: 15px !important;
+            margin: 0 auto !important;
         }
 
-        .invoice-body table {
-            font-size: 10px !important;
+        .row {
+            margin-left: -15px !important;
+            margin-right: -15px !important;
         }
 
-        .invoice-body table td {
-            padding: 4px !important;
+        .col,
+        .col-md-8,
+        .col-lg-8,
+        [class*="col-"] {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding-left: 15px !important;
+            padding-right: 15px !important;
         }
 
-        .invoice-body table tr:last-child td {
-            font-size: 12px !important;
-            padding: 6px !important;
+        /* Allow natural page breaks */
+        .table {
+            page-break-inside: auto !important;
         }
 
-        .invoice-body > div > div {
-            padding: 8px !important;
-            font-size: 10px !important;
-        }
-
-        .invoice-body > div > div p {
-            font-size: 10px !important;
-            margin: 3px 0 !important;
-        }
-
-        /* Ensure everything fits on one page */
-        * {
+        .table tr {
             page-break-inside: avoid !important;
+            page-break-after: auto !important;
         }
 
-        .invoice {
-            page-break-after: avoid !important;
+        /* Preserve colors */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+        }
+
+        /* Keep all backgrounds */
+        .bg-primary,
+        .bg-secondary,
+        .bg-success,
+        .bg-danger,
+        .bg-warning,
+        .bg-info,
+        .bg-light,
+        .bg-dark,
+        [class*="bg-"] {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        /* Preserve borders */
+        .border,
+        [class*="border-"] {
+            border: inherit !important;
+        }
+
+        /* Keep text colors */
+        .text-primary,
+        .text-secondary,
+        .text-success,
+        .text-danger,
+        .text-warning,
+        .text-info,
+        .text-muted,
+        [class*="text-"] {
+            color: inherit !important;
         }
     }
 
+    .invoice-body {
+        flex-grow: 1 !important; 
+        margin-top: 20px !important;
+    }
+
+    * {
+        page-break-inside: avoid !important;
+    }
+    
     .modal-body {
         overflow-y: auto !important;
     }
@@ -331,6 +368,7 @@
                     <p><strong>{{ p_settings.clientname|default:"Your Company Name" }}</strong></p>
                     <p>{{ p_settings.adress|default:"Your Address" }}</p>
                     {% if p_settings.mf %}<p>MF: {{ p_settings.mf }}</p>{% endif %}
+                    {% if p_settings.rib %}<p>R.I.B: {{ p_settings.rib }}</p>{% endif %}
                 </div>
 
                 <div class="head client-data" style="text-align:right;">
@@ -389,12 +427,18 @@
                             <td style="padding: 8px; text-align: right;">{{ invoiceCurrency }} {{ subtotal_after_discount|floatformat:3 }}</td>
                         </tr>
                         {% endif %}
+                        {% if total_fodec > 0 %}
+                        <tr>
+                            <td style="padding: 8px;"><strong>FODEC (1%):</strong></td>
+                            <td style="padding: 8px; text-align: right;">{{ invoiceCurrency }} {{ total_fodec|floatformat:3 }}</td>
+                        </tr>
+                        {% endif %}
                         <tr>
                             <td style="padding: 8px;"><strong>TVA ({{ invoice.tva }}%):</strong></td>
                             <td style="padding: 8px; text-align: right;">{{ invoiceCurrency }} {{ tva_amount|floatformat:3 }}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 8px;"><strong>Timbre Fiscal (D):</strong></td>
+                            <td style="padding: 8px;"><strong>Timbre Fiscal :</strong></td>
                             <td style="padding: 8px; text-align: right;">{{ invoiceCurrency }} {{ invoice.timbre_fiscal|floatformat:3 }}</td>
                         </tr>
                         <tr style="border-top: 2px solid #2f2f2f;">
@@ -414,8 +458,7 @@
             </div>
             {% endif %}
             <div style="margin-top:25px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                <strong>Total en lettre:</strong>
-                <p style="margin: 5px 0 0 0;">cette facture correspondait à un montant total {{ total_in_words }}</p>
+                <p style="margin: 5px 0 0 0;">Arrêtée la présente facture à la somme de {{ total_in_words }}</p>
             </div>
             <div class="invoice-footer">
                 <p>Merci de votre confiance !</p>
@@ -504,7 +547,7 @@
                             </div>
 
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold">Timbre Fiscal (D)</label>
+                                <label class="form-label fw-semibold">Timbre Fiscal</label>
                                 <input type="number" step="0.001" class="form-control" name="timbre_fiscal" value="{{ invoice.timbre_fiscal|default:1.000 }}">
                             </div>
 
@@ -532,26 +575,34 @@
 
                                 <div id="editServicesContainer_{{ invoice.id }}">
                                     <!-- Preloaded Services Rows -->
-                                    {% for service in invoice.service.all %}
+                                    {% for inv_service in invoice.invoice_services.all %}
                                     <div class="card mb-2 service-row" data-row="{{ forloop.counter0 }}">
                                         <div class="card-body p-3">
                                             <div class="row g-2 align-items-end">
-                                                <div class="col-md-8">
+                                                <div class="col-md-5">
                                                     <label class="form-label small mb-1">Service</label>
                                                     <select class="form-select form-select-sm service-select" data-row="{{ forloop.counter0 }}">
                                                         {% for p in all_services %}
-                                                        <option value="{{ p.id }}" 
-                                                                data-price="{{ p.price }}" 
+                                                        <option value="{{ p.id }}"
+                                                                data-price="{{ p.price }}"
                                                                 data-currency="{{ p.currency|default:'TND' }}"
-                                                                {% if p.id == service.id %}selected{% endif %}>
+                                                                data-fodec="{{ p.apply_fodec|yesno:'true,false' }}"
+                                                                {% if p.id == inv_service.service.id %}selected{% endif %}>
                                                             {{ p.title }} - {{ p.currency|default:"TND" }} {{ p.price }}
                                                         </option>
                                                         {% endfor %}
                                                     </select>
                                                 </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label small mb-1">FODEC</label>
+                                                    <input type="hidden" name="has_fodec[]" value="{% if inv_service.has_fodec %}1{% else %}0{% endif %}" class="fodec-hidden">
+                                                    <button type="button" class="btn btn-sm w-100 fodec-toggle {% if inv_service.has_fodec %}btn-success{% else %}btn-outline-secondary{% endif %}">
+                                                        FODEC 1%
+                                                    </button>
+                                                </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label small mb-1">Total</label>
-                                                    <input type="text" class="form-control form-control-sm line-total" data-row="{{ forloop.counter0 }}" readonly>
+                                                    <input type="number" step="0.001" name="unit_price[]" class="form-control form-control-sm line-total" data-row="{{ forloop.counter0 }}" value="{{ inv_service.unit_price }}">
                                                 </div>
                                                 <div class="col-md-1">
                                                     <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-service" data-row="{{ forloop.counter0 }}">
@@ -595,7 +646,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById(`editInvoiceForm${invoiceId}`);
     const servicesDataInput = document.getElementById(`edit_services_data_${invoiceId}`);
     
-    let rowCounter = {{ invoice.service.all|length }};
+    let rowCounter = {{ invoice.invoice_services.all|length }};
 
     // Services data from backend
     const availableServices = [
@@ -604,7 +655,8 @@ document.addEventListener('DOMContentLoaded', function() {
             id: '{{ p.id }}',
             title: '{{ p.title|escapejs }}',
             price: parseFloat('{{ p.price }}'),
-            currency: '{{ p.currency|default:"TND" }}'
+            currency: '{{ p.currency|default:"TND" }}',
+            apply_fodec: {{ p.apply_fodec|yesno:"true,false" }}
         }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
@@ -613,13 +665,25 @@ document.addEventListener('DOMContentLoaded', function() {
     function calculateLineTotal(row) {
         const select = container.querySelector(`.service-select[data-row="${row}"]`);
         const totalInput = container.querySelector(`.line-total[data-row="${row}"]`);
-        
+
         if (select && totalInput) {
             const selectedOption = select.options[select.selectedIndex];
             const price = parseFloat(selectedOption.dataset.price) || 0;
-            const currency = selectedOption.dataset.currency || 'TND';
-            
-            totalInput.value = `${currency} ${price.toFixed(3)}`;
+            totalInput.value = price.toFixed(3);
+        }
+    }
+
+    // Helper to wire up FODEC toggle
+    function initFodecToggle(card) {
+        const fodecBtn = card.querySelector('.fodec-toggle');
+        const fodecHidden = card.querySelector('.fodec-hidden');
+        if (fodecBtn && fodecHidden) {
+            fodecBtn.addEventListener('click', () => {
+                const enabled = fodecHidden.value !== '1';
+                fodecHidden.value = enabled ? '1' : '0';
+                fodecBtn.classList.toggle('btn-success', enabled);
+                fodecBtn.classList.toggle('btn-outline-secondary', !enabled);
+            });
         }
     }
 
@@ -628,26 +692,31 @@ document.addEventListener('DOMContentLoaded', function() {
         const newRow = document.createElement('div');
         newRow.className = 'card mb-2 service-row';
         newRow.dataset.row = rowCounter;
-        
+
         newRow.innerHTML = `
             <div class="card-body p-3">
                 <div class="row g-2 align-items-end">
-                    <div class="col-md-8">
+                    <div class="col-md-5">
                         <label class="form-label small mb-1">Service</label>
                         <select name="service_id[]" class="form-select form-select-sm service-select" data-row="${rowCounter}">
                             <option value="">Select a service...</option>
-                            {% for p in all_services %}
-                            <option value="{{ p.id }}" 
-                                    data-price="{{ p.price }}" 
-                                    data-currency="{{ p.currency|default:'TND' }}">
-                                {{ p.title }} - {{ p.currency|default:"TND" }} {{ p.price }}
-                            </option>
-                            {% endfor %}
+                            ${availableServices.map(s => `
+                                <option value="${s.id}" data-price="${s.price}" data-currency="${s.currency}" data-fodec="${s.apply_fodec}">
+                                    ${s.title} - ${s.currency} ${s.price}
+                                </option>
+                            `).join('')}
                         </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-1">FODEC</label>
+                        <input type="hidden" name="has_fodec[]" value="0" class="fodec-hidden">
+                        <button type="button" class="btn btn-sm btn-outline-secondary w-100 fodec-toggle">
+                            FODEC 1%
+                        </button>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label small mb-1">Total</label>
-                        <input type="text" class="form-control form-control-sm line-total" data-row="${rowCounter}" readonly>
+                        <input type="number" step="0.001" name="unit_price[]" class="form-control form-control-sm line-total" data-row="${rowCounter}">
                     </div>
                     <div class="col-md-1">
                         <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-service" data-row="${rowCounter}">
@@ -657,16 +726,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
-        
+
         container.appendChild(newRow);
-        
+
         // Attach event listeners to new row
         const select = newRow.querySelector('.service-select');
         const removeBtn = newRow.querySelector('.remove-service');
-        
-        select.addEventListener('change', () => calculateLineTotal(rowCounter));
+        const fodecBtn = newRow.querySelector('.fodec-toggle');
+        const fodecHidden = newRow.querySelector('.fodec-hidden');
+
+        function setFodec(enabled) {
+            fodecHidden.value = enabled ? '1' : '0';
+            fodecBtn.classList.toggle('btn-success', enabled);
+            fodecBtn.classList.toggle('btn-outline-secondary', !enabled);
+        }
+
+        fodecBtn.addEventListener('click', () => setFodec(fodecHidden.value !== '1'));
+
+        select.addEventListener('change', () => {
+            calculateLineTotal(rowCounter);
+            // Auto-enable FODEC from service default
+            const opt = select.options[select.selectedIndex];
+            setFodec(opt.dataset.fodec === 'true');
+        });
         removeBtn.addEventListener('click', () => newRow.remove());
-        
+
         rowCounter++;
     });
 
@@ -675,16 +759,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const rowNum = row.dataset.row;
         const select = row.querySelector('.service-select');
         const removeBtn = row.querySelector('.remove-service');
-        
+
         // Add name attributes for form submission
         if (select) {
             select.name = 'service_id[]';
             select.addEventListener('change', () => calculateLineTotal(rowNum));
-            calculateLineTotal(rowNum); // Initial calculation
         }
         if (removeBtn) {
             removeBtn.addEventListener('click', () => row.remove());
         }
+
+        // Wire up FODEC toggle for preloaded rows
+        initFodecToggle(row);
     });
 
     // Form submission - collect services data (optional if using name arrays)

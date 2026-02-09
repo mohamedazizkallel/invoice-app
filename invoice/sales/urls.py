@@ -1,20 +1,26 @@
 from django.urls import path
-from .views import (dashboard,
+from .views import (dashboard, delete_supplier, edit_supplier,
                     login_view,add_service,
                     logout_view,settings_view,edit_client,service_view,edit_service,delete_service,
                     invoice_delete,export_invoices,import_invoices,download_invoice_template
                     ,invoices_list,invoice_create,invoice_detail,invoice_edit,
                     clients,
-                    delete_client)
+                    delete_client, suppliers,
+                    client_transactions, client_add_transaction)
 
 urlpatterns = [
     path('', login_view,name='login'),
     path('logout', logout_view,name='logout'),
-    path('dashboard', dashboard,name='dashboard'),
-    path('settings', settings_view,name='settings_view'),
-    path('clients', clients,name='clients'),
+    path('dashboard/', dashboard,name='dashboard'),
+    path('settings/', settings_view,name='settings_view'),
+    path('clients/', clients,name='clients'),
     path('clients/<int:client_id>/edit/', edit_client,name='edit_client'),
+    path('clients/<int:client_id>/transactions/', client_transactions, name='client_transactions'),
+    path('clients/<int:client_id>/transactions/add/', client_add_transaction, name='client_add_transaction'),
     path('client/<int:pk>/delete/',delete_client, name='delete-client'),
+    path('suppliers/', suppliers,name='suppliers'),
+    path('suppliers/<int:client_id>/edit/', edit_supplier,name='edit_supplier'),
+    path('suppliers/<int:pk>/delete/',delete_supplier, name='delete-supplier'),
         # Invoices
     path('invoices/', invoices_list, name='invoices_list'),
     path('invoices/create/', invoice_create, name='invoice_create'),

@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.forms import widgets
-from .models import Client,Invoice,Settings,Service
+from .models import Client,Invoice,Settings,Service, Supplier, ClientTransaction
 import json
 
 class DateInput(forms.DateInput):
@@ -31,7 +31,7 @@ class SettingsForm(forms.ModelForm):
     """Form for company settings"""
     class Meta:
         model = Settings
-        fields = ['clientname', 'clientLogo', 'adress', 'mf','tva','dt']
+        fields = ['clientname', 'clientLogo', 'adress', 'mf','tva','dt','status','rib']
         labels = {
             'clientname': 'Company Name',
             'clientLogo': 'Company Logo',
@@ -39,12 +39,16 @@ class SettingsForm(forms.ModelForm):
             'mf': 'Tax Registration Number (MF)',
             'tva': 'Taxe sur la Valeur Ajoutée (TVA)',
             'dt': 'Droit de Timbre (DT)',
+            'rib': 'R.I.B',
+            'status': "Classification d'individu ou société",
         }
         widgets = {
             'clientname': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter company name'}),
             'adress': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter company address'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
             'mf': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter MF number'}),
             'tva': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter TVA '}),
+            'rib': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter RIB '}),
             'dt': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter DT'}),
             'clientLogo': forms.FileInput(attrs={'class': 'form-control'}),
         }
@@ -80,7 +84,7 @@ class InvoiceForm(forms.ModelForm):
     
     class Meta:
         model = Invoice
-        fields = ['title', 'status', 'notes', 'client', 'service']
+        fields = ['status', 'notes', 'client', 'service']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Invoice title'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
@@ -109,11 +113,25 @@ class ClientForm(forms.ModelForm):
     """Form for client management"""
     class Meta:
         model = Client
-        fields = ['clientname', 'emailAddress', 'adress', 'mf']
+        fields = ['clientname', 'emailAddress', 'adress', 'mf','status']
         widgets = {
             'clientname': forms.TextInput(attrs={'class': 'form-control'}),
             'emailAddress': forms.EmailInput(attrs={'class': 'form-control'}),
             'adress': forms.TextInput(attrs={'class': 'form-control'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'mf': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+class SupplierForm(forms.ModelForm):
+    """Form for client management"""
+    class Meta:
+        model = Supplier
+        fields = ['name', 'emailAddress', 'adress', 'mf','status']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'emailAddress': forms.EmailInput(attrs={'class': 'form-control'}),
+            'adress': forms.TextInput(attrs={'class': 'form-control'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
             'mf': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
@@ -122,7 +140,7 @@ class ServiceForm(forms.ModelForm):
     """Form for service management"""
     class Meta:
         model = Service
-        fields = ['title', 'currency','billing_type', 'description','duration_days', 'duration_hours', 'price']
+        fields = ['title', 'currency','billing_type', 'description','duration_days', 'duration_hours', 'price', 'apply_fodec']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'currency': forms.Select(attrs={'class': 'form-select'}),
@@ -130,5 +148,18 @@ class ServiceForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'duration_days': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
-            'duration_hours': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'})
+            'duration_hours': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'apply_fodec': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        }
+
+
+class ClientTransactionForm(forms.ModelForm):
+    """Form for manual credit/debit entries"""
+    class Meta:
+        model = ClientTransaction
+        fields = ['transaction_type', 'amount', 'description']
+        widgets = {
+            'transaction_type': forms.Select(attrs={'class': 'form-select'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'min': '0.001', 'placeholder': '0.000'}),
+            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Description...'}),
         }

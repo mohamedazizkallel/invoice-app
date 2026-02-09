@@ -60,14 +60,54 @@
   #servicesContainer .card {
     border-left: 3px solid #0d6efd;
   }
+
+  .service-select {
+    font-size: 0.875rem;
+  }
+  
+  .line-total {
+    background-color: #f8f9fa;
+    font-weight: 600;
+  }
+
+
+  #servicesContainer .card {
+    border-left: 3px solid #0d6efd;
+  }
+#paymentModal .form-check-input:checked {
+  background-color: #198754;
+  border-color: #198754;
+}
+
+.retenu-calculated-amount {
+  color: #dc3545 !important;
+}
+
+#summary_net_amount {
+  color: #198754 !important;
+}
+
+#summary_total_retenu {
+  color: #dc3545 !important;
+}
+
+#paymentModal .alert-secondary {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+}
+
+.retenu-row {
+  border-left: 3px solid #0d6efd;
+}
+
+.retenu-rate-display {
+  background-color: #f8f9fa;
+  font-weight: 600;
+}
 </style>
 {% endblock %}
 
 {% block main %}
-
-<!-- ======================================= -->
-<!-- MAIN PAGE CONTENT (unchanged)           -->
-<!-- ======================================= -->
 
 <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
 
@@ -148,6 +188,7 @@
             <td class="align-middle">
               <span class="status-badge status-{{ invoice.status|lower }}">{{ invoice.status }}</span>
             </td>
+            <!-- In your invoices table, add this button to the Actions column -->
             <td class="align-middle text-end">
               <div class="btn-group btn-group-sm">
                 <a href="{% url 'invoice_detail' invoice.id %}" class="btn btn-outline-primary" title="View">
@@ -156,6 +197,22 @@
                 <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editInvoiceModal{{ invoice.id }}" title="Edit">
                   <i class="bi bi-pencil"></i>
                 </button>
+                
+                <!-- NEW: Payment Button -->
+                {% if invoice.status != 'PAID' %}
+                <button type="button" 
+                        class="btn btn-outline-success" 
+                        title="Process Payment"
+                        data-bs-toggle="modal" 
+                        data-bs-target="#paymentModal"
+                        data-invoice-id="{{ invoice.id }}"
+                        data-invoice-number="INV-{{ invoice.uniqueId|default:invoice.id }}"
+                        data-client-name="{{ invoice.client.clientname }}"
+                        data-total-amount="{{ invoice.total_amount }}">
+                  <i class="bi bi-cash-coin"></i>
+                </button>
+                {% endif %}
+                
                 <button type="button" class="btn btn-outline-danger" title="Delete" data-bs-toggle="modal" data-bs-target="#deleteInvoiceModal{{ invoice.id }}">
                   <i class="bi bi-trash"></i>
                 </button>
@@ -282,7 +339,7 @@
                   </div>
 
                   <div class="col-md-3">
-                    <label class="form-label fw-semibold">Timbre Fiscal (D)</label>
+                    <label class="form-label fw-semibold">Timbre Fiscal </label>
                     <input type="number" step="0.001" class="form-control" name="timbre_fiscal" value="{{ settings.dt|default:1.000 }}" placeholder="{{ settings.dt|default:1.000 }}">
                     <small class="text-muted">Default from Settings: {{ settings.dt|default:1.000 }}D</small>
                   </div>
@@ -390,7 +447,7 @@
               </div>
 
               <div class="col-md-3">
-                <label class="form-label fw-semibold">Timbre Fiscal (D)</label>
+                <label class="form-label fw-semibold">Timbre Fiscal </label>
                 <input type="number" step="0.001" class="form-control" name="timbre_fiscal" value="{{ invoice.timbre_fiscal|default:settings.dt|default:1.000 }}">
                 <small class="text-muted">Default: {{ settings.dt|default:1.000 }}D</small>
               </div>
@@ -406,8 +463,6 @@
               </div>
 
               <!-- Service Section -->
-              <!-- Service Section -->
-              <!-- Service Section -->
               <div class="col-12">
                 <hr class="my-3">
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -421,22 +476,34 @@
 
                 <div id="editServicesContainer_{{ invoice.id }}">
                   <!-- Preloaded service Rows -->
-                  {% for service in invoice.service.all %}
+                  {% for inv_service in invoice.invoice_services.all %}
                   <div class="card mb-2">
                     <div class="card-body p-3">
                       <div class="row g-2 align-items-end">
-                        <div class="col-md-6">
+                        <div class="col-md-5">
                           <label class="form-label small mb-1">Services</label>
                           <select class="form-select form-select-sm service-select" data-row="{{ forloop.counter0 }}">
                             {% for p in services %}
-                              <option value="{{ p.id }}" {% if p.id == service.id %}selected{% endif %}>
+                              <option value="{{ p.id }}"
+                                      data-price="{{ p.price|default:0 }}"
+                                      data-currency="{{ p.currency|default:'TND' }}"
+                                      data-fodec="{{ p.apply_fodec|yesno:'true,false' }}"
+                                      {% if p.id == inv_service.service.id %}selected{% endif %}>
+                                {{ p.title }} - {{ p.currency|default:'TND' }} {{ p.price|default:0 }}
                               </option>
                             {% endfor %}
                           </select>
                         </div>
                         <div class="col-md-2">
+                          <label class="form-label small mb-1">FODEC</label>
+                          <input type="hidden" name="has_fodec[]" value="{% if inv_service.has_fodec %}1{% else %}0{% endif %}" class="fodec-hidden">
+                          <button type="button" class="btn btn-sm w-100 fodec-toggle {% if inv_service.has_fodec %}btn-success{% else %}btn-outline-secondary{% endif %}">
+                            FODEC 1%
+                          </button>
+                        </div>
+                        <div class="col-md-2">
                           <label class="form-label small mb-1">Total</label>
-                          <input type="text" class="form-control form-control-sm line-total" data-row="{{ forloop.counter0 }}" readonly>
+                          <input type="number" step="0.001" name="unit_price[]" class="form-control form-control-sm line-total" data-row="{{ forloop.counter0 }}" value="{{ inv_service.unit_price }}">
                         </div>
                         <div class="col-md-1">
                           <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-service" data-row="{{ forloop.counter0 }}">
@@ -507,6 +574,119 @@
       </div>
     </div>
   </div>
+  <!-- Single Reusable Payment Modal with Multiple Retenu Support -->
+  <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content shadow-lg rounded-4">
+        <form id="paymentForm" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="invoice_id" id="payment_invoice_id">
+
+          <!-- Modal Header -->
+          <div class="modal-header border-0 pb-0">
+            <h5 class="modal-title fw-semibold" id="paymentModalLabel">
+              <i class="bi bi-cash-coin me-2 text-success"></i> Process Payment
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body pt-2">
+            <!-- Invoice Info -->
+            <div class="alert alert-info rounded-3" role="alert">
+              <div class="row">
+                <div class="col-md-4">
+                  <small class="text-muted">Invoice Number</small>
+                  <div class="fw-bold" id="payment_invoice_number">-</div>
+                </div>
+                <div class="col-md-4">
+                  <small class="text-muted">Client</small>
+                  <div class="fw-bold" id="payment_client_name">-</div>
+                </div>
+                <div class="col-md-4">
+                  <small class="text-muted">Invoice Total</small>
+                  <div class="fw-bold text-primary" id="payment_total_amount">0.000 D</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment Details -->
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Payment Date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" name="payment_date" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Deposit Year</label>
+                <input type="number" class="form-control" name="depo_date" value="{{ current_year }}" min="2000" max="2100">
+              </div>
+            </div>
+
+            <!-- Retenu Section -->
+            <div class="card border-primary mb-3">
+              <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" id="apply_retenu" name="apply_retenu">
+                  <label class="form-check-label fw-semibold" for="apply_retenu">
+                    Apply Retenue à la source (Multiple)
+                  </label>
+                </div>
+
+                <!-- Retenu Options (Hidden by default) -->
+                <div id="retenu_options" style="display: none;">
+                  <hr class="my-3">
+                  
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0 fw-semibold">
+                      <i class="bi bi-percent me-2"></i> Select Retenue Types
+                    </h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addRetenuRow">
+                      <i class="bi bi-plus-circle me-1"></i> Add Retenu
+                    </button>
+                  </div>
+
+                  <!-- Container for multiple retenu rows -->
+                  <div id="retenuRowsContainer"></div>
+
+                  <!-- Summary -->
+                  <div class="alert alert-secondary rounded-3 mt-3 mb-0" role="alert">
+                    <div class="row">
+                      <div class="col-md-4">
+                        <small class="text-muted">Invoice Total:</small>
+                        <div class="fw-bold" id="summary_invoice_total">0.000 D</div>
+                      </div>
+                      <div class="col-md-4">
+                        <small class="text-muted">Total Retenu:</small>
+                        <div class="fw-bold text-danger" id="summary_total_retenu">0.000 D</div>
+                      </div>
+                      <div class="col-md-4">
+                        <small class="text-muted">Net Amount to Pay:</small>
+                        <div class="fw-bold fs-5 text-success" id="summary_net_amount">0.000 D</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment Notes -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Payment Notes</label>
+              <textarea class="form-control" name="payment_notes" rows="3" placeholder="Payment method, reference number, etc..."></textarea>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success px-4">
+              <i class="bi bi-check-circle me-1"></i> Confirm Payment
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
   {% endfor %}
 </main>
@@ -525,7 +705,8 @@
       id: {{ service.id }},
       title: "{{ service.title|escapejs }}",
       price: {{ service.price|default:0 }},
-      currency: "{{ service.currency|default:'TND' }}"
+      currency: "{{ service.currency|default:'TND' }}",
+      apply_fodec: {{ service.apply_fodec|yesno:"true,false" }}
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
   ];
@@ -539,21 +720,29 @@
       <div class="card-body p-3">
         <div class="row g-2 align-items-end">
 
-          <div class="col-md-6">
+          <div class="col-md-5">
             <label class="form-label small mb-1">Service</label>
             <select name="service_id[]" class="form-select form-select-sm create-service-select" data-row="${serviceRowCounter}">
               <option value="">Select Service</option>
               ${availableServices.map(s => `
-                <option value="${s.id}" data-price="${s.price}" data-currency="${s.currency}">
+                <option value="${s.id}" data-price="${s.price}" data-currency="${s.currency}" data-fodec="${s.apply_fodec}">
                   ${s.title} - ${s.currency} ${s.price}
                 </option>
               `).join("")}
             </select>
           </div>
 
+          <div class="col-md-2">
+            <label class="form-label small mb-1">FODEC</label>
+            <input type="hidden" name="has_fodec[]" value="0" class="fodec-hidden">
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100 fodec-toggle">
+              FODEC 1%
+            </button>
+          </div>
+
           <div class="col-md-3">
             <label class="form-label small mb-1">Total</label>
-            <input type="text" class="form-control form-control-sm line-total" readonly>
+            <input type="number" step="0.001" name="unit_price[]" class="form-control form-control-sm line-total">
           </div>
 
           <div class="col-md-1">
@@ -570,18 +759,38 @@
 
     const select = row.querySelector(".create-service-select");
     const total = row.querySelector(".line-total");
+    const fodecBtn = row.querySelector(".fodec-toggle");
+    const fodecHidden = row.querySelector(".fodec-hidden");
+
+    function setFodec(enabled) {
+      fodecHidden.value = enabled ? "1" : "0";
+      if (enabled) {
+        fodecBtn.classList.remove("btn-outline-secondary");
+        fodecBtn.classList.add("btn-success");
+      } else {
+        fodecBtn.classList.remove("btn-success");
+        fodecBtn.classList.add("btn-outline-secondary");
+      }
+    }
+
+    fodecBtn.addEventListener("click", () => {
+      setFodec(fodecHidden.value !== "1");
+    });
 
     function updateTotals() {
       const opt = select.options[select.selectedIndex];
       const price = parseFloat(opt.dataset.price || 0);
-      const currency = opt.dataset.currency || "";
 
       if (!select.value) {
         total.value = "";
         return;
       }
 
-      total.value = `${currency} ${price.toFixed(3)}`;
+      total.value = price.toFixed(3);
+
+      // Auto-enable FODEC if the service has apply_fodec
+      const autoFodec = opt.dataset.fodec === "true";
+      setFodec(autoFodec);
     }
 
     select.addEventListener("change", updateTotals);
@@ -629,7 +838,21 @@
   {% for invoice in invoices %}
   (function() {
     const invoiceId = {{ invoice.id }};
-    let editServiceCounter = {{ invoice.service.all|length }};
+    let editServiceCounter = {{ invoice.invoice_services.all|length }};
+
+    // Helper to wire up FODEC toggle on any card
+    function initFodecToggle(card) {
+      const fodecBtn = card.querySelector(".fodec-toggle");
+      const fodecHidden = card.querySelector(".fodec-hidden");
+      if (fodecBtn && fodecHidden) {
+        fodecBtn.addEventListener("click", () => {
+          const enabled = fodecHidden.value !== "1";
+          fodecHidden.value = enabled ? "1" : "0";
+          fodecBtn.classList.toggle("btn-success", enabled);
+          fodecBtn.classList.toggle("btn-outline-secondary", !enabled);
+        });
+      }
+    }
 
     // Add Service Row Handler
     document.getElementById(`addEditServiceRow_${invoiceId}`)?.addEventListener("click", () => {
@@ -640,21 +863,29 @@
       row.innerHTML = `
         <div class="card-body p-3">
           <div class="row g-2 align-items-end">
-            <div class="col-md-6">
+            <div class="col-md-5">
               <label class="form-label small mb-1">Service</label>
               <select name="service_id[]" class="form-select form-select-sm edit-service-select" data-row="${editServiceCounter}">
                 <option value="">Select Service</option>
                 ${availableServices.map(s => `
-                  <option value="${s.id}" data-price="${s.price}" data-currency="${s.currency}">
+                  <option value="${s.id}" data-price="${s.price}" data-currency="${s.currency}" data-fodec="${s.apply_fodec}">
                     ${s.title} - ${s.currency} ${s.price}
                   </option>
                 `).join("")}
               </select>
             </div>
 
+            <div class="col-md-2">
+              <label class="form-label small mb-1">FODEC</label>
+              <input type="hidden" name="has_fodec[]" value="0" class="fodec-hidden">
+              <button type="button" class="btn btn-sm btn-outline-secondary w-100 fodec-toggle">
+                FODEC 1%
+              </button>
+            </div>
+
             <div class="col-md-3">
               <label class="form-label small mb-1">Total</label>
-              <input type="text" class="form-control form-control-sm line-total" readonly>
+              <input type="number" step="0.001" name="unit_price[]" class="form-control form-control-sm line-total">
             </div>
 
             <div class="col-md-1">
@@ -670,18 +901,33 @@
 
       const select = row.querySelector(".edit-service-select");
       const total = row.querySelector(".line-total");
+      const fodecBtn = row.querySelector(".fodec-toggle");
+      const fodecHidden = row.querySelector(".fodec-hidden");
+
+      function setFodec(enabled) {
+        fodecHidden.value = enabled ? "1" : "0";
+        fodecBtn.classList.toggle("btn-success", enabled);
+        fodecBtn.classList.toggle("btn-outline-secondary", !enabled);
+      }
+
+      fodecBtn.addEventListener("click", () => {
+        setFodec(fodecHidden.value !== "1");
+      });
 
       function updateTotals() {
         const opt = select.options[select.selectedIndex];
         const price = parseFloat(opt.dataset.price || 0);
-        const currency = opt.dataset.currency || "";
 
         if (!select.value) {
           total.value = "";
           return;
         }
 
-        total.value = `${currency} ${price.toFixed(3)}`;
+        total.value = price.toFixed(3);
+
+        // Auto-enable FODEC if the service has apply_fodec
+        const autoFodec = opt.dataset.fodec === "true";
+        setFodec(autoFodec);
       }
 
       select.addEventListener("change", updateTotals);
@@ -703,32 +949,210 @@
         function updateTotals() {
           const opt = select.options[select.selectedIndex];
           const price = parseFloat(opt.dataset.price || 0);
-          const currency = opt.dataset.currency || "";
-          total.value = `${currency} ${price.toFixed(3)}`;
+          total.value = price.toFixed(3);
         }
 
         select.addEventListener("change", updateTotals);
         card.querySelector(".remove-service")?.addEventListener("click", () => card.remove());
 
-        updateTotals(); // Initial calculation
+        // Wire up FODEC toggle for preloaded rows
+        initFodecToggle(card);
       }
     });
   })();
   {% endfor %}
+  document.addEventListener('DOMContentLoaded', function() {
+    const paymentModal = document.getElementById('paymentModal');
+    const applyRetenuCheckbox = document.getElementById('apply_retenu');
+    const retenuOptions = document.getElementById('retenu_options');
+    const retenuRowsContainer = document.getElementById('retenuRowsContainer');
+    const addRetenuBtn = document.getElementById('addRetenuRow');
+    
+    let retenuRowCounter = 0;
+    let invoiceTotalAmount = 0;
+    
+    // Available retenu types from Django
+    const availableRetenues = [
+      {% for retenu in retenu_types %}
+      {
+        id: {{ retenu.id }},
+        name: "{{ retenu.get_subcategory_display|escapejs }}",
+        rate: {{ retenu.rate }},
+        category: "{{ retenu.get_category_display|escapejs }}"
+      }{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ];
+
+    // Toggle retenu options
+    applyRetenuCheckbox?.addEventListener('change', function() {
+      if (this.checked) {
+        retenuOptions.style.display = 'block';
+        if (retenuRowCounter === 0) {
+          addRetenuRow();
+        }
+      } else {
+        retenuOptions.style.display = 'none';
+        retenuRowsContainer.innerHTML = '';
+        retenuRowCounter = 0;
+        updateSummary();
+      }
+    });
+
+    // Add retenu row
+    addRetenuBtn?.addEventListener('click', addRetenuRow);
+
+    function addRetenuRow() {
+      const rowId = retenuRowCounter++;
+      
+      const row = document.createElement('div');
+      row.className = 'card mb-2 retenu-row';
+      row.dataset.rowId = rowId;
+      row.innerHTML = `
+        <div class="card-body p-3">
+          <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+              <label class="form-label small mb-1">Retenu Type</label>
+              <select name="retenu_types[]" class="form-select form-select-sm retenu-type-select" data-row="${rowId}" required>
+                <option value="">-- Select Retenu Type --</option>
+                ${availableRetenues.map(r => `
+                  <option value="${r.id}" data-rate="${r.rate}">
+                    ${r.name}
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+            
+            <div class="col-md-3">
+              <label class="form-label small mb-1">Base Amount </label>
+              <input type="number" step="0.001" name="retenu_base_amounts[]" 
+                    class="form-control form-control-sm retenu-base-amount" 
+                    data-row="${rowId}" placeholder="0.000" required>
+            </div>
+            
+            <div class="col-md-2">
+              <label class="form-label small mb-1">Rate (%)</label>
+              <input type="text" class="form-control form-control-sm retenu-rate-display" 
+                    data-row="${rowId}" readonly>
+            </div>
+            
+            <div class="col-md-1">
+              <label class="form-label small mb-1 d-none d-md-block">&nbsp;</label>
+              <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-retenu-row" data-row="${rowId}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+            
+            <div class="col-12">
+              <div class="alert alert-light mb-0 py-2">
+                <small class="text-muted">Calculated Retenu: </small>
+                <span class="fw-bold text-danger retenu-calculated-amount" data-row="${rowId}">0.000 D</span>
+              </div>
+            </div>
+            
+            <div class="col-12">
+              <label class="form-label small mb-1">Notes (Optional)</label>
+              <input type="text" name="retenu_notes[]" class="form-control form-control-sm" placeholder="Optional notes for this retenu...">
+            </div>
+          </div>
+        </div>
+      `;
+      
+      retenuRowsContainer.appendChild(row);
+      
+      // Add event listeners
+      const select = row.querySelector('.retenu-type-select');
+      const baseAmount = row.querySelector('.retenu-base-amount');
+      const rateDisplay = row.querySelector('.retenu-rate-display');
+      const removeBtn = row.querySelector('.remove-retenu-row');
+      
+      select.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const rate = selectedOption.getAttribute('data-rate');
+        rateDisplay.value = rate ? rate + '%' : '';
+        calculateRowRetenu(rowId);
+      });
+      
+      baseAmount.addEventListener('input', function() {
+        calculateRowRetenu(rowId);
+      });
+      
+      removeBtn.addEventListener('click', function() {
+        row.remove();
+        updateSummary();
+      });
+      
+      // Auto-populate base amount with invoice total
+      baseAmount.value = invoiceTotalAmount.toFixed(3);
+    }
+
+    function calculateRowRetenu(rowId) {
+      const row = document.querySelector(`.retenu-row[data-row-id="${rowId}"]`);
+      if (!row) return;
+      
+      const select = row.querySelector('.retenu-type-select');
+      const baseAmount = parseFloat(row.querySelector('.retenu-base-amount').value || 0);
+      const calculatedSpan = row.querySelector('.retenu-calculated-amount');
+      
+      const selectedOption = select.options[select.selectedIndex];
+      const rate = parseFloat(selectedOption.getAttribute('data-rate') || 0);
+      
+      if (rate && baseAmount) {
+        const retenuAmount = (baseAmount * rate) / 100;
+        calculatedSpan.textContent = retenuAmount.toFixed(3) + ' D';
+      } else {
+        calculatedSpan.textContent = '0.000 D';
+      }
+      
+      updateSummary();
+    }
+
+    function updateSummary() {
+      let totalRetenu = 0;
+      
+      document.querySelectorAll('.retenu-calculated-amount').forEach(span => {
+        const amount = parseFloat(span.textContent.replace(/[^\d.]/g, '') || 0);
+        totalRetenu += amount;
+      });
+      
+      const netAmount = invoiceTotalAmount - totalRetenu;
+      
+      document.getElementById('summary_invoice_total').textContent = invoiceTotalAmount.toFixed(3) + ' D';
+      document.getElementById('summary_total_retenu').textContent = totalRetenu.toFixed(3) + ' D';
+      document.getElementById('summary_net_amount').textContent = netAmount.toFixed(3) + ' D';
+    }
+
+    // Populate modal when opened
+    paymentModal?.addEventListener('show.bs.modal', function(event) {
+      const button = event.relatedTarget;
+      const invoiceId = button.getAttribute('data-invoice-id');
+      const invoiceNumber = button.getAttribute('data-invoice-number');
+      const clientName = button.getAttribute('data-client-name');
+      const totalAmount = parseFloat(button.getAttribute('data-total-amount'));
+
+      invoiceTotalAmount = totalAmount;
+
+      // Populate form fields
+      document.getElementById('payment_invoice_id').value = invoiceId;
+      document.getElementById('payment_invoice_number').textContent = invoiceNumber;
+      document.getElementById('payment_client_name').textContent = clientName;
+      document.getElementById('payment_total_amount').textContent = totalAmount.toFixed(3) + ' D';
+
+      // Set today's date as default
+      const today = new Date().toISOString().split('T')[0];
+      document.querySelector('input[name="payment_date"]').value = today;
+
+      // Reset retenu section
+      applyRetenuCheckbox.checked = false;
+      retenuOptions.style.display = 'none';
+      retenuRowsContainer.innerHTML = '';
+      retenuRowCounter = 0;
+      updateSummary();
+
+      // Update form action
+      const form = document.getElementById('paymentForm');
+      form.action = `/retenu/invoice/${invoiceId}/process-payment/`;
+    });
+  });
 </script>
-<style>
-  .service-select {
-    font-size: 0.875rem;
-  }
-  
-  .line-total {
-    background-color: #f8f9fa;
-    font-weight: 600;
-  }
 
-
-  #servicesContainer .card {
-    border-left: 3px solid #0d6efd;
-  }
-</style>
 {% endblock %}
