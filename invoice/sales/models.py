@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Sum
 from django.utils import timezone
 from django.template.defaultfilters import slugify
 from uuid import uuid4
@@ -239,7 +240,7 @@ class Invoice(models.Model):
     def get_total_retenue(self):
         """Total retenue à la source"""
         return self.retenues.aggregate(
-            total=sum('retenu_amount')
+            total=Sum('retenu_amount')
         )['total'] or Decimal('0.000')
     
     def get_net_amount(self):
