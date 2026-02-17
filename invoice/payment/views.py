@@ -7,7 +7,6 @@ from .models import InvoiceRetenu, Retenu
 from sales.models import Invoice, ClientTransaction
 from .forms import InvoiceRetenuForm, MultipleInvoiceRetenuForm
 from decimal import Decimal
-import datetime
 
 def invoice_retenu_create(request, invoice_id):
     """
@@ -169,62 +168,13 @@ def payment_detail(request, invoice_id):
 @require_POST
 def process_payment(request, invoice_id):
     """
-    Process payment for an invoice with optional multiple retenues
+    Process payment for an invoice
     """
     invoice = get_object_or_404(Invoice, id=invoice_id)
-    
+
     payment_date = request.POST.get('payment_date')
     payment_notes = request.POST.get('payment_notes', '')
-    apply_retenu = request.POST.get('apply_retenu') == 'on'
-    depo_date = request.POST.get('depo_date', datetime.date.today().year)
-    
-    # Handle multiple retenues if selected
-    if apply_retenu:
-        retenu_type_ids = request.POST.getlist('retenu_types[]')
-        retenu_base_amounts = request.POST.getlist('retenu_base_amounts[]')
-        retenu_notes_list = request.POST.getlist('retenu_notes[]')
-        
-        if retenu_type_ids and retenu_base_amounts:
-            created_count = 0
-            total_retenu_amount = Decimal('0.000')
-            
-            # Process each retenu
-            for i, retenu_type_id in enumerate(retenu_type_ids):
-                if not retenu_type_id:  # Skip empty selections
-                    continue
-                    
-                try:
-                    retenu_type = Retenu.objects.get(id=retenu_type_id, is_active=True)
-                    base_amount = Decimal(retenu_base_amounts[i])
-                    notes = retenu_notes_list[i] if i < len(retenu_notes_list) else ''
-                    
-                    # Create InvoiceRetenu record
-                    invoice_retenu = InvoiceRetenu.objects.create(
-                        invoice=invoice,
-                        retenu_type=retenu_type,
-                        base_amount=base_amount,
-                        retenu_rate=retenu_type.rate,
-                        notes=notes,
-                        depo_date=depo_date
-                    )
-                    
-                    created_count += 1
-                    total_retenu_amount += invoice_retenu.retenu_amount
-                    
-                except (Retenu.DoesNotExist, ValueError, IndexError) as e:
-                    messages.error(request, f'Error applying retenu: {str(e)}')
-                    continue
-            
-            if created_count > 0:
-                messages.success(
-                    request, 
-                    f'{created_count} retenue(s) applied successfully. Total retenu: {total_retenu_amount}D'
-                )
-            else:
-                messages.warning(request, 'No valid retenues were applied')
-        else:
-            messages.warning(request, 'Retenu was selected but no types were specified')
-    
+
     # Update invoice status to PAID
     invoice.status = 'PAID'
     invoice.save()
@@ -244,12 +194,9 @@ def process_payment(request, invoice_id):
                 description=f'Paiement facture {invoice.uniqueId} - {invoice.title}'
             )
 
-    # Calculate net amount
-    net_amount = invoice.get_net_amount()
-    
     messages.success(
-        request, 
-        f'Payment processed successfully for Invoice #{invoice.uniqueId or invoice.id}. Net amount: {net_amount}D'
+        request,
+        f'Payment processed successfully for Invoice #{invoice.uniqueId or invoice.id}. Amount: {invoice.calculate_total()}D'
     )
-    
+
     return redirect('invoice_detail', invoice_id=invoice.id)
