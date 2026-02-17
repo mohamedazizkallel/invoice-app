@@ -1,121 +1,421 @@
 {% load static %}
-
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Invoicing System">
+    <meta name="description" content="Modern Invoicing System">
     <meta name="author" content="Swift Technology">
-    <title>Invoice Online</title>
+    <title>{% block title %}Invoice App{% endblock %}</title>
 
     <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
     <link href="{% static 'assets/css/dashboard.css' %}" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     {% block css %}{% endblock %}
 
     <style>
+      :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --sidebar-bg: #1a1d29;
+        --sidebar-hover: #2d3142;
+        --sidebar-active: #667eea;
+        --text-muted: #a0a0b8;
+      }
+
+      * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+
+      body {
+        background: #f8f9fc;
+        overflow-x: hidden;
+      }
+
+      /* Modern Header */
+      .modern-header {
+        background: var(--primary-gradient);
+        backdrop-filter: blur(10px);
+        border: none;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
+        height: 70px;
+      }
+
+      .modern-header .navbar-brand {
+        font-weight: 700;
+        font-size: 1.4rem;
+        letter-spacing: -0.5px;
+        color: white !important;
+        padding: 0 1.5rem;
+      }
+
+      .modern-header .nav-link {
+        color: rgba(255, 255, 255, 0.9) !important;
+        font-weight: 500;
+        transition: all 0.3s;
+      }
+
+      .modern-header .nav-link:hover {
+        color: white !important;
+        transform: translateY(-1px);
+      }
+
+      .user-profile {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 1rem;
+        color: white;
+      }
+
+      .user-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+      }
+
+      /* Modern Sidebar */
+      .modern-sidebar {
+        background: var(--sidebar-bg);
+        min-height: calc(100vh - 70px);
+        padding: 0;
+        box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 70px;
+      }
+
+      .sidebar-wrapper {
+        padding: 1.5rem 0;
+      }
+
+      .sidebar-section {
+        margin-bottom: 2rem;
+      }
+
+      .sidebar-heading {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-muted);
+        padding: 0 1.5rem;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+      }
+
+      .modern-sidebar .nav-link {
+        color: rgba(255, 255, 255, 0.7);
+        padding: 0.85rem 1.5rem;
+        border-left: 3px solid transparent;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+      }
+
+      .modern-sidebar .nav-link i {
+        font-size: 1.1rem;
+        width: 20px;
+        text-align: center;
+      }
+
+      .modern-sidebar .nav-link:hover {
+        background: var(--sidebar-hover);
+        color: white;
+        border-left-color: var(--sidebar-active);
+        transform: translateX(2px);
+      }
+
+      .modern-sidebar .nav-link.active {
+        background: rgba(102, 126, 234, 0.15);
+        color: white;
+        border-left-color: var(--sidebar-active);
+      }
+
+      /* Main Content */
+      .main-content {
+        padding: 2rem;
+        min-height: calc(100vh - 70px);
+      }
+
+      /* Toast Notifications */
       .toast-container {
         z-index: 2000;
       }
+
+      .modern-toast {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(10px);
+        overflow: hidden;
+      }
+
+      .modern-toast .toast-body {
+        padding: 1rem 1.25rem;
+        font-weight: 500;
+      }
+
+      .modern-toast.toast-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      }
+
+      .modern-toast.toast-error {
+        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+      }
+
+      .modern-toast.toast-warning {
+        background: linear-gradient(135deg, #ffc107 0%, #ffaa00 100%);
+        color: #000 !important;
+      }
+
+      .modern-toast.toast-info {
+        background: linear-gradient(135deg, #17a2b8 0%, #00bcd4 100%);
+      }
+
+      /* Search Bar */
+      .search-bar {
+        max-width: 400px;
+        position: relative;
+      }
+
+      .search-bar input {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: 0.6rem 1rem 0.6rem 2.5rem;
+        border-radius: 25px;
+        transition: all 0.3s;
+      }
+
+      .search-bar input::placeholder {
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .search-bar input:focus {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.4);
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+      }
+
+      .search-bar i {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .modern-sidebar {
+          position: fixed;
+          top: 70px;
+          left: -100%;
+          width: 280px;
+          z-index: 1050;
+          transition: left 0.3s ease;
+        }
+
+        .modern-sidebar.show {
+          left: 0;
+        }
+
+        .main-content {
+          padding: 1rem;
+        }
+      }
+
+      /* Animations */
+      @keyframes slideInRight {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      .modern-toast {
+        animation: slideInRight 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
   </head>
-  
-<body>
 
-  <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
-    <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="#"> Invoice App</a>
-    <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
-      <span class="navbar-toggler-icon"></span>
+<body>
+  <!-- Modern Header -->
+  <header class="navbar modern-header sticky-top flex-md-nowrap p-0">
+    <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
+      <i class="bi bi-receipt-cutoff me-2"></i>
+      Invoice App
+    </a>
+
+    <button class="navbar-toggler d-md-none text-white border-0" type="button" onclick="toggleSidebar()">
+      <i class="bi bi-list fs-4"></i>
     </button>
-    <input class="form-control form-control-dark w-100" type="text" placeholder="Search">
-    <div class="navbar-nav">
+
+    <div class="search-bar d-none d-md-block mx-auto">
+      <i class="bi bi-search"></i>
+      <input class="form-control" type="text" placeholder="Search invoices, clients...">
+    </div>
+
+    <div class="navbar-nav flex-row">
+      <div class="user-profile d-none d-md-flex">
+        <div class="user-avatar">
+          <i class="bi bi-person-fill"></i>
+        </div>
+        <span class="d-none d-lg-block">{{ user.username|default:"Admin" }}</span>
+      </div>
       <div class="nav-item text-nowrap">
-        <a class="nav-link px-3" href="{% url 'logout' %}">Log Out</a>
+        <a class="nav-link px-3 d-flex align-items-center gap-2" href="{% url 'logout' %}">
+          <i class="bi bi-box-arrow-right"></i>
+          <span class="d-none d-lg-inline">Logout</span>
+        </a>
       </div>
     </div>
   </header>
 
-  <div class="container-fluid">
-    <div class="row">
-      <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
-        <div class="position-sticky pt-3">
-          <ul class="nav flex-column">
-            <li class="nav-item"><a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a></li>
-            <li class="nav-item"><a class="nav-link" href="{% url 'invoices_list' %}">Invoices</a></li>
-            <li class="nav-item"><a class="nav-link" href="{% url 'clients' %}">Clients</a></li>
-            <li class="nav-item"><a class="nav-link" href="{% url 'suppliers' %}">Suppliers</a></li>
-            <li class="nav-item"><a class="nav-link" href="{% url 'services_list' %}">Services</a></li>
-            <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted"> 
-              <span>Settings</span> 
-              <a class="link-secondary" href="#" aria-label="Add a new report"> 
-                <span data-feather="plus-circle"></span> 
-              </a> 
-            </h6> 
-            <ul class="nav flex-column mb-2"> 
-              <li class="nav-item"> <a class="nav-link" href="{% url 'settings_view' %}"> 
-                <span data-feather="file-text"></span> Company </a> 
-              </li> 
-              <li class="nav-item"> <a class="nav-link" href="#"> 
-                <span data-feather="file-text"></span> SMTP </a> 
-              </li> 
+  <div class="container-fluid p-0">
+    <div class="row g-0">
+      <!-- Modern Sidebar -->
+      <nav id="sidebarMenu" class="col-md-3 col-lg-2 modern-sidebar">
+        <div class="sidebar-wrapper">
+          <!-- Main Navigation -->
+          <div class="sidebar-section">
+            <div class="sidebar-heading">Main Menu</div>
+            <ul class="nav flex-column">
+              <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                  <i class="bi bi-speedometer2"></i>
+                  <span>Dashboard</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if 'invoice' in request.path %}active{% endif %}" href="{% url 'invoices_list' %}">
+                  <i class="bi bi-receipt"></i>
+                  <span>Invoices</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if 'clients' in request.path %}active{% endif %}" href="{% url 'clients' %}">
+                  <i class="bi bi-people"></i>
+                  <span>Clients</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if 'supplier' in request.path %}active{% endif %}" href="{% url 'suppliers' %}">
+                  <i class="bi bi-truck"></i>
+                  <span>Suppliers</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if 'service' in request.path %}active{% endif %}" href="{% url 'services_list' %}">
+                  <i class="bi bi-box-seam"></i>
+                  <span>Services</span>
+                </a>
+              </li>
             </ul>
-          </ul>
+          </div>
+
+          <!-- Settings -->
+          <div class="sidebar-section">
+            <div class="sidebar-heading">Settings</div>
+            <ul class="nav flex-column">
+              <li class="nav-item">
+                <a class="nav-link {% if 'settings' in request.path %}active{% endif %}" href="{% url 'settings_view' %}">
+                  <i class="bi bi-building"></i>
+                  <span>Company</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#">
+                  <i class="bi bi-envelope"></i>
+                  <span>SMTP</span>
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
       </nav>
 
-      <!-- TOAST NOTIFICATIONS -->
-      {% if messages %}
-      <div aria-live="polite" aria-atomic="true" class="position-relative">
-        <div class="toast-container position-fixed top-0 end-0 p-3">
-          {% for message in messages %}
-            <div class="toast align-items-center border-0 mb-2
-              {% if message.tags == 'success' %} bg-success text-white
-              {% elif message.tags == 'error' %} bg-danger text-white
-              {% elif message.tags == 'warning' %} bg-warning text-dark
-              {% else %} bg-info text-white
-              {% endif %}"
-              role="alert" data-bs-delay="3000">
-              
-              <div class="d-flex">
-                <div class="toast-body">
-                  {% if message.tags == 'success' %}<i class="bi bi-check-circle-fill me-2"></i>
-                  {% elif message.tags == 'error' %}<i class="bi bi-x-circle-fill me-2"></i>
-                  {% elif message.tags == 'warning' %}<i class="bi bi-exclamation-triangle-fill me-2"></i>
-                  {% else %}<i class="bi bi-info-circle-fill me-2"></i>{% endif %}
-                  {{ message }}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-              </div>
-            </div>
-          {% endfor %}
-        </div>
+      <!-- Main Content Area -->
+      <div class="col-md-9 col-lg-10 main-content">
+        {% block main %}{% endblock %}
       </div>
-      {% endif %}
-      <!-- END TOAST -->
-
-      {% block main %}{% endblock %}
     </div>
   </div>
 
-  {% comment %} <script src="{% static 'assets/js/bootstrap.bundle.min.js' %}"></script> {% endcomment %}
+  <!-- Toast Notifications -->
+  {% if messages %}
+  <div aria-live="polite" aria-atomic="true">
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+      {% for message in messages %}
+        <div class="toast modern-toast align-items-center border-0 mb-2 text-white
+          {% if message.tags == 'success' %} toast-success
+          {% elif message.tags == 'error' %} toast-error
+          {% elif message.tags == 'warning' %} toast-warning
+          {% else %} toast-info
+          {% endif %}"
+          role="alert" data-bs-delay="4000">
+          <div class="d-flex">
+            <div class="toast-body">
+              {% if message.tags == 'success' %}<i class="bi bi-check-circle-fill me-2"></i>
+              {% elif message.tags == 'error' %}<i class="bi bi-x-circle-fill me-2"></i>
+              {% elif message.tags == 'warning' %}<i class="bi bi-exclamation-triangle-fill me-2"></i>
+              {% else %}<i class="bi bi-info-circle-fill me-2"></i>{% endif %}
+              {{ message }}
+            </div>
+            <button type="button" class="btn-close {% if message.tags != 'warning' %}btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast"></button>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <script src="https://cdn.jsdelivr.net/npm/feather-icons@4.28.0/dist/feather.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
   <script src="{% static 'assets/js/dashboard.js' %}"></script>
 
   <script>
-    // Auto-show all toasts
+    // Auto-show toasts
     document.addEventListener("DOMContentLoaded", function() {
       document.querySelectorAll('.toast').forEach(toastEl => {
         new bootstrap.Toast(toastEl).show();
       });
     });
+
+    // Sidebar toggle for mobile
+    function toggleSidebar() {
+      document.getElementById('sidebarMenu').classList.toggle('show');
+    }
+
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', function(e) {
+      const sidebar = document.getElementById('sidebarMenu');
+      const toggler = document.querySelector('.navbar-toggler');
+
+      if (window.innerWidth < 768 && sidebar.classList.contains('show')) {
+        if (!sidebar.contains(e.target) && !toggler.contains(e.target)) {
+          sidebar.classList.remove('show');
+        }
+      }
+    });
   </script>
 
   {% block scripts %}{% endblock %}
-
 </body>
 </html>
