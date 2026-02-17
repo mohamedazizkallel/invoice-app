@@ -25,17 +25,17 @@
   <div class="stat-card">
     <i class="stat-icon bi bi-receipt"></i>
     <p>Total Invoices</p>
-    <h3>6</h3>
+    <h3>{{ total_invoices }}</h3>
   </div>
   <div class="stat-card" style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);">
     <i class="stat-icon bi bi-clock-history"></i>
     <p>Outstanding</p>
-    <h3>R4,020.00</h3>
+    <h3>{{ outstanding_amount|floatformat:3 }} {{ currency }}</h3>
   </div>
   <div class="stat-card" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);">
     <i class="stat-icon bi bi-check-circle"></i>
     <p>Paid This Month</p>
-    <h3>R20,040.00</h3>
+    <h3>{{ paid_this_month_amount|floatformat:3 }} {{ currency }}</h3>
   </div>
 </div>
 
@@ -73,7 +73,7 @@
             </span>
           </td>
           <td class="text-end">
-            <a href="{% url 'invoice-detail-service' invoice.slug %}" class="btn btn-sm btn-outline-primary">
+            <a href="{% url 'invoice_detail' invoice.id %}" class="btn btn-sm btn-outline-primary">
               <i class="bi bi-eye"></i>
             </a>
           </td>

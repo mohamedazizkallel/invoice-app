@@ -69,9 +69,37 @@ def logout_view(request):
 
 @login_required
 def dashboard(request):
-    invoices = Invoice.objects.all().select_related('client').prefetch_related('service')
-    
-    context = {'invoices': invoices}
+    # Get recent invoices
+    invoices = Invoice.objects.all().select_related('client').prefetch_related('service').order_by('-date_created')[:10]
+
+    # Calculate statistics
+    total_invoices = Invoice.objects.count()
+
+    # Outstanding amount (CURRENT + OVERDUE invoices)
+    outstanding_invoices = Invoice.objects.filter(status__in=['CURRENT', 'OVERDUE'])
+    outstanding_amount = sum(invoice.calculate_total() for invoice in outstanding_invoices)
+
+    # Paid this month
+    from datetime import datetime
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    paid_this_month_invoices = Invoice.objects.filter(
+        status='PAID',
+        date_created__month=current_month,
+        date_created__year=current_year
+    )
+    paid_this_month_amount = sum(invoice.calculate_total() for invoice in paid_this_month_invoices)
+
+    # Currency (default to TND)
+    currency = 'TND'
+
+    context = {
+        'invoices': invoices,
+        'total_invoices': total_invoices,
+        'outstanding_amount': outstanding_amount,
+        'paid_this_month_amount': paid_this_month_amount,
+        'currency': currency,
+    }
     return render(request,"sales/dashboard.html", context)
 
 
@@ -560,9 +588,12 @@ def invoice_edit(request, invoice_id):
     return redirect('invoices_list')
 
 @login_required
-def invoice_detail(request, invoice_id):
+def invoice_detail(request, invoice_id=None, slug=None):
     """View invoice details with inventory-tracked services"""
-    invoice = get_object_or_404(Invoice, id=invoice_id)
+    if slug:
+        invoice = get_object_or_404(Invoice, slug=slug)
+    else:
+        invoice = get_object_or_404(Invoice, id=invoice_id)
     
     # Get invoice services with their quantities
     invoice_services = invoice.invoice_services.select_related('service').all()

@@ -25,6 +25,7 @@ urlpatterns = [
     path('invoices/', invoices_list, name='invoices_list'),
     path('invoices/create/', invoice_create, name='invoice_create'),
     path('invoices/<int:invoice_id>/', invoice_detail, name='invoice_detail'),
+    path('invoices/<slug:slug>/', invoice_detail, name='invoice-detail-service'),  # Alias for slug-based access
     path('invoices/<int:invoice_id>/edit/', invoice_edit, name='invoice_edit'),
     path('invoices/<int:invoice_id>/delete/', invoice_delete, name='invoice_delete'),
     path('invoices/export/', export_invoices, name='export_invoices'),
