@@ -44,6 +44,9 @@
         border: none;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
       }
 
       .modern-header .navbar-brand {
@@ -52,6 +55,7 @@
         letter-spacing: -0.5px;
         color: white !important;
         padding: 0 1.5rem;
+        flex-shrink: 0;
       }
 
       .modern-header .nav-link {
@@ -189,6 +193,8 @@
       .search-bar {
         max-width: 400px;
         position: relative;
+        flex: 1;
+        margin: 0 2rem;
       }
 
       .search-bar input {
@@ -198,6 +204,7 @@
         padding: 0.6rem 1rem 0.6rem 2.5rem;
         border-radius: 25px;
         transition: all 0.3s;
+        width: 100%;
       }
 
       .search-bar input::placeholder {
@@ -449,34 +456,32 @@
 
 <body>
   <!-- Modern Header -->
-  <header class="navbar modern-header sticky-top flex-md-nowrap p-0">
+  <header class="navbar modern-header sticky-top p-0">
     <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
       <i class="bi bi-receipt-cutoff me-2"></i>
       Invoice App
     </a>
 
-    <button class="navbar-toggler d-md-none text-white border-0" type="button" onclick="toggleSidebar()">
+    <button class="navbar-toggler d-md-none text-white border-0 position-absolute end-0 me-3" type="button" onclick="toggleSidebar()">
       <i class="bi bi-list fs-4"></i>
     </button>
 
-    <div class="search-bar d-none d-md-block mx-auto">
+    <div class="search-bar d-none d-md-flex">
       <i class="bi bi-search"></i>
       <input class="form-control" type="text" placeholder="Search invoices, clients...">
     </div>
 
-    <div class="navbar-nav flex-row">
+    <div class="d-flex align-items-center gap-2">
       <div class="user-profile d-none d-md-flex">
         <div class="user-avatar">
           <i class="bi bi-person-fill"></i>
         </div>
         <span class="d-none d-lg-block">{{ user.username|default:"Admin" }}</span>
       </div>
-      <div class="nav-item text-nowrap">
-        <a class="nav-link px-3 d-flex align-items-center gap-2" href="{% url 'logout' %}">
-          <i class="bi bi-box-arrow-right"></i>
-          <span class="d-none d-lg-inline">Logout</span>
-        </a>
-      </div>
+      <a class="nav-link px-3 d-flex align-items-center gap-2" href="{% url 'logout' %}">
+        <i class="bi bi-box-arrow-right"></i>
+        <span class="d-none d-lg-inline">Logout</span>
+      </a>
     </div>
   </header>
 
