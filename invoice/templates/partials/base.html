@@ -251,6 +251,196 @@
       .modern-toast {
         animation: slideInRight 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
       }
+
+      /* Modern Page Header */
+      .page-header {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.04);
+      }
+
+      .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1a1d29;
+        margin-bottom: 0.5rem;
+      }
+
+      .page-header p {
+        color: #6c757d;
+        margin: 0;
+      }
+
+      .page-header-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+      }
+
+      /* Modern Cards */
+      .modern-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.04);
+        transition: all 0.3s ease;
+      }
+
+      .modern-card:hover {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+      }
+
+      .modern-card h2, .modern-card h3 {
+        font-weight: 600;
+        color: #1a1d29;
+        margin-bottom: 1rem;
+      }
+
+      /* Stats Cards */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+      }
+
+      .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        transform: translate(30%, -30%);
+      }
+
+      .stat-card .stat-icon {
+        font-size: 2rem;
+        opacity: 0.3;
+        position: absolute;
+        right: 1.5rem;
+        top: 1.5rem;
+      }
+
+      .stat-card h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: white;
+      }
+
+      .stat-card p {
+        margin: 0;
+        opacity: 0.9;
+        font-weight: 500;
+      }
+
+      /* Modern Buttons */
+      .btn-modern {
+        padding: 0.65rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+      }
+
+      .btn-modern-primary {
+        background: var(--primary-gradient);
+        color: white;
+      }
+
+      .btn-modern-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        color: white;
+      }
+
+      /* Modern Table */
+      .modern-table {
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .modern-table thead {
+        background: #f8f9fc;
+      }
+
+      .modern-table thead th {
+        font-weight: 600;
+        color: #1a1d29;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        padding: 1rem 1.5rem;
+        border: none;
+      }
+
+      .modern-table tbody tr {
+        border-bottom: 1px solid #f0f0f0;
+        transition: background 0.2s;
+      }
+
+      .modern-table tbody tr:hover {
+        background: #f8f9fc;
+      }
+
+      .modern-table tbody td {
+        padding: 1rem 1.5rem;
+        vertical-align: middle;
+      }
+
+      /* Modern Badges */
+      .badge-modern {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        letter-spacing: 0.3px;
+      }
+
+      .badge-success { background: #d4edda; color: #155724; }
+      .badge-danger { background: #f8d7da; color: #721c24; }
+      .badge-warning { background: #fff3cd; color: #856404; }
+      .badge-info { background: #d1ecf1; color: #0c5460; }
+      .badge-secondary { background: #e2e3e5; color: #383d41; }
+
+      /* Empty State */
+      .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+      }
+
+      .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+      }
+
+      .empty-state h3 {
+        color: #6c757d;
+        font-weight: 400;
+        margin-bottom: 1rem;
+      }
+
+      .empty-state p {
+        color: #adb5bd;
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   </head>

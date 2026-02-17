@@ -1,163 +1,93 @@
 {% extends 'partials/base.html' %}
 {% load static %}
-{% load crispy_forms_tags %}
 
-{% block css %}
-<style>
-  .page-header {
-    background: white;
-    padding: 1.5rem;
-    border-radius: 0.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-  }
-  
-  .stats-card {
-    background: white;
-    border-radius: 0.5rem;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-  }
-  
-  .stats-card h3 {
-    font-size: 2rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-  }
-  
-  .stats-card p {
-    color: #6c757d;
-    margin-bottom: 0;
-  }
-  
-  .table-container {
-    background: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    padding: 1.5rem;
-  }
-  
-  .table-container h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-  }
-  
-  .status-badge {
-    padding: 0.35rem 0.75rem;
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-  }
-  
-  .status-current {
-    background-color: #d1ecf1;
-    color: #0c5460;
-  }
-  
-  .status-overdue {
-    background-color: #f8d7da;
-    color: #721c24;
-  }
-  
-  .status-paid {
-    background-color: #d4edda;
-    color: #155724;
-  }
-  
-  .invoice-row {
-    cursor: pointer;
-    transition: background-color 0.15s ease-in-out;
-  }
-  
-  .invoice-row:hover {
-    background-color: #f8f9fa;
-  }
-</style>
-{% endblock %}
+{% block title %}Dashboard - Invoice App{% endblock %}
 
 {% block main %}
-<main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-  <!-- Page Header -->
-  <div class="page-header d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center">
-    <h1 class="h2 mb-0">Dashboard</h1>
-    <div class="btn-toolbar">
-      <div class="btn-group">
-        <button type="button" class="btn btn-outline-secondary">
-          <i class="bi bi-printer me-1"></i> Print
-        </button>
-        <button type="button" class="btn btn-outline-secondary">
-          <i class="bi bi-download me-1"></i> Export
-        </button>
-      </div>
-    </div>
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Welcome back! Here's an overview of your business.</p>
+  </div>
+  <div class="page-header-actions">
+    <button class="btn btn-outline-secondary btn-modern">
+      <i class="bi bi-download me-2"></i>Export
+    </button>
+    <a href="{% url 'invoices_list' %}" class="btn btn-modern-primary btn-modern">
+      <i class="bi bi-plus-circle me-2"></i>New Invoice
+    </a>
+  </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <i class="stat-icon bi bi-receipt"></i>
+    <p>Total Invoices</p>
+    <h3>6</h3>
+  </div>
+  <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+    <i class="stat-icon bi bi-clock-history"></i>
+    <p>Outstanding</p>
+    <h3>R4,020.00</h3>
+  </div>
+  <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+    <i class="stat-icon bi bi-check-circle"></i>
+    <p>Paid This Month</p>
+    <h3>R20,040.00</h3>
+  </div>
+</div>
+
+<!-- Recent Invoices -->
+<div class="modern-card">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Recent Invoices</h2>
+    <a href="{% url 'invoices_list' %}" class="btn btn-sm btn-link">
+      View All <i class="bi bi-arrow-right ms-1"></i>
+    </a>
   </div>
 
-  <!-- Statistics Cards -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-4">
-      <div class="stats-card">
-        <p class="text-muted mb-1">Total Invoices</p>
-        <h3 class="mb-0">6</h3>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="stats-card">
-        <p class="text-muted mb-1">Total Outstanding</p>
-        <h3 class="mb-0">R4,020.00</h3>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="stats-card">
-        <p class="text-muted mb-1">Total Paid</p>
-        <h3 class="mb-0 text-success">R20,040.00</h3>
-      </div>
-    </div>
+  <div class="table-responsive">
+    <table class="table modern-table mb-0">
+      <thead>
+        <tr>
+          <th>Invoice #</th>
+          <th>Title</th>
+          <th>Client</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for invoice in invoices %}
+        <tr>
+          <td><strong>#{{ invoice.uniqueId }}</strong></td>
+          <td>{{ invoice.title }}</td>
+          <td>{{ invoice.client.clientname|default:"No Client" }}</td>
+          <td>{{ invoice.date_created|date:"M d, Y"|default:"N/A" }}</td>
+          <td>
+            <span class="badge-modern {% if invoice.status == 'PAID' %}badge-success{% elif invoice.status == 'OVERDUE' %}badge-danger{% else %}badge-info{% endif %}">
+              {{ invoice.status }}
+            </span>
+          </td>
+          <td class="text-end">
+            <a href="{% url 'invoice-detail-service' invoice.slug %}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center py-4 text-muted">
+            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+            No invoices yet
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
-
-  <!-- Invoices Table -->
-  <div class="table-container">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h2 class="mb-0">Recent Invoices</h2>
-      <a href="{% url 'invoices_list' %}" class="btn btn-sm btn-link">View All</a>
-    </div>
-    
-    <div class="table-responsive">
-      <table class="table table-hover mb-0">
-        <thead class="table-light">
-          <tr>
-            <th scope="col">Invoice #</th>
-            <th scope="col">Title</th>
-            <th scope="col">Client</th>
-            <th scope="col">Date Created</th>
-            <th scope="col">Status</th>
-            <th scope="col" class="text-end">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for invoice in invoices %}
-            <tr class="invoice-row">
-              
-              <td class="align-middle">{{ invoice.id }}</td>
-              <td class="align-middle">{{ invoice.title }}</td>
-              <td class="align-middle">{{ invoice.client.clientname|default:"No Client" }}</td>
-              <td class="align-middle">{{ invoice.date_created|date:"M d, Y"|default:"N/A" }}</td>
-              <td class="align-middle">
-                <span class="status-badge status-{{ invoice.status|lower }}">{{ invoice.status }}</span>
-              </td>
-            
-              <td class="align-middle text-end">
-                <button class="btn btn-sm btn-outline-primary" title="View">
-                  <i class="bi bi-eye"></i>
-                </button>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</main>
+</div>
 {% endblock %}
