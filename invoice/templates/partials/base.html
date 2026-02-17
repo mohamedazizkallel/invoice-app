@@ -56,6 +56,16 @@
         color: white !important;
         padding: 0 1.5rem;
         flex-shrink: 0;
+        gap: 0.5rem;
+      }
+
+      .modern-header .navbar-brand i {
+        font-size: 1.5rem;
+      }
+
+      .navbar-toggler {
+        padding: 0.5rem 1rem;
+        margin-right: 1rem;
       }
 
       .modern-header .nav-link {
@@ -458,13 +468,9 @@
   <!-- Modern Header -->
   <header class="navbar modern-header sticky-top p-0">
     <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
-      <i class="bi bi-receipt-cutoff me-2"></i>
-      Invoice App
+      <i class="bi bi-receipt-cutoff"></i>
+      <span>Invoice App</span>
     </a>
-
-    <button class="navbar-toggler d-md-none text-white border-0 position-absolute end-0 me-3" type="button" onclick="toggleSidebar()">
-      <i class="bi bi-list fs-4"></i>
-    </button>
 
     <div class="search-bar d-none d-md-flex">
       <i class="bi bi-search"></i>
@@ -472,6 +478,9 @@
     </div>
 
     <div class="d-flex align-items-center gap-2">
+      <button class="navbar-toggler d-md-none text-white border-0 p-2" type="button" onclick="toggleSidebar()">
+        <i class="bi bi-list fs-4"></i>
+      </button>
       <div class="user-profile d-none d-md-flex">
         <div class="user-avatar">
           <i class="bi bi-person-fill"></i>
@@ -535,12 +544,6 @@
                 <a class="nav-link {% if 'settings' in request.path %}active{% endif %}" href="{% url 'settings_view' %}">
                   <i class="bi bi-building"></i>
                   <span>Company</span>
-                </a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="#">
-                  <i class="bi bi-envelope"></i>
-                  <span>SMTP</span>
                 </a>
               </li>
             </ul>
