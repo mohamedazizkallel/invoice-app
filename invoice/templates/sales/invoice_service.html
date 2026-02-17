@@ -876,163 +876,6 @@
   {% endfor %}
   document.addEventListener('DOMContentLoaded', function() {
     const paymentModal = document.getElementById('paymentModal');
-    const applyRetenuCheckbox = document.getElementById('apply_retenu');
-    const retenuOptions = document.getElementById('retenu_options');
-    const retenuRowsContainer = document.getElementById('retenuRowsContainer');
-    const addRetenuBtn = document.getElementById('addRetenuRow');
-    
-    let retenuRowCounter = 0;
-    let invoiceTotalAmount = 0;
-    
-    // Available retenu types from Django
-    const availableRetenues = [
-      {% for retenu in retenu_types %}
-      {
-        id: {{ retenu.id }},
-        name: "{{ retenu.get_subcategory_display|escapejs }}",
-        rate: {{ retenu.rate }},
-        category: "{{ retenu.get_category_display|escapejs }}"
-      }{% if not forloop.last %},{% endif %}
-      {% endfor %}
-    ];
-
-    // Toggle retenu options
-    applyRetenuCheckbox?.addEventListener('change', function() {
-      if (this.checked) {
-        retenuOptions.style.display = 'block';
-        if (retenuRowCounter === 0) {
-          addRetenuRow();
-        }
-      } else {
-        retenuOptions.style.display = 'none';
-        retenuRowsContainer.innerHTML = '';
-        retenuRowCounter = 0;
-        updateSummary();
-      }
-    });
-
-    // Add retenu row
-    addRetenuBtn?.addEventListener('click', addRetenuRow);
-
-    function addRetenuRow() {
-      const rowId = retenuRowCounter++;
-      
-      const row = document.createElement('div');
-      row.className = 'card mb-2 retenu-row';
-      row.dataset.rowId = rowId;
-      row.innerHTML = `
-        <div class="card-body p-3">
-          <div class="row g-2 align-items-end">
-            <div class="col-md-5">
-              <label class="form-label small mb-1">Retenu Type</label>
-              <select name="retenu_types[]" class="form-select form-select-sm retenu-type-select" data-row="${rowId}" required>
-                <option value="">-- Select Retenu Type --</option>
-                ${availableRetenues.map(r => `
-                  <option value="${r.id}" data-rate="${r.rate}">
-                    ${r.name}
-                  </option>
-                `).join('')}
-              </select>
-            </div>
-            
-            <div class="col-md-3">
-              <label class="form-label small mb-1">Base Amount </label>
-              <input type="number" step="0.001" name="retenu_base_amounts[]" 
-                    class="form-control form-control-sm retenu-base-amount" 
-                    data-row="${rowId}" placeholder="0.000" required>
-            </div>
-            
-            <div class="col-md-2">
-              <label class="form-label small mb-1">Rate (%)</label>
-              <input type="text" class="form-control form-control-sm retenu-rate-display" 
-                    data-row="${rowId}" readonly>
-            </div>
-            
-            <div class="col-md-1">
-              <label class="form-label small mb-1 d-none d-md-block">&nbsp;</label>
-              <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-retenu-row" data-row="${rowId}">
-                <i class="bi bi-trash"></i>
-              </button>
-            </div>
-            
-            <div class="col-12">
-              <div class="alert alert-light mb-0 py-2">
-                <small class="text-muted">Calculated Retenu: </small>
-                <span class="fw-bold text-danger retenu-calculated-amount" data-row="${rowId}">0.000 D</span>
-              </div>
-            </div>
-            
-            <div class="col-12">
-              <label class="form-label small mb-1">Notes (Optional)</label>
-              <input type="text" name="retenu_notes[]" class="form-control form-control-sm" placeholder="Optional notes for this retenu...">
-            </div>
-          </div>
-        </div>
-      `;
-      
-      retenuRowsContainer.appendChild(row);
-      
-      // Add event listeners
-      const select = row.querySelector('.retenu-type-select');
-      const baseAmount = row.querySelector('.retenu-base-amount');
-      const rateDisplay = row.querySelector('.retenu-rate-display');
-      const removeBtn = row.querySelector('.remove-retenu-row');
-      
-      select.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        const rate = selectedOption.getAttribute('data-rate');
-        rateDisplay.value = rate ? rate + '%' : '';
-        calculateRowRetenu(rowId);
-      });
-      
-      baseAmount.addEventListener('input', function() {
-        calculateRowRetenu(rowId);
-      });
-      
-      removeBtn.addEventListener('click', function() {
-        row.remove();
-        updateSummary();
-      });
-      
-      // Auto-populate base amount with invoice total
-      baseAmount.value = invoiceTotalAmount.toFixed(3);
-    }
-
-    function calculateRowRetenu(rowId) {
-      const row = document.querySelector(`.retenu-row[data-row-id="${rowId}"]`);
-      if (!row) return;
-      
-      const select = row.querySelector('.retenu-type-select');
-      const baseAmount = parseFloat(row.querySelector('.retenu-base-amount').value || 0);
-      const calculatedSpan = row.querySelector('.retenu-calculated-amount');
-      
-      const selectedOption = select.options[select.selectedIndex];
-      const rate = parseFloat(selectedOption.getAttribute('data-rate') || 0);
-      
-      if (rate && baseAmount) {
-        const retenuAmount = (baseAmount * rate) / 100;
-        calculatedSpan.textContent = retenuAmount.toFixed(3) + ' D';
-      } else {
-        calculatedSpan.textContent = '0.000 D';
-      }
-      
-      updateSummary();
-    }
-
-    function updateSummary() {
-      let totalRetenu = 0;
-      
-      document.querySelectorAll('.retenu-calculated-amount').forEach(span => {
-        const amount = parseFloat(span.textContent.replace(/[^\d.]/g, '') || 0);
-        totalRetenu += amount;
-      });
-      
-      const netAmount = invoiceTotalAmount - totalRetenu;
-      
-      document.getElementById('summary_invoice_total').textContent = invoiceTotalAmount.toFixed(3) + ' D';
-      document.getElementById('summary_total_retenu').textContent = totalRetenu.toFixed(3) + ' D';
-      document.getElementById('summary_net_amount').textContent = netAmount.toFixed(3) + ' D';
-    }
 
     // Populate modal when opened
     paymentModal?.addEventListener('show.bs.modal', function(event) {
@@ -1041,8 +884,6 @@
       const invoiceNumber = button.getAttribute('data-invoice-number');
       const clientName = button.getAttribute('data-client-name');
       const totalAmount = parseFloat(button.getAttribute('data-total-amount'));
-
-      invoiceTotalAmount = totalAmount;
 
       // Populate form fields
       document.getElementById('payment_invoice_id').value = invoiceId;
@@ -1053,13 +894,6 @@
       // Set today's date as default
       const today = new Date().toISOString().split('T')[0];
       document.querySelector('input[name="payment_date"]').value = today;
-
-      // Reset retenu section
-      applyRetenuCheckbox.checked = false;
-      retenuOptions.style.display = 'none';
-      retenuRowsContainer.innerHTML = '';
-      retenuRowCounter = 0;
-      updateSummary();
 
       // Update form action
       const form = document.getElementById('paymentForm');
