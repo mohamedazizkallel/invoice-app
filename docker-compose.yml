@@ -22,6 +22,8 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=invoice.settings
     volumes:
       - media_data:/app/invoice/media
       - static_data:/app/invoice/staticfiles
