@@ -283,7 +283,7 @@ def invoices_list(request):
     settings = Settings.objects.first()
     if not settings:
         settings = Settings.objects.create(
-            companyname="My Company",
+            clientname="My Company",
             tva=Decimal('19.00'),
             dt=Decimal('1.000')
         )
