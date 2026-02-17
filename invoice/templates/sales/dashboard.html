@@ -1,21 +1,21 @@
 {% extends 'partials/base.html' %}
 {% load static %}
 
-{% block title %}Dashboard - Invoice App{% endblock %}
+{% block title %}Tableau de bord - Application de facturation{% endblock %}
 
 {% block main %}
 <!-- Page Header -->
 <div class="page-header d-flex justify-content-between align-items-center">
   <div>
-    <h1>Dashboard</h1>
-    <p>Welcome back! Here's an overview of your business.</p>
+    <h1>Tableau de bord</h1>
+    <p>Bienvenue ! Voici un aperçu de votre activité.</p>
   </div>
   <div class="page-header-actions">
     <button class="btn btn-outline-secondary btn-modern">
-      <i class="bi bi-download me-2"></i>Export
+      <i class="bi bi-download me-2"></i>Exporter
     </button>
     <a href="{% url 'invoices_list' %}" class="btn btn-modern-primary btn-modern">
-      <i class="bi bi-plus-circle me-2"></i>New Invoice
+      <i class="bi bi-plus-circle me-2"></i>Nouvelle facture
     </a>
   </div>
 </div>
@@ -24,17 +24,17 @@
 <div class="stats-grid">
   <div class="stat-card">
     <i class="stat-icon bi bi-receipt"></i>
-    <p>Total Invoices</p>
+    <p>Nombre total de factures</p>
     <h3>{{ total_invoices }}</h3>
   </div>
   <div class="stat-card" style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);">
     <i class="stat-icon bi bi-clock-history"></i>
-    <p>Outstanding</p>
+    <p>En attente</p>
     <h3>{{ outstanding_amount|floatformat:3 }} {{ currency }}</h3>
   </div>
   <div class="stat-card" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);">
     <i class="stat-icon bi bi-check-circle"></i>
-    <p>Paid This Month</p>
+    <p>Payé ce mois-ci</p>
     <h3>{{ paid_this_month_amount|floatformat:3 }} {{ currency }}</h3>
   </div>
 </div>
@@ -42,9 +42,9 @@
 <!-- Recent Invoices -->
 <div class="modern-card">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0">Recent Invoices</h2>
+    <h2 class="mb-0">Factures récentes</h2>
     <a href="{% url 'invoices_list' %}" class="btn btn-sm btn-link">
-      View All <i class="bi bi-arrow-right ms-1"></i>
+      Voir tout <i class="bi bi-arrow-right ms-1"></i>
     </a>
   </div>
 
@@ -52,11 +52,10 @@
     <table class="table modern-table mb-0">
       <thead>
         <tr>
-          <th>Invoice #</th>
-          <th>Title</th>
+          <th>Facture n°</th>
           <th>Client</th>
           <th>Date</th>
-          <th>Status</th>
+          <th>Statut</th>
           <th class="text-end">Actions</th>
         </tr>
       </thead>
@@ -64,8 +63,7 @@
         {% for invoice in invoices %}
         <tr>
           <td><strong>#{{ invoice.uniqueId }}</strong></td>
-          <td>{{ invoice.title }}</td>
-          <td>{{ invoice.client.clientname|default:"No Client" }}</td>
+          <td>{{ invoice.client.clientname|default:"Aucun client" }}</td>
           <td>{{ invoice.date_created|date:"M d, Y"|default:"N/A" }}</td>
           <td>
             <span class="badge-modern {% if invoice.status == 'PAID' %}badge-success{% elif invoice.status == 'OVERDUE' %}badge-danger{% else %}badge-info{% endif %}">
@@ -80,9 +78,9 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="6" class="text-center py-4 text-muted">
+          <td colspan="5" class="text-center py-4 text-muted">
             <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-            No invoices yet
+            Aucune facture pour le moment
           </td>
         </tr>
         {% endfor %}

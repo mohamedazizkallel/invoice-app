@@ -516,11 +516,6 @@
 
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold">Titre de la facture</label>
-                                <input type="text" class="form-control" name="title" value="{{ invoice.title }}" required>
-                            </div>
-
-                            <div class="col-md-6">
                                 <label class="form-label fw-semibold">Client</label>
                                 <select class="form-select" name="client" required>
                                     {% for client in clients %}

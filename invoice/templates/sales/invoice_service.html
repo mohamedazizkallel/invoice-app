@@ -6,7 +6,7 @@
 {% load static %}
 {% load crispy_forms_tags %}
 
-{% block title %}Invoices - Invoice App{% endblock %}
+{% block title %}Factures - Application de facturation{% endblock %}
 
 {% block css %}
 <style>
@@ -76,12 +76,12 @@
 <!-- Page Header -->
 <div class="page-header d-flex justify-content-between align-items-center">
   <div>
-    <h1>Invoices</h1>
-    <p>Create and manage your invoices</p>
+    <h1>Factures</h1>
+    <p>Créer et gérer vos factures</p>
   </div>
   <div class="page-header-actions">
     <button type="button" class="btn btn-modern-primary btn-modern" data-bs-toggle="modal" data-bs-target="#createInvoiceModal">
-      <i class="bi bi-plus-circle me-2"></i>Create Invoice
+      <i class="bi bi-plus-circle me-2"></i>Créer une facture
     </button>
   </div>
 </div>
@@ -90,23 +90,23 @@
 <div class="modern-card mb-3">
   <form method="get" class="row g-3 align-items-end">
     <div class="col-md-3">
-      <label for="filterSearch" class="form-label fw-semibold">Search</label>
-      <input type="text" class="form-control" id="filterSearch" name="search" placeholder="Search..." value="{{ request.GET.search }}">
+      <label for="filterSearch" class="form-label fw-semibold">Rechercher</label>
+      <input type="text" class="form-control" id="filterSearch" name="search" placeholder="Rechercher..." value="{{ request.GET.search }}">
     </div>
     <div class="col-md-3">
-      <label for="filterStatus" class="form-label fw-semibold">Status</label>
+      <label for="filterStatus" class="form-label fw-semibold">Statut</label>
       <select class="form-select" id="filterStatus" name="status">
-        <option value="">All Statuses</option>
-        <option value="DRAFT" {% if request.GET.status == "DRAFT" %}selected{% endif %}>Draft</option>
-        <option value="CURRENT" {% if request.GET.status == "CURRENT" %}selected{% endif %}>Current</option>
-        <option value="OVERDUE" {% if request.GET.status == "OVERDUE" %}selected{% endif %}>Overdue</option>
-        <option value="PAID" {% if request.GET.status == "PAID" %}selected{% endif %}>Paid</option>
+        <option value="">Tous les statuts</option>
+        <option value="DRAFT" {% if request.GET.status == "DRAFT" %}selected{% endif %}>Brouillon</option>
+        <option value="CURRENT" {% if request.GET.status == "CURRENT" %}selected{% endif %}>Actuel</option>
+        <option value="OVERDUE" {% if request.GET.status == "OVERDUE" %}selected{% endif %}>En retard</option>
+        <option value="PAID" {% if request.GET.status == "PAID" %}selected{% endif %}>Payé</option>
       </select>
     </div>
     <div class="col-md-3">
       <label for="filterClient" class="form-label fw-semibold">Client</label>
       <select class="form-select" id="filterClient" name="client">
-        <option value="">All Clients</option>
+        <option value="">Tous les clients</option>
         {% for client in clients %}
         <option value="{{ client.id }}" {% if request.GET.client == client.id|stringformat:"s" %}selected{% endif %}>
           {{ client.clientname }}
@@ -129,11 +129,10 @@
       <table class="table modern-table mb-0">
         <thead>
           <tr>
-            <th>Invoice #</th>
-            <th>Title</th>
+            <th>Facture n°</th>
             <th>Client</th>
             <th>Date</th>
-            <th>Status</th>
+            <th>Statut</th>
             <th class="text-end">Actions</th>
           </tr>
         </thead>
@@ -145,8 +144,7 @@
                 #{{ invoice.uniqueId|default:invoice.id }}
               </a>
             </td>
-            <td>{{ invoice.title }}</td>
-            <td>{{ invoice.client.clientname|default:"No Client" }}</td>
+            <td>{{ invoice.client.clientname|default:"Aucun client" }}</td>
             <td>{{ invoice.date_created|date:"M d, Y"|default:"N/A" }}</td>
             <td>
               <span class="badge-modern {% if invoice.status == 'PAID' %}badge-success{% elif invoice.status == 'OVERDUE' %}badge-danger{% elif invoice.status == 'CURRENT' %}badge-info{% else %}badge-secondary{% endif %}">
@@ -155,18 +153,18 @@
             </td>
             <td class="text-end">
               <div class="btn-group btn-group-sm">
-                <a href="{% url 'invoice_detail' invoice.id %}" class="btn btn-outline-primary" title="View">
+                <a href="{% url 'invoice_detail' invoice.id %}" class="btn btn-outline-primary" title="Voir">
                   <i class="bi bi-eye"></i>
                 </a>
-                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editInvoiceModal{{ invoice.id }}" title="Edit">
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editInvoiceModal{{ invoice.id }}" title="Modifier">
                   <i class="bi bi-pencil"></i>
                 </button>
-                
+
                 <!-- NEW: Payment Button -->
                 {% if invoice.status != 'PAID' %}
-                <button type="button" 
-                        class="btn btn-outline-success" 
-                        title="Process Payment"
+                <button type="button"
+                        class="btn btn-outline-success"
+                        title="Traiter le paiement"
                         data-bs-toggle="modal" 
                         data-bs-target="#paymentModal"
                         data-invoice-id="{{ invoice.id }}"
@@ -177,7 +175,7 @@
                 </button>
                 {% endif %}
                 
-                <button type="button" class="btn btn-outline-danger" title="Delete" data-bs-toggle="modal" data-bs-target="#deleteInvoiceModal{{ invoice.id }}">
+                <button type="button" class="btn btn-outline-danger" title="Supprimer" data-bs-toggle="modal" data-bs-target="#deleteInvoiceModal{{ invoice.id }}">
                   <i class="bi bi-trash"></i>
                 </button>
               </div>
@@ -229,12 +227,12 @@
     <div class="empty-state">
       <div class="row justify-content-center">
         <div class="col-lg-6">
-          <h3>No Invoices Found</h3>
-          <p class="text-muted">Get started by creating your first invoice or adjust your filters to see more results.</p>
+          <h3>Aucune facture trouvée</h3>
+          <p class="text-muted">Commencez par créer votre première facture ou ajustez vos filtres pour voir plus de résultats.</p>
           <img src="{% static 'assets/img/empty.svg' %}" alt="No invoices illustration">
           <div class="mt-4">
             <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#createInvoiceModal">
-              <i class="bi bi-plus-circle me-2"></i> Create Your First Invoice
+              <i class="bi bi-plus-circle me-2"></i> Créer votre première facture
             </button>
           </div>
         </div>
@@ -252,7 +250,7 @@
 
               <div class="modal-header border-0 pb-0">
               <h5 class="modal-title fw-semibold">
-                <i class="bi bi-file-earmark-plus me-2 text-primary"></i> Create New Invoice
+                <i class="bi bi-file-earmark-plus me-2 text-primary"></i> Créer une nouvelle facture
               </h5>
                 <button class="btn-close" data-bs-dismiss="modal"></button>
               </div>
@@ -273,14 +271,9 @@
 
               <div class="row g-3">
                 <div class="col-md-6">
-                  <label class="form-label fw-semibold">Invoice Title</label>
-                  <input type="text" class="form-control" name="title" required>
-                  </div>
-
-                  <div class="col-md-6">
                   <label class="form-label fw-semibold">Client</label>
                   <select class="form-select" name="client" required>
-                      <option value="">Select Client</option>
+                      <option value="">Sélectionner un client</option>
                       {% for client in clients %}
                       <option value="{{ client.id }}">{{ client.clientname }}</option>
                       {% endfor %}
@@ -288,42 +281,42 @@
                   </div>
 
                   <div class="col-md-3">
-                  <label class="form-label fw-semibold">Status</label>
+                  <label class="form-label fw-semibold">Statut</label>
                   <select class="form-select" name="status">
-                    <option value="CURRENT">Current</option>
-                    <option value="OVERDUE">Overdue</option>
-                    <option value="PAID">Paid</option>
+                    <option value="CURRENT">Actuel</option>
+                    <option value="OVERDUE">En retard</option>
+                    <option value="PAID">Payé</option>
                   </select>
                   </div>
 
                   <div class="col-md-3">
                     <label class="form-label fw-semibold">TVA (%)</label>
                     <input type="number" step="0.01" class="form-control" name="tva" value="{{ settings.tva|default:19.00 }}" placeholder="{{ settings.tva|default:19.00 }}">
-                    <small class="text-muted">Default: {{ settings.tva|default:19.00 }}%</small>
+                    <small class="text-muted">Par défaut : {{ settings.tva|default:19.00 }}%</small>
                   </div>
 
                   <div class="col-md-3">
                     <label class="form-label fw-semibold">Timbre Fiscal </label>
                     <input type="number" step="0.001" class="form-control" name="timbre_fiscal" value="{{ settings.dt|default:1.000 }}" placeholder="{{ settings.dt|default:1.000 }}">
-                    <small class="text-muted">Default from Settings: {{ settings.dt|default:1.000 }}D</small>
+                    <small class="text-muted">Par défaut depuis les paramètres : {{ settings.dt|default:1.000 }}D</small>
                   </div>
 
                   <div class="col-md-3">
-                    <label class="form-label fw-semibold">Discount (%)</label>
+                    <label class="form-label fw-semibold">Réduction (%)</label>
                     <input type="number" step="0.01" class="form-control" name="discount" value="0.00">
                   </div>
 
                   <div class="col-12">
-                    <label class="form-label fw-semibold">Notes</label>
+                    <label class="form-label fw-semibold">Remarques</label>
                     <textarea class="form-control" name="notes" rows="2"></textarea>
                   </div>
 
                   <div class="col-12">
                     <hr class="my-3">
                     <div class="d-flex justify-content-between mb-3">
-                      <h6 class="fw-semibold"><i class="bi bi-briefcase me-2"></i> Add Services</h6>
+                      <h6 class="fw-semibold"><i class="bi bi-briefcase me-2"></i> Ajouter des services</h6>
                       <button type="button" class="btn btn-sm btn-outline-primary" id="addServiceRow">
-                        <i class="bi bi-plus-circle me-1"></i> Add Service
+                        <i class="bi bi-plus-circle me-1"></i> Ajouter un service
                       </button>
                     </div>
 
@@ -334,9 +327,9 @@
               </div>
 
               <div class="modal-footer border-0">
-              <button class="btn btn-light px-4" data-bs-dismiss="modal" type="button">Cancel</button>
+              <button class="btn btn-light px-4" data-bs-dismiss="modal" type="button">Annuler</button>
               <button class="btn btn-primary px-4" type="submit">
-                  <i class="bi bi-check-circle me-1"></i> Create Invoice
+                  <i class="bi bi-check-circle me-1"></i> Créer une facture
               </button>
               </div>
           </form>
@@ -358,7 +351,7 @@
           <!-- Modal Header -->
           <div class="modal-header border-0 pb-0">
             <h5 class="modal-title fw-semibold" id="editInvoiceModalLabel{{ invoice.id }}">
-              <i class="bi bi-pencil me-2 text-secondary"></i> Edit Invoice
+              <i class="bi bi-pencil me-2 text-secondary"></i> Modifier la facture
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
@@ -379,11 +372,6 @@
             {% endif %}
 
             <div class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Invoice Title</label>
-                <input type="text" class="form-control" name="title" value="{{ invoice.title }}" required>
-              </div>
-
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Client</label>
                 <select class="form-select" name="client" required>
@@ -483,7 +471,7 @@
                 <div class="alert alert-info mt-3" role="alert">
                   <small>
                     <i class="bi bi-info-circle me-1"></i>
-                    Click "Add Service" to select service
+                    Cliquez sur « Ajouter un service » pour sélectionner un service
                   </small>
                 </div>
               </div>

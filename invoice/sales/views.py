@@ -351,12 +351,8 @@ def invoice_create(request):
     try:
         with transaction.atomic():
             # Required fields
-            title = request.POST.get('title', '').strip()
             client_id = request.POST.get('client')
-
-            if not title:
-                messages.error(request, 'Invoice title is required.')
-                return redirect('invoices_list')
+            title = ''  # Title is now optional/empty
 
             if not client_id:
                 messages.error(request, 'Client is required.')
@@ -470,12 +466,9 @@ def invoice_edit(request, invoice_id):
     try:
         with transaction.atomic():
             # Basic fields
-            title = request.POST.get('title', '').strip()
+            title = ''  # Title is now optional/empty
             status = request.POST.get('status')
             notes = request.POST.get('notes', '')
-
-            if not title:
-                raise ValueError('Invoice title is required.')
 
             invoice.title = title
             invoice.status = status
