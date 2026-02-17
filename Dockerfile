@@ -25,8 +25,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy project
-COPY core/ ./core/
-WORKDIR /app/core
+COPY invoice/ ./invoice/
+WORKDIR /app/invoice
 
 # Build-time static collection (uses SQLite since DEBUG not set = defaults True)
 RUN SECRET_KEY=build-placeholder \
@@ -43,7 +43,7 @@ FROM python:3.13-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-WORKDIR /app/core
+WORKDIR /app/invoice
 
 # Install runtime dependency only
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -53,7 +53,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy venv + app
 COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /app/core /app/core
+COPY --from=builder /app/invoice /app/invoice
 
 ENV PATH="/opt/venv/bin:$PATH"
 

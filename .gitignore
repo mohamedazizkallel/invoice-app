@@ -12,7 +12,8 @@ statistics/
 db.sqlite3/
 *migrations/
 # Distribution / packaging
-.env* 
+.env
+!.env.example
 .Python
 env/
 build/
