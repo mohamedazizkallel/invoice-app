@@ -28,11 +28,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY invoice/ ./invoice/
 WORKDIR /app/invoice
 
-# Build-time static collection (uses SQLite since DEBUG not set = defaults True)
-RUN SECRET_KEY=build-placeholder \
-    DEBUG=False \
-    ALLOWED_HOSTS=localhost \
-    python manage.py collectstatic --noinput
+# Note: collectstatic is run in entrypoint.sh at runtime, not build time
 
 
 # ==============================================

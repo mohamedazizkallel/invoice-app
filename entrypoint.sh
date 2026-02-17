@@ -25,6 +25,12 @@ until python manage.py migrate --noinput; do
 done
 
 # ----------------------------------------------------------------
+# Collect Static Files
+# ----------------------------------------------------------------
+echo "Collecting static files..."
+python manage.py collectstatic --noinput --clear || echo "Collectstatic failed, continuing..."
+
+# ----------------------------------------------------------------
 # Start Server
 # ----------------------------------------------------------------
 echo "Starting gunicorn..."
