@@ -279,17 +279,23 @@ def invoices_list(request):
     clients = Client.objects.all().order_by('clientname')
     services = Service.objects.all().order_by('title')
     
-    # Get Settings for form defaults
+    # Get Settings for form defaults (create if doesn't exist)
     settings = Settings.objects.first()
+    if not settings:
+        settings = Settings.objects.create(
+            companyname="My Company",
+            tva=Decimal('19.00'),
+            dt=Decimal('1.000')
+        )
 
     retenu_types = Retenu.objects.filter(is_active=True).order_by('category', 'rate')
-    
+
     # Calculate statistics
     total_invoices = invoices.count()
     current_invoices = invoices.filter(status='CURRENT').count()
     overdue_invoices = invoices.filter(status='OVERDUE').count()
     paid_invoices = invoices.filter(status='PAID').count()
-    
+
     context = {
         'invoices': page_obj,
         'page_obj': page_obj,
@@ -303,7 +309,7 @@ def invoices_list(request):
         'paid_invoices': paid_invoices,
         'settings': settings,
         'retenu_types': retenu_types,
-        'current_year': timezone.now().year, 
+        'current_year': timezone.now().year,
     }
     
     return render(request, 'sales/invoice_service.html', context)
