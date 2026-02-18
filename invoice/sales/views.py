@@ -478,6 +478,7 @@ def purchase_create(request):
             supply_ids = request.POST.getlist('supply_id[]')
             quantities = request.POST.getlist('quantity[]')
             unit_prices = request.POST.getlist('line_unit_price[]')
+            fodec_flags = request.POST.getlist('has_fodec[]')
 
             if not supply_ids:
                 messages.error(request, 'Vous devez ajouter au moins une ligne.')
@@ -491,11 +492,13 @@ def purchase_create(request):
                     supply = Supply.objects.get(id=supply_id)
                     qty = Decimal(quantities[i]) if i < len(quantities) and quantities[i] else Decimal('1')
                     price = Decimal(unit_prices[i]) if i < len(unit_prices) and unit_prices[i] else supply.unit_price
+                    has_fodec = str(i) in fodec_flags
                     PurchaseLine.objects.create(
                         purchase=purchase,
                         supply=supply,
                         quantity=qty,
                         unit_price=price,
+                        has_fodec=has_fodec,
                     )
                 except Supply.DoesNotExist:
                     pass
@@ -518,7 +521,9 @@ def purchase_detail(request, purchase_id):
     subtotal = purchase.calculate_subtotal()
     discount_amount = purchase.calculate_discount_amount()
     subtotal_after_discount = purchase.calculate_subtotal_after_discount()
+    total_fodec = purchase.calculate_total_fodec()
     tva_amount = purchase.calculate_tva_amount()
+    total_before_timbre = purchase.calculate_total_before_timbre()
     total = purchase.calculate_total()
     total_retenue = purchase.get_total_retenue()
     net_amount = purchase.get_net_amount()
@@ -535,7 +540,9 @@ def purchase_detail(request, purchase_id):
         'subtotal': subtotal,
         'discount_amount': discount_amount,
         'subtotal_after_discount': subtotal_after_discount,
+        'total_fodec': total_fodec,
         'tva_amount': tva_amount,
+        'total_before_timbre': total_before_timbre,
         'total': total,
         'total_retenue': total_retenue,
         'net_amount': net_amount,
@@ -578,6 +585,7 @@ def purchase_edit(request, purchase_id):
             supply_ids = request.POST.getlist('supply_id[]')
             quantities = request.POST.getlist('quantity[]')
             unit_prices = request.POST.getlist('line_unit_price[]')
+            fodec_flags = request.POST.getlist('has_fodec[]')
 
             if not supply_ids:
                 raise ValueError('Vous devez ajouter au moins une ligne.')
@@ -589,11 +597,13 @@ def purchase_edit(request, purchase_id):
                     supply = Supply.objects.get(id=supply_id)
                     qty = Decimal(quantities[i]) if i < len(quantities) and quantities[i] else Decimal('1')
                     price = Decimal(unit_prices[i]) if i < len(unit_prices) and unit_prices[i] else supply.unit_price
+                    has_fodec = str(i) in fodec_flags
                     PurchaseLine.objects.create(
                         purchase=purchase,
                         supply=supply,
                         quantity=qty,
                         unit_price=price,
+                        has_fodec=has_fodec,
                     )
                 except Supply.DoesNotExist:
                     pass

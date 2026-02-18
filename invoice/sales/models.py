@@ -190,6 +190,7 @@ class Supply(models.Model):
     stock_quantity = models.DecimalField(max_digits=15, decimal_places=3, default=0)
     min_stock = models.DecimalField(max_digits=15, decimal_places=3, default=0)
     preferred_supplier = models.ForeignKey('Supplier', on_delete=models.SET_NULL, null=True, blank=True, related_name='supplies')
+    apply_fodec = models.BooleanField(default=False)
     description = models.TextField(null=True, blank=True)
     uniqueId = models.CharField(max_length=100, null=True, blank=True)
     slug = models.SlugField(max_length=500, unique=True, null=True, blank=True)
@@ -261,17 +262,26 @@ class Purchase(models.Model):
     def calculate_subtotal_after_discount(self):
         return self.calculate_subtotal() - self.calculate_discount_amount()
 
+    def calculate_total_fodec(self):
+        return sum(line.get_fodec_amount() for line in self.purchase_lines.all())
+
     def calculate_tva_amount(self):
         subtotal_after_discount = self.calculate_subtotal_after_discount()
+        fodec = self.calculate_total_fodec()
         if self.tva:
-            return (subtotal_after_discount * Decimal(str(self.tva))) / Decimal('100')
+            return ((subtotal_after_discount + fodec) * Decimal(str(self.tva))) / Decimal('100')
         return Decimal('0')
 
-    def calculate_total(self):
+    def calculate_total_before_timbre(self):
+        """Total HT+FODEC+TVA — this is the base for retenu calculation."""
         subtotal_after_discount = self.calculate_subtotal_after_discount()
+        fodec = self.calculate_total_fodec()
         tva_amount = self.calculate_tva_amount()
+        return subtotal_after_discount + fodec + tva_amount
+
+    def calculate_total(self):
         timbre = Decimal(str(self.timbre_fiscal)) if self.timbre_fiscal else Decimal('0')
-        return subtotal_after_discount + tva_amount + timbre
+        return self.calculate_total_before_timbre() + timbre
 
     def get_total_retenue(self):
         return self.purchase_retenues.aggregate(
@@ -307,9 +317,15 @@ class PurchaseLine(models.Model):
     supply = models.ForeignKey('Supply', on_delete=models.PROTECT)
     quantity = models.DecimalField(max_digits=15, decimal_places=3)
     unit_price = models.DecimalField(max_digits=15, decimal_places=3)
+    has_fodec = models.BooleanField(default=False)
 
     def get_line_total(self):
         return self.quantity * self.unit_price
+
+    def get_fodec_amount(self):
+        if self.has_fodec:
+            return self.get_line_total() * Decimal('0.01')
+        return Decimal('0')
 
     def __str__(self):
         return f"{self.supply.name} x {self.quantity}"

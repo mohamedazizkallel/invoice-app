@@ -55,7 +55,8 @@
           <th>Unité</th>
           <th class="text-end">Prix unitaire</th>
           <th class="text-end">Quantité</th>
-          <th class="text-end">Total ligne</th>
+          <th class="text-center">FODEC</th>
+          <th class="text-end">Total HT</th>
         </tr>
       </thead>
       <tbody>
@@ -66,6 +67,13 @@
           <td>{{ line.supply.unit }}</td>
           <td class="text-end">{{ line.unit_price|floatformat:3 }}</td>
           <td class="text-end">{{ line.quantity|floatformat:3 }}</td>
+          <td class="text-center">
+            {% if line.has_fodec %}
+            <span class="badge bg-info text-white" style="font-size:0.7rem;">1%</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
           <td class="text-end fw-semibold">{{ line.get_line_total|floatformat:3 }}</td>
         </tr>
         {% empty %}
@@ -125,7 +133,7 @@
         <div id="editPurchaseLines">
           {% for line in purchase_lines %}
           <div class="row g-2 mb-2 edit-purchase-line">
-            <div class="col-md-5">
+            <div class="col-md-4">
               <select class="form-select form-select-sm" name="supply_id[]" required>
                 <option value="">-- Fourniture --</option>
                 {% for supply in supplies %}
@@ -136,8 +144,16 @@
             <div class="col-md-2">
               <input type="number" step="0.001" class="form-control form-control-sm" name="quantity[]" value="{{ line.quantity }}" required>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <input type="number" step="0.001" class="form-control form-control-sm" name="line_unit_price[]" value="{{ line.unit_price }}" required>
+            </div>
+            <div class="col-md-2">
+              <button type="button"
+                class="btn btn-sm w-100 {% if line.has_fodec %}btn-info{% else %}btn-outline-secondary{% endif %} fodec-toggle"
+                onclick="toggleFodec(this, {{ forloop.counter0 }})">
+                FODEC{% if line.has_fodec %} ✓{% endif %}
+              </button>
+              <input type="hidden" name="has_fodec[]" {% if not line.has_fodec %}disabled{% endif %} value="{{ forloop.counter0 }}">
             </div>
             <div class="col-md-2">
               <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="removeEditLine(this)">
@@ -179,10 +195,26 @@
           <td class="text-end">{{ subtotal_after_discount|floatformat:3 }} TND</td>
         </tr>
         {% endif %}
+        {% if total_fodec %}
+        <tr>
+          <td class="text-muted">FODEC (1%)</td>
+          <td class="text-end">{{ total_fodec|floatformat:3 }} TND</td>
+        </tr>
+        {% endif %}
         <tr>
           <td class="text-muted">TVA ({{ purchase.tva }}%)</td>
           <td class="text-end">{{ tva_amount|floatformat:3 }} TND</td>
         </tr>
+        {% if total_retenue %}
+        <tr>
+          <td class="text-muted">Total retenue</td>
+          <td class="text-end text-danger">-{{ total_retenue|floatformat:3 }} TND</td>
+        </tr>
+        <tr>
+          <td class="text-muted">Sous-total avant timbre</td>
+          <td class="text-end">{{ total_before_timbre|floatformat:3 }} TND</td>
+        </tr>
+        {% endif %}
         <tr>
           <td class="text-muted">Timbre fiscal</td>
           <td class="text-end">{{ purchase.timbre_fiscal|floatformat:3 }} TND</td>
@@ -192,10 +224,6 @@
           <td class="text-end fw-bold fs-5">{{ total|floatformat:3 }} TND</td>
         </tr>
         {% if total_retenue %}
-        <tr>
-          <td class="text-muted">Total retenue</td>
-          <td class="text-end text-danger">-{{ total_retenue|floatformat:3 }} TND</td>
-        </tr>
         <tr class="table-active">
           <td class="fw-bold">Net à payer</td>
           <td class="text-end fw-bold fs-5">{{ net_amount|floatformat:3 }} TND</td>
@@ -259,7 +287,7 @@
           </div>
           <div class="col-md-4">
             <label class="form-label small">Montant de base</label>
-            <input type="number" step="0.001" class="form-control form-control-sm" name="base_amount" value="{{ total|floatformat:3 }}" required>
+            <input type="number" step="0.001" class="form-control form-control-sm" name="base_amount" value="{{ total_before_timbre|floatformat:3 }}" required>
           </div>
           <div class="col-md-3">
             <button type="submit" class="btn btn-sm btn-outline-primary w-100">
@@ -288,22 +316,34 @@
 
 {% if purchase.status == 'DRAFT' %}
 <script>
+function getNextLineIndex() {
+  const container = document.getElementById('editPurchaseLines');
+  return container.querySelectorAll('.edit-purchase-line').length;
+}
+
 function addEditLine() {
   const container = document.getElementById('editPurchaseLines');
   const firstSelect = container.querySelector('select[name="supply_id[]"]');
   const options = firstSelect ? firstSelect.innerHTML : '<option value="">-- Fourniture --</option>';
+  const idx = getNextLineIndex();
 
   const row = document.createElement('div');
   row.className = 'row g-2 mb-2 edit-purchase-line';
   row.innerHTML = `
-    <div class="col-md-5">
+    <div class="col-md-4">
       <select class="form-select form-select-sm" name="supply_id[]" required>${options}</select>
     </div>
     <div class="col-md-2">
       <input type="number" step="0.001" class="form-control form-control-sm" name="quantity[]" value="1" required>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
       <input type="number" step="0.001" class="form-control form-control-sm" name="line_unit_price[]" placeholder="Prix unit." required>
+    </div>
+    <div class="col-md-2">
+      <button type="button" class="btn btn-sm btn-outline-secondary w-100 fodec-toggle" onclick="toggleFodec(this, ${idx})">
+        FODEC
+      </button>
+      <input type="hidden" name="has_fodec[]" disabled value="${idx}">
     </div>
     <div class="col-md-2">
       <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="removeEditLine(this)">
@@ -319,6 +359,20 @@ function removeEditLine(btn) {
   const lines = container.querySelectorAll('.edit-purchase-line');
   if (lines.length > 1) {
     btn.closest('.edit-purchase-line').remove();
+  }
+}
+
+function toggleFodec(btn, idx) {
+  const hiddenInput = btn.nextElementSibling;
+  const active = btn.classList.contains('btn-info');
+  if (active) {
+    btn.classList.replace('btn-info', 'btn-outline-secondary');
+    btn.textContent = 'FODEC';
+    hiddenInput.disabled = true;
+  } else {
+    btn.classList.replace('btn-outline-secondary', 'btn-info');
+    btn.textContent = 'FODEC ✓';
+    hiddenInput.disabled = false;
   }
 }
 </script>
