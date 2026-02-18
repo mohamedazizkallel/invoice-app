@@ -408,7 +408,10 @@ def supply_delete(request, supply_id):
 @login_required
 def purchases_list(request):
     """Display all purchases"""
-    purchases = Purchase.objects.all().select_related('supplier')
+    purchases = Purchase.objects.all().select_related('supplier').prefetch_related(
+        'purchase_lines__supply',
+        'purchase_retenues__retenu_type',
+    )
 
     search_query = request.GET.get('search', '')
     if search_query:
@@ -424,12 +427,14 @@ def purchases_list(request):
 
     suppliers_qs = Supplier.objects.all().order_by('name')
     supplies = Supply.objects.all().order_by('name')
+    retenu_types = Retenu.objects.filter(is_active=True).order_by('category', 'rate')
 
     context = {
         'purchases': purchases,
         'suppliers': suppliers_qs,
         'supplies': supplies,
         'form': PurchaseForm(),
+        'retenu_types': retenu_types,
     }
     return render(request, 'sales/purchases.html', context)
 
@@ -492,7 +497,7 @@ def purchase_create(request):
                     pass
 
             messages.success(request, f'Achat #{purchase.uniqueId} créé avec succès.')
-            return redirect('purchase_detail', purchase.id)
+            return redirect('purchases_list')
 
     except Exception as e:
         messages.error(request, f'Erreur lors de la création de l\'achat : {str(e)}')
@@ -544,7 +549,7 @@ def purchase_edit(request, purchase_id):
     purchase = get_object_or_404(Purchase, id=purchase_id)
 
     if request.method != 'POST':
-        return redirect('purchase_detail', purchase.id)
+        return redirect('purchases_list')
 
     try:
         with transaction.atomic():
@@ -597,7 +602,7 @@ def purchase_edit(request, purchase_id):
     except Exception as e:
         messages.error(request, f'Erreur : {str(e)}')
 
-    return redirect('purchase_detail', purchase.id)
+    return redirect('purchases_list')
 
 
 @login_required
@@ -640,7 +645,7 @@ def purchase_confirm(request, purchase_id):
     if request.method == 'POST':
         if purchase.status not in ('DRAFT', 'CONFIRMED'):
             messages.warning(request, 'Cet achat a déjà été reçu.')
-            return redirect('purchase_detail', purchase.id)
+            return redirect('purchases_list')
 
         with transaction.atomic():
             # Increment stock for each line
@@ -664,7 +669,7 @@ def purchase_confirm(request, purchase_id):
 
         messages.success(request, f'Achat #{purchase.uniqueId} confirmé et stock mis à jour.')
 
-    return redirect('purchase_detail', purchase.id)
+    return redirect('purchases_list')
 
 
 @login_required
@@ -675,7 +680,7 @@ def process_purchase_payment(request, purchase_id):
     if request.method == 'POST':
         if purchase.status == 'PAID':
             messages.warning(request, 'Cet achat est déjà payé.')
-            return redirect('purchase_detail', purchase.id)
+            return redirect('purchases_list')
 
         with transaction.atomic():
             net_amount = purchase.get_net_amount()
@@ -693,7 +698,7 @@ def process_purchase_payment(request, purchase_id):
 
         messages.success(request, f'Paiement de l\'achat #{purchase.uniqueId} enregistré.')
 
-    return redirect('purchase_detail', purchase.id)
+    return redirect('purchases_list')
 
 
 @login_required
@@ -724,7 +729,7 @@ def purchase_retenu_create(request, purchase_id):
         else:
             messages.error(request, 'Données manquantes.')
 
-    return redirect('purchase_detail', purchase.id)
+    return redirect('purchases_list')
 
 
 @login_required
@@ -737,7 +742,103 @@ def purchase_retenu_delete(request, retenu_id):
         retenu.delete()
         messages.success(request, 'Retenue supprimée.')
 
-    return redirect('purchase_detail', purchase_id)
+    return redirect('purchases_list')
+
+
+# Subcategory to RS operation type mapping for XML generation
+SUBCATEGORY_TO_OP_TYPE = {
+    'ACQ_PM_IS': 'RS1_000001',
+    'ACQ_COMMISSION_PM': 'RS1_000002',
+    'ACQ_1000_2_3': 'RS1_000003',
+    'ACQ_1000_OTHER': 'RS1_000004',
+    'ACQ_1000_15': 'RS1_000005',
+    'ACQ_COMMISSION_PP': 'RS1_000006',
+    'LOYER_HOTEL': 'RS2_000001',
+    'LOYER_RESIDENT': 'RS2_000002',
+    'BNC_REEL': 'RS3_000001',
+    'REMUN_PERFORMANCE': 'RS3_000002',
+    'REMUN_ARTISTES': 'RS3_000003',
+    'BNC_FORFAIT': 'RS3_000004',
+    'CESSION_FONDS': 'RS4_000001',
+    'CESSION_IMMEUBLE': 'RS4_000002',
+    'DIVIDENDE_PP': 'RS5_000001',
+    'CAPITAUX_MOB': 'RS6_000001',
+    'JEUX_PARI': 'RS7_000001',
+    'JETONS_PRESENCE': 'RS8_000001',
+}
+
+
+@login_required
+def purchase_download_xml(request, purchase_id):
+    """Generate RS declaration XML for a purchase's retenues"""
+    import pandas as pd
+    from io import BytesIO
+    from gov.tej.builder import build_xml_from_dataframe
+
+    purchase = get_object_or_404(Purchase, id=purchase_id)
+    retenues = purchase.purchase_retenues.select_related('retenu_type').all()
+
+    if not retenues.exists():
+        messages.error(request, 'Aucune retenue à exporter.')
+        return redirect('purchases_list')
+
+    settings_obj = Settings.objects.first()
+    if not settings_obj or not settings_obj.mf:
+        messages.error(request, "Veuillez configurer les paramètres de l'entreprise (MF requis).")
+        return redirect('purchases_list')
+
+    supplier = purchase.supplier
+    if not supplier or not supplier.mf:
+        messages.error(request, 'Le fournisseur doit avoir un matricule fiscal.')
+        return redirect('purchases_list')
+
+    rows = []
+    for ret in retenues:
+        op_type = SUBCATEGORY_TO_OP_TYPE.get(
+            ret.retenu_type.subcategory, 'RS1_000001'
+        )
+        montant_ttc = float(purchase.calculate_total())
+        montant_rs = float(ret.retenu_amount)
+        rows.append({
+            'declarant_type': '1',
+            'declarant_id': settings_obj.mf,
+            'declarant_category': settings_obj.status or 'PM',
+            'acte_depot': 0,
+            'annee_depot': purchase.date_created.year,
+            'mois_depot': purchase.date_created.month,
+            'beneficiary_type': '1',
+            'beneficiary_id': supplier.mf,
+            'beneficiary_category': supplier.status or 'PM',
+            'resident': '1',
+            'beneficiary_name': supplier.name or '',
+            'beneficiary_address': supplier.adress or '',
+            'beneficiary_activity': 'Fournisseur',
+            'email': supplier.emailAddress or '',
+            'phone': '',
+            'cert_ref': purchase.uniqueId,
+            'date_paiement': purchase.date_created.strftime('%d/%m/%Y'),
+            'id_type_operation': op_type,
+            'annee_facturation': purchase.date_created.year,
+            'CNPC': 0,
+            'P_Charge': 0,
+            'montant_ht': float(ret.base_amount),
+            'taux_rs': float(ret.retenu_rate),
+            'taux_tva': float(purchase.tva),
+            'montant_tva': float(purchase.calculate_tva_amount()),
+            'montant_ttc': montant_ttc,
+            'montant_rs': montant_rs,
+            'montant_net_servi': montant_ttc - montant_rs,
+        })
+
+    df = pd.DataFrame(rows)
+    buffer = BytesIO()
+    build_xml_from_dataframe(df, buffer)
+    buffer.seek(0)
+
+    filename = f'RS_declaration_{purchase.uniqueId}.xml'
+    response = HttpResponse(buffer.read(), content_type='application/xml')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 
 
 @login_required
