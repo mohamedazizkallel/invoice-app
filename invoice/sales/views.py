@@ -24,6 +24,10 @@ import json
 from num2words import num2words
 from decimal import Decimal
 from .utilities import num2words_tnd_fr
+from lxml import etree
+from io import BytesIO
+from collections import defaultdict
+from datetime import datetime
 
 def anonymous_required(function=None, redirect_url=None):
     if not redirect_url:
@@ -80,7 +84,7 @@ def dashboard(request):
     outstanding_amount = sum(invoice.calculate_total() for invoice in outstanding_invoices)
 
     # Paid this month
-    from datetime import datetime
+
     current_month = datetime.now().month
     current_year = datetime.now().year
     paid_this_month_invoices = Invoice.objects.filter(
@@ -770,10 +774,11 @@ SUBCATEGORY_TO_OP_TYPE = {
 
 @login_required
 def purchase_download_xml(request, purchase_id):
-    """Generate RS declaration XML for a purchase's retenues"""
-    import pandas as pd
-    from io import BytesIO
-    from gov.tej.builder import build_xml_from_dataframe
+    """Generate RS declaration XML for a purchase's retenues using lxml directly"""
+
+
+    def fmt(value):
+        return str(Decimal(str(value)).quantize(Decimal('0.000')))
 
     purchase = get_object_or_404(Purchase, id=purchase_id)
     retenues = purchase.purchase_retenues.select_related('retenu_type').all()
@@ -792,47 +797,79 @@ def purchase_download_xml(request, purchase_id):
         messages.error(request, 'Le fournisseur doit avoir un matricule fiscal.')
         return redirect('purchases_list')
 
-    rows = []
-    for ret in retenues:
-        op_type = SUBCATEGORY_TO_OP_TYPE.get(
-            ret.retenu_type.subcategory, 'RS1_000001'
-        )
-        montant_ttc = float(purchase.calculate_total())
-        montant_rs = float(ret.retenu_amount)
-        rows.append({
-            'declarant_type': '1',
-            'declarant_id': settings_obj.mf,
-            'declarant_category': settings_obj.status or 'PM',
-            'acte_depot': 0,
-            'annee_depot': purchase.date_created.year,
-            'mois_depot': purchase.date_created.month,
-            'beneficiary_type': '1',
-            'beneficiary_id': supplier.mf,
-            'beneficiary_category': supplier.status or 'PM',
-            'resident': '1',
-            'beneficiary_name': supplier.name or '',
-            'beneficiary_address': supplier.adress or '',
-            'beneficiary_activity': 'Fournisseur',
-            'email': supplier.emailAddress or '',
-            'phone': '',
-            'cert_ref': purchase.uniqueId,
-            'date_paiement': purchase.date_created.strftime('%d/%m/%Y'),
-            'id_type_operation': op_type,
-            'annee_facturation': purchase.date_created.year,
-            'CNPC': 0,
-            'P_Charge': 0,
-            'montant_ht': float(ret.base_amount),
-            'taux_rs': float(ret.retenu_rate),
-            'taux_tva': float(purchase.tva),
-            'montant_tva': float(purchase.calculate_tva_amount()),
-            'montant_ttc': montant_ttc,
-            'montant_rs': montant_rs,
-            'montant_net_servi': montant_ttc - montant_rs,
-        })
+    root = etree.Element("DeclarationsRS", VersionSchema="1.0")
 
-    df = pd.DataFrame(rows)
+    # Declarant
+    declarant = etree.SubElement(root, "Declarant")
+    etree.SubElement(declarant, "TypeIdentifiant").text = "1"
+    etree.SubElement(declarant, "Identifiant").text = settings_obj.mf
+    etree.SubElement(declarant, "CategorieContribuable").text = settings_obj.status or "PM"
+
+    # Reference
+    ref = etree.SubElement(root, "ReferenceDeclaration")
+    etree.SubElement(ref, "ActeDepot").text = "0"
+    etree.SubElement(ref, "AnneeDepot").text = str(purchase.date_created.year)
+    etree.SubElement(ref, "MoisDepot").text = f"{purchase.date_created.month:02d}"
+
+    ajouter = etree.SubElement(root, "AjouterCertificats")
+    cert = etree.SubElement(ajouter, "Certificat")
+
+    # Beneficiaire (supplier)
+    ben = etree.SubElement(cert, "Beneficiaire")
+    id_tax = etree.SubElement(ben, "IdTaxpayer")
+    mf_el = etree.SubElement(id_tax, "MatriculeFiscal")
+    etree.SubElement(mf_el, "TypeIdentifiant").text = "1"
+    etree.SubElement(mf_el, "Identifiant").text = supplier.mf
+    etree.SubElement(mf_el, "CategorieContribuable").text = supplier.status or "PM"
+    etree.SubElement(ben, "Resident").text = "1"
+    etree.SubElement(ben, "NometprenonOuRaisonsociale").text = supplier.name or ""
+    etree.SubElement(ben, "Adresse").text = supplier.adress or ""
+    etree.SubElement(ben, "Activite").text = "Fournisseur"
+    infos = etree.SubElement(ben, "InfosContact")
+    etree.SubElement(infos, "AdresseMail").text = supplier.emailAddress or ""
+    etree.SubElement(infos, "NumTel").text = ""
+
+    etree.SubElement(cert, "DatePayement").text = purchase.date_created.strftime('%d/%m/%Y')
+    etree.SubElement(cert, "Ref_certif_chez_declarant").text = str(purchase.uniqueId)
+
+    # Operations (one per retenu)
+    ops = etree.SubElement(cert, "ListeOperations")
+    totals = defaultdict(lambda: Decimal('0'))
+    montant_ttc = purchase.calculate_total()
+    montant_tva = purchase.calculate_tva_amount()
+
+    for ret in retenues:
+        op_type = SUBCATEGORY_TO_OP_TYPE.get(ret.retenu_type.subcategory, 'RS1_000001')
+        net_servi = montant_ttc - ret.retenu_amount
+
+        op = etree.SubElement(ops, "Operation", IdTypeOperation=op_type)
+        etree.SubElement(op, "AnneeFacturation").text = str(purchase.date_created.year)
+        etree.SubElement(op, "CNPC").text = "0"
+        etree.SubElement(op, "P_Charge").text = "0"
+        etree.SubElement(op, "MontantHT").text = fmt(ret.base_amount)
+        etree.SubElement(op, "TauxRS").text = str(ret.retenu_rate)
+        etree.SubElement(op, "TauxTVA").text = str(purchase.tva)
+        etree.SubElement(op, "MontantTVA").text = fmt(montant_tva)
+        etree.SubElement(op, "MontantTTC").text = fmt(montant_ttc)
+        etree.SubElement(op, "MontantRS").text = fmt(ret.retenu_amount)
+        etree.SubElement(op, "MontantNetServi").text = fmt(net_servi)
+
+        totals["ht"] += ret.base_amount
+        totals["tva"] += montant_tva
+        totals["ttc"] += montant_ttc
+        totals["rs"] += ret.retenu_amount
+        totals["net"] += net_servi
+
+    # Totals
+    total_el = etree.SubElement(cert, "TotalPayement")
+    etree.SubElement(total_el, "TotalMontantHT").text = fmt(totals["ht"])
+    etree.SubElement(total_el, "TotalMontantTVA").text = fmt(totals["tva"])
+    etree.SubElement(total_el, "TotalMontantTTC").text = fmt(totals["ttc"])
+    etree.SubElement(total_el, "TotalMontantRS").text = fmt(totals["rs"])
+    etree.SubElement(total_el, "TotalMontantNetServi").text = fmt(totals["net"])
+
     buffer = BytesIO()
-    build_xml_from_dataframe(df, buffer)
+    etree.ElementTree(root).write(buffer, encoding="UTF-8", xml_declaration=True, standalone=True, pretty_print=True)
     buffer.seek(0)
 
     filename = f'RS_declaration_{purchase.uniqueId}.xml'
