@@ -382,6 +382,7 @@ def supply_edit(request, supply_id):
             supply.stock_quantity = Decimal(stock_quantity) if stock_quantity else Decimal('0')
             supply.min_stock = Decimal(min_stock) if min_stock else Decimal('0')
             supply.description = description if description else ''
+            supply.apply_fodec = request.POST.get('apply_fodec') == 'on'
 
             if preferred_supplier_id:
                 supply.preferred_supplier = Supplier.objects.get(id=preferred_supplier_id)
@@ -478,7 +479,6 @@ def purchase_create(request):
             supply_ids = request.POST.getlist('supply_id[]')
             quantities = request.POST.getlist('quantity[]')
             unit_prices = request.POST.getlist('line_unit_price[]')
-            fodec_flags = request.POST.getlist('has_fodec[]')
 
             if not supply_ids:
                 messages.error(request, 'Vous devez ajouter au moins une ligne.')
@@ -492,13 +492,12 @@ def purchase_create(request):
                     supply = Supply.objects.get(id=supply_id)
                     qty = Decimal(quantities[i]) if i < len(quantities) and quantities[i] else Decimal('1')
                     price = Decimal(unit_prices[i]) if i < len(unit_prices) and unit_prices[i] else supply.unit_price
-                    has_fodec = str(i) in fodec_flags
                     PurchaseLine.objects.create(
                         purchase=purchase,
                         supply=supply,
                         quantity=qty,
                         unit_price=price,
-                        has_fodec=has_fodec,
+                        has_fodec=supply.apply_fodec,
                     )
                 except Supply.DoesNotExist:
                     pass
@@ -585,7 +584,6 @@ def purchase_edit(request, purchase_id):
             supply_ids = request.POST.getlist('supply_id[]')
             quantities = request.POST.getlist('quantity[]')
             unit_prices = request.POST.getlist('line_unit_price[]')
-            fodec_flags = request.POST.getlist('has_fodec[]')
 
             if not supply_ids:
                 raise ValueError('Vous devez ajouter au moins une ligne.')
@@ -597,13 +595,12 @@ def purchase_edit(request, purchase_id):
                     supply = Supply.objects.get(id=supply_id)
                     qty = Decimal(quantities[i]) if i < len(quantities) and quantities[i] else Decimal('1')
                     price = Decimal(unit_prices[i]) if i < len(unit_prices) and unit_prices[i] else supply.unit_price
-                    has_fodec = str(i) in fodec_flags
                     PurchaseLine.objects.create(
                         purchase=purchase,
                         supply=supply,
                         quantity=qty,
                         unit_price=price,
-                        has_fodec=has_fodec,
+                        has_fodec=supply.apply_fodec,
                     )
                 except Supply.DoesNotExist:
                     pass

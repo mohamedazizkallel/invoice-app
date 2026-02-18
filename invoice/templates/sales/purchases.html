@@ -253,7 +253,8 @@
                 <th>Unité</th>
                 <th class="text-end">Prix unit.</th>
                 <th class="text-end">Qté</th>
-                <th class="text-end">Total</th>
+                <th class="text-center">FODEC</th>
+                <th class="text-end">Total HT</th>
               </tr>
             </thead>
             <tbody>
@@ -264,10 +265,17 @@
                 <td>{{ line.supply.unit }}</td>
                 <td class="text-end">{{ line.unit_price|floatformat:3 }}</td>
                 <td class="text-end">{{ line.quantity|floatformat:3 }}</td>
+                <td class="text-center">
+                  {% if line.has_fodec %}
+                  <span class="badge bg-info text-white" style="font-size:0.7rem;">1%</span>
+                  {% else %}
+                  <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
                 <td class="text-end fw-semibold">{{ line.get_line_total|floatformat:3 }}</td>
               </tr>
               {% empty %}
-              <tr><td colspan="6" class="text-center text-muted py-3">Aucune ligne d'achat</td></tr>
+              <tr><td colspan="7" class="text-center text-muted py-3">Aucune ligne d'achat</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -373,10 +381,22 @@
                 <td class="text-end">{{ purchase.calculate_subtotal_after_discount|floatformat:3 }} TND</td>
               </tr>
               {% endif %}
+              {% if purchase.calculate_total_fodec %}
+              <tr>
+                <td class="text-muted">FODEC (1%)</td>
+                <td class="text-end">{{ purchase.calculate_total_fodec|floatformat:3 }} TND</td>
+              </tr>
+              {% endif %}
               <tr>
                 <td class="text-muted">TVA ({{ purchase.tva }}%)</td>
                 <td class="text-end">{{ purchase.calculate_tva_amount|floatformat:3 }} TND</td>
               </tr>
+              {% if purchase.get_total_retenue %}
+              <tr>
+                <td class="text-muted">Total retenue</td>
+                <td class="text-end text-danger">-{{ purchase.get_total_retenue|floatformat:3 }} TND</td>
+              </tr>
+              {% endif %}
               <tr>
                 <td class="text-muted">Timbre fiscal</td>
                 <td class="text-end">{{ purchase.timbre_fiscal|floatformat:3 }} TND</td>
@@ -386,10 +406,6 @@
                 <td class="text-end fw-bold fs-5">{{ purchase.calculate_total|floatformat:3 }} TND</td>
               </tr>
               {% if purchase.get_total_retenue %}
-              <tr>
-                <td class="text-muted">Total retenue</td>
-                <td class="text-end text-danger">-{{ purchase.get_total_retenue|floatformat:3 }} TND</td>
-              </tr>
               <tr class="table-active">
                 <td class="fw-bold">Net à payer</td>
                 <td class="text-end fw-bold fs-5">{{ purchase.get_net_amount|floatformat:3 }} TND</td>
@@ -451,7 +467,7 @@
                 </div>
                 <div class="col-md-4">
                   <label class="form-label small">Montant de base</label>
-                  <input type="number" step="0.001" class="form-control form-control-sm" name="base_amount" value="{{ purchase.calculate_total|floatformat:3 }}" required>
+                  <input type="number" step="0.001" class="form-control form-control-sm" name="base_amount" value="{{ purchase.calculate_total_before_timbre|floatformat:3 }}" required>
                 </div>
                 <div class="col-md-3">
                   <button type="submit" class="btn btn-sm btn-outline-primary w-100">

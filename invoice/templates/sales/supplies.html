@@ -106,10 +106,17 @@
           <div class="row g-3">
             {% for field in form %}
             <div class="col-md-6">
+              {% if field.name == 'apply_fodec' %}
+              <div class="form-check mt-4">
+                {{ field }}
+                <label class="form-check-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              </div>
+              {% else %}
               <label class="form-label fw-semibold">{{ field.label }}</label>
               {{ field }}
               {% if field.help_text %}
               <small class="form-text text-muted">{{ field.help_text }}</small>
+              {% endif %}
               {% endif %}
             </div>
             {% endfor %}
@@ -177,6 +184,16 @@
             <label class="form-label fw-semibold text-muted">Fournisseur préféré</label>
             <p class="form-control-plaintext">{{ supply.preferred_supplier.name|default:"Non défini" }}</p>
           </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">FODEC (1%)</label>
+            <p class="form-control-plaintext">
+              {% if supply.apply_fodec %}
+              <span class="badge bg-info text-white">Oui</span>
+              {% else %}
+              <span class="badge bg-secondary">Non</span>
+              {% endif %}
+            </p>
+          </div>
           <div class="col-12">
             <label class="form-label fw-semibold text-muted">Description</label>
             <p class="form-control-plaintext">{{ supply.description|default:"Aucune description" }}</p>
@@ -242,6 +259,12 @@
                 <option value="{{ supplier.id }}" {% if supply.preferred_supplier_id == supplier.id %}selected{% endif %}>{{ supplier.name }}</option>
                 {% endfor %}
               </select>
+            </div>
+            <div class="col-md-6">
+              <div class="form-check mt-4">
+                <input type="checkbox" class="form-check-input" name="apply_fodec" id="editFodec{{ supply.id }}" {% if supply.apply_fodec %}checked{% endif %}>
+                <label class="form-check-label fw-semibold" for="editFodec{{ supply.id }}">FODEC (1%)</label>
+              </div>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold">Description</label>

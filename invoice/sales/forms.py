@@ -181,7 +181,7 @@ class SupplyForm(forms.ModelForm):
     """Form for supply/raw material management"""
     class Meta:
         model = Supply
-        fields = ['name', 'category', 'unit', 'unit_price', 'stock_quantity', 'min_stock', 'preferred_supplier', 'description']
+        fields = ['name', 'category', 'unit', 'unit_price', 'stock_quantity', 'min_stock', 'preferred_supplier', 'apply_fodec', 'description']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nom de la fourniture'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
@@ -190,6 +190,7 @@ class SupplyForm(forms.ModelForm):
             'stock_quantity': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'placeholder': '0.000'}),
             'min_stock': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'placeholder': '0.000'}),
             'preferred_supplier': forms.Select(attrs={'class': 'form-select'}),
+            'apply_fodec': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Description...'}),
         }
 
