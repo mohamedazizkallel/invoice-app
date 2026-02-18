@@ -158,6 +158,13 @@
         border-left-color: var(--sidebar-active);
       }
 
+      /* Fix for sidebar dividers */
+      .sidebar-divider {
+        border-color: rgba(255, 255, 255, 0.1);
+        margin: 0;
+        opacity: 1;
+      }
+
       /* Main Content */
       .main-content {
         padding: 2rem;
@@ -471,7 +478,6 @@
       <span>Swift Invoice</span>
     </a>
 
-
     <div class="d-flex align-items-center gap-2">
       <button class="navbar-toggler d-md-none text-white border-0 p-2" type="button" onclick="toggleSidebar()">
         <i class="bi bi-list fs-4"></i>
@@ -506,8 +512,6 @@
             </ul>
           </div>
 
-          <hr class="sidebar-divider">
-
           <!-- Ventes -->
           <div class="sidebar-section">
             <div class="sidebar-heading">Ventes</div>
@@ -526,8 +530,6 @@
               </li>
             </ul>
           </div>
-
-          <hr class="sidebar-divider">
 
           <!-- Catalogue -->
           <div class="sidebar-section">
@@ -548,8 +550,6 @@
             </ul>
           </div>
 
-          <hr class="sidebar-divider">
-
           <!-- Achats -->
           <div class="sidebar-section">
             <div class="sidebar-heading">Achats</div>
@@ -569,8 +569,6 @@
             </ul>
           </div>
 
-          <hr class="sidebar-divider">
-
           <!-- Paramètres -->
           <div class="sidebar-section mt-auto">
             <div class="sidebar-heading">Paramètres</div>
@@ -586,6 +584,7 @@
 
         </div>
       </nav>
+      
       <!-- Main Content Area -->
       <div class="col-md-9 col-lg-10 main-content">
         {% block main %}{% endblock %}
