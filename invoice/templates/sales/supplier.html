@@ -2,6 +2,8 @@
 {% load static %}
 {% load crispy_forms_tags %}
 
+{% block title %}Fournisseurs - Application de facturation{% endblock %}
+
 {% block css %}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 {% endblock %}
@@ -28,6 +30,7 @@
           <th>Nom du fournisseur</th>
           <th>Email</th>
           <th>Adresse</th>
+          <th class="text-end">Solde</th>
           <th class="text-end">Actions</th>
         </tr>
       </thead>
@@ -38,6 +41,16 @@
           <td>{{ Supplier.emailAddress }}</td>
           <td>{{ Supplier.adress }}</td>
           <td class="text-end">
+            {% with balance=Supplier.get_balance %}
+            <span class="badge-modern {% if balance > 0 %}badge-danger{% elif balance < 0 %}badge-success{% else %}badge-secondary{% endif %}">
+              {{ balance|floatformat:3 }} TND
+            </span>
+            {% endwith %}
+          </td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-success" onclick="openSupplierLedgerModal({{ Supplier.id }})" title="Grand Livre">
+              <i class="bi bi-journal-text"></i>
+            </button>
             <a href="#" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewSupplierModal{{ Supplier.id }}">
               <i class="bi bi-eye"></i>
             </a>
@@ -63,7 +76,7 @@
     <img src="{% static 'assets/img/SupplierBackground.svg' %}" width="200">
     <br><br>
     <button type="button" class="btn btn-modern-primary btn-modern" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
-      <i class="bi bi-plus-circle me-2"></i>Add Supplier
+      <i class="bi bi-plus-circle me-2"></i>Ajouter un fournisseur
     </button>
     </div>
   </div>
@@ -111,7 +124,7 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">ID Fournisseur</label>
-              <p class="form-control-plaintext">CT-{{ Supplier.id|stringformat:"04d" }}</p>
+              <p class="form-control-plaintext">FR-{{ Supplier.id|stringformat:"04d" }}</p>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">Nom du fournisseur</label>
@@ -167,7 +180,7 @@
                 <input type="email" class="form-control" name="emailAddress" value="{{ Supplier.emailAddress }}" required>
               </div>
               <div class="col-6">
-                <label class="form-label fw-semibold">Address</label>
+                <label class="form-label fw-semibold">Adresse</label>
                 <input type="text" class="form-control" name="adress" value="{{ Supplier.adress }}" required>
               </div>
               <div class="col-6">
@@ -178,7 +191,7 @@
           </div>
 
           <div class="modal-footer border-0">
-            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
             <button type="submit" class="btn btn-primary px-4">
               <i class="bi bi-check-circle me-1"></i> Enregistrer les modifications
             </button>
@@ -212,7 +225,7 @@
           </div>
 
           <div class="modal-footer border-0">
-            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
             <button type="submit" class="btn btn-danger px-4">
               <i class="bi bi-trash me-1"></i> Supprimer le fournisseur
             </button>
@@ -223,4 +236,163 @@
   </div>
   {% endfor %}
 
+  <!-- Supplier Ledger Modal (shared, loaded via AJAX) -->
+  <div class="modal fade" id="supplierLedgerModal" tabindex="-1" aria-labelledby="supplierLedgerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content shadow-lg rounded-4">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="supplierLedgerModalLabel">
+            <i class="bi bi-journal-text me-2 text-success"></i>
+            Grand Livre: <span id="supplierLedgerName"></span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body pt-2">
+          <!-- Balance Summary -->
+          <div class="row mb-3">
+            <div class="col-md-4">
+              <div class="card border-0 bg-light">
+                <div class="card-body text-center py-3">
+                  <small class="text-muted d-block">Solde actuel (dû au fournisseur)</small>
+                  <h4 class="mb-0" id="supplierLedgerBalance">0.000 TND</h4>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Transaction History Table -->
+          <div class="table-responsive">
+            <table class="table table-hover table-sm">
+              <thead class="table-light">
+                <tr>
+                  <th>Date</th>
+                  <th>Source</th>
+                  <th>Description</th>
+                  <th class="text-end">Débit (payé)</th>
+                  <th class="text-end">Crédit (dû)</th>
+                  <th class="text-end">Solde</th>
+                </tr>
+              </thead>
+              <tbody id="supplierLedgerTableBody">
+                <tr id="supplierLedgerLoading">
+                  <td colspan="6" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    Chargement...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div id="supplierLedgerEmpty" class="text-center py-4 d-none">
+            <i class="bi bi-journal-x fs-1 text-muted"></i>
+            <p class="text-muted mt-2">Aucune transaction pour ce fournisseur.</p>
+          </div>
+
+          <!-- Manual Entry Form -->
+          <hr class="my-3">
+          <h6 class="fw-semibold"><i class="bi bi-plus-circle me-1"></i> Ajouter une transaction manuelle</h6>
+          <form id="supplierManualTransactionForm" method="post">
+            {% csrf_token %}
+            <div class="row g-2 align-items-end">
+              <div class="col-md-3">
+                <label class="form-label small">Type</label>
+                <select name="transaction_type" class="form-select form-select-sm" required>
+                  <option value="CREDIT">Crédit (dû)</option>
+                  <option value="DEBIT">Débit (payé)</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small">Montant</label>
+                <input type="number" step="0.001" min="0.001" name="amount"
+                       class="form-control form-control-sm" placeholder="0.000" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small">Description</label>
+                <input type="text" name="description" class="form-control form-control-sm"
+                       placeholder="Description...">
+              </div>
+              <div class="col-md-2">
+                <button type="submit" class="btn btn-sm btn-success w-100">
+                  <i class="bi bi-check-circle me-1"></i> Ajouter
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+function openSupplierLedgerModal(supplierId) {
+  const modal = new bootstrap.Modal(document.getElementById('supplierLedgerModal'));
+  const tableBody = document.getElementById('supplierLedgerTableBody');
+  const empty = document.getElementById('supplierLedgerEmpty');
+  const balanceEl = document.getElementById('supplierLedgerBalance');
+  const nameEl = document.getElementById('supplierLedgerName');
+  const form = document.getElementById('supplierManualTransactionForm');
+
+  // Set form action URL
+  form.action = `/suppliers/${supplierId}/transactions/add/`;
+
+  // Reset state
+  tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4">
+    <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Chargement...
+  </td></tr>`;
+  empty.classList.add('d-none');
+
+  modal.show();
+
+  // Fetch transactions
+  fetch(`/suppliers/${supplierId}/transactions/`)
+    .then(response => response.json())
+    .then(data => {
+      nameEl.textContent = data.supplier_name;
+
+      const balance = data.balance;
+      balanceEl.textContent = balance.toFixed(3) + ' TND';
+      balanceEl.className = 'mb-0';
+      if (balance > 0) balanceEl.classList.add('text-danger');
+      else if (balance < 0) balanceEl.classList.add('text-success');
+
+      if (data.transactions.length === 0) {
+        tableBody.innerHTML = '';
+        empty.classList.remove('d-none');
+        return;
+      }
+
+      let html = '';
+      data.transactions.forEach(txn => {
+        const balClass = txn.running_balance > 0 ? 'text-danger' : 'text-success';
+        const purchaseLink = txn.purchase_id
+          ? ` <a href="/purchases/${txn.purchase_id}/" class="text-decoration-none">(${txn.purchase_ref})</a>`
+          : '';
+        const debitCell = txn.type === 'DEBIT' ? `<span class="text-success fw-semibold">${txn.amount.toFixed(3)}</span>` : '';
+        const creditCell = txn.type === 'CREDIT' ? `<span class="text-danger fw-semibold">${txn.amount.toFixed(3)}</span>` : '';
+
+        html += `
+          <tr>
+            <td><small>${txn.date}</small></td>
+            <td><small class="text-muted">${txn.source}</small></td>
+            <td><small>${txn.description}${purchaseLink}</small></td>
+            <td class="text-end">${debitCell}</td>
+            <td class="text-end">${creditCell}</td>
+            <td class="text-end ${balClass} fw-semibold">${txn.running_balance.toFixed(3)}</td>
+          </tr>
+        `;
+      });
+      tableBody.innerHTML = html;
+    })
+    .catch(err => {
+      tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Erreur de chargement</td></tr>`;
+      console.error('Ledger fetch error:', err);
+    });
+}
+</script>
 {% endblock %}

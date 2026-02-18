@@ -13,9 +13,9 @@ from io import BytesIO
 from django.conf import settings
 from django.utils import timezone
 from django.http import JsonResponse
-from .forms import ClientForm, InvoiceForm, SupplierForm, UserLoginForm, SettingsForm, ServiceForm, ClientTransactionForm
-from .models import Client,Invoice,Settings,Service,InvoiceService,Supplier,ClientTransaction
-from payment.models import Retenu  # Add this import at the top of the file
+from .forms import ClientForm, InvoiceForm, SupplierForm, UserLoginForm, SettingsForm, ServiceForm, ClientTransactionForm, SupplierTransactionForm, SupplyForm, PurchaseForm
+from .models import Client,Invoice,Settings,Service,InvoiceService,Supplier,ClientTransaction, SupplierTransaction, Supply, Purchase, PurchaseLine, InvoiceSupplyUsage
+from payment.models import Retenu, PurchaseRetenu
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,logout,login as auth_login
 from random import randint
@@ -227,7 +227,8 @@ def suppliers(request):
             return redirect('suppliers')
     
     form = SupplierForm()
-    return render(request, 'sales/supplier.html', {'Suppliers': suppliers_qs, 'form': form})
+    transaction_form = SupplierTransactionForm()
+    return render(request, 'sales/supplier.html', {'Suppliers': suppliers_qs, 'form': form, 'transaction_form': transaction_form})
 
 @login_required
 def edit_supplier(request, client_id):
@@ -262,6 +263,481 @@ def delete_supplier(request, pk):
     supplier.delete()
     messages.success(request, "Supplier removed successfully")
     return redirect('suppliers')
+
+
+@login_required
+def supplier_transactions(request, supplier_id):
+    """AJAX endpoint: return supplier transactions and balance as JSON"""
+    supplier = get_object_or_404(Supplier, id=supplier_id)
+    transactions = supplier.supplier_transactions.all().order_by('date_created')
+
+    running_balance = Decimal('0')
+    transaction_list = []
+    for txn in transactions:
+        if txn.transaction_type == 'CREDIT':
+            running_balance += txn.amount
+        else:
+            running_balance -= txn.amount
+
+        transaction_list.append({
+            'id': txn.id,
+            'date': txn.date_created.strftime('%Y-%m-%d %H:%M') if txn.date_created else '',
+            'type': txn.transaction_type,
+            'source': txn.get_source_display(),
+            'description': txn.description or '',
+            'amount': float(txn.amount),
+            'running_balance': float(running_balance),
+            'purchase_id': txn.purchase_id,
+            'purchase_ref': txn.purchase.uniqueId if txn.purchase else None,
+        })
+
+    return JsonResponse({
+        'success': True,
+        'supplier_name': supplier.name,
+        'balance': float(supplier.get_balance()),
+        'transactions': transaction_list,
+    })
+
+
+@login_required
+def supplier_add_transaction(request, supplier_id):
+    """Add a manual credit/debit entry for a supplier"""
+    supplier = get_object_or_404(Supplier, id=supplier_id)
+
+    if request.method == 'POST':
+        form = SupplierTransactionForm(request.POST)
+        if form.is_valid():
+            txn = form.save(commit=False)
+            txn.supplier = supplier
+            txn.source = 'MANUAL'
+            txn.save()
+            messages.success(request, f'Transaction ajoutée pour "{supplier.name}"')
+        else:
+            messages.error(request, 'Données de transaction invalides')
+
+    return redirect('suppliers')
+
+
+# ============ SUPPLIES CRUD ============
+
+@login_required
+def supplies_list(request):
+    """Display all supplies"""
+    supplies = Supply.objects.all().select_related('preferred_supplier')
+
+    search_query = request.GET.get('search', '')
+    if search_query:
+        supplies = supplies.filter(
+            Q(name__icontains=search_query) |
+            Q(description__icontains=search_query) |
+            Q(category__icontains=search_query)
+        )
+
+    form = SupplyForm()
+    suppliers_qs = Supplier.objects.all().order_by('name')
+    return render(request, 'sales/supplies.html', {
+        'supplies': supplies,
+        'form': form,
+        'suppliers': suppliers_qs,
+    })
+
+
+@login_required
+def supply_create(request):
+    """Create a new supply"""
+    if request.method == 'POST':
+        form = SupplyForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Fourniture ajoutée avec succès')
+        else:
+            messages.error(request, 'Erreur lors de l\'ajout de la fourniture')
+    return redirect('supplies_list')
+
+
+@login_required
+def supply_edit(request, supply_id):
+    """Edit an existing supply"""
+    supply = get_object_or_404(Supply, id=supply_id)
+
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        category = request.POST.get('category')
+        unit = request.POST.get('unit')
+        unit_price = request.POST.get('unit_price')
+        stock_quantity = request.POST.get('stock_quantity')
+        min_stock = request.POST.get('min_stock')
+        preferred_supplier_id = request.POST.get('preferred_supplier')
+        description = request.POST.get('description')
+
+        try:
+            supply.name = name
+            supply.category = category if category else 'raw_material'
+            supply.unit = unit if unit else 'pièce'
+            supply.unit_price = Decimal(unit_price) if unit_price else Decimal('0')
+            supply.stock_quantity = Decimal(stock_quantity) if stock_quantity else Decimal('0')
+            supply.min_stock = Decimal(min_stock) if min_stock else Decimal('0')
+            supply.description = description if description else ''
+
+            if preferred_supplier_id:
+                supply.preferred_supplier = Supplier.objects.get(id=preferred_supplier_id)
+            else:
+                supply.preferred_supplier = None
+
+            supply.save()
+            messages.success(request, f'Fourniture "{supply.name}" modifiée avec succès')
+        except (ValueError, TypeError) as e:
+            messages.error(request, f'Données invalides : {str(e)}')
+
+    return redirect('supplies_list')
+
+
+@login_required
+def supply_delete(request, supply_id):
+    """Delete a supply"""
+    supply = get_object_or_404(Supply, id=supply_id)
+    if request.method == 'POST':
+        supply_name = supply.name
+        supply.delete()
+        messages.success(request, f'Fourniture "{supply_name}" supprimée avec succès')
+    return redirect('supplies_list')
+
+
+# ============ PURCHASES CRUD ============
+
+@login_required
+def purchases_list(request):
+    """Display all purchases"""
+    purchases = Purchase.objects.all().select_related('supplier')
+
+    search_query = request.GET.get('search', '')
+    if search_query:
+        purchases = purchases.filter(
+            Q(uniqueId__icontains=search_query) |
+            Q(supplier__name__icontains=search_query) |
+            Q(notes__icontains=search_query)
+        )
+
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        purchases = purchases.filter(status=status_filter)
+
+    suppliers_qs = Supplier.objects.all().order_by('name')
+    supplies = Supply.objects.all().order_by('name')
+
+    context = {
+        'purchases': purchases,
+        'suppliers': suppliers_qs,
+        'supplies': supplies,
+        'form': PurchaseForm(),
+    }
+    return render(request, 'sales/purchases.html', context)
+
+
+@login_required
+def purchase_create(request):
+    """Create a new purchase with line items"""
+    if request.method != 'POST':
+        return redirect('purchases_list')
+
+    try:
+        with transaction.atomic():
+            supplier_id = request.POST.get('supplier')
+            if not supplier_id:
+                messages.error(request, 'Le fournisseur est requis.')
+                return redirect('purchases_list')
+
+            try:
+                supplier = Supplier.objects.get(id=supplier_id)
+            except Supplier.DoesNotExist:
+                messages.error(request, 'Fournisseur introuvable.')
+                return redirect('purchases_list')
+
+            notes = request.POST.get('notes', '')
+            tva = request.POST.get('tva', '19.00').strip()
+            discount = request.POST.get('discount', '0.00').strip()
+            timbre = request.POST.get('timbre_fiscal', '1.000').strip()
+
+            purchase = Purchase.objects.create(
+                supplier=supplier,
+                notes=notes,
+                tva=Decimal(tva) if tva else Decimal('19.00'),
+                discount=Decimal(discount) if discount else Decimal('0.00'),
+                timbre_fiscal=Decimal(timbre) if timbre else Decimal('1.000'),
+            )
+
+            supply_ids = request.POST.getlist('supply_id[]')
+            quantities = request.POST.getlist('quantity[]')
+            unit_prices = request.POST.getlist('line_unit_price[]')
+
+            if not supply_ids:
+                messages.error(request, 'Vous devez ajouter au moins une ligne.')
+                purchase.delete()
+                return redirect('purchases_list')
+
+            for i, supply_id in enumerate(supply_ids):
+                if not supply_id:
+                    continue
+                try:
+                    supply = Supply.objects.get(id=supply_id)
+                    qty = Decimal(quantities[i]) if i < len(quantities) and quantities[i] else Decimal('1')
+                    price = Decimal(unit_prices[i]) if i < len(unit_prices) and unit_prices[i] else supply.unit_price
+                    PurchaseLine.objects.create(
+                        purchase=purchase,
+                        supply=supply,
+                        quantity=qty,
+                        unit_price=price,
+                    )
+                except Supply.DoesNotExist:
+                    pass
+
+            messages.success(request, f'Achat #{purchase.uniqueId} créé avec succès.')
+            return redirect('purchase_detail', purchase.id)
+
+    except Exception as e:
+        messages.error(request, f'Erreur lors de la création de l\'achat : {str(e)}')
+
+    return redirect('purchases_list')
+
+
+@login_required
+def purchase_detail(request, purchase_id):
+    """View purchase details"""
+    purchase = get_object_or_404(Purchase, id=purchase_id)
+    purchase_lines = purchase.purchase_lines.select_related('supply').all()
+
+    subtotal = purchase.calculate_subtotal()
+    discount_amount = purchase.calculate_discount_amount()
+    subtotal_after_discount = purchase.calculate_subtotal_after_discount()
+    tva_amount = purchase.calculate_tva_amount()
+    total = purchase.calculate_total()
+    total_retenue = purchase.get_total_retenue()
+    net_amount = purchase.get_net_amount()
+
+    retenu_types = Retenu.objects.filter(is_active=True).order_by('category', 'rate')
+    purchase_retenues = purchase.purchase_retenues.select_related('retenu_type').all()
+
+    suppliers_qs = Supplier.objects.all().order_by('name')
+    supplies = Supply.objects.all().order_by('name')
+
+    context = {
+        'purchase': purchase,
+        'purchase_lines': purchase_lines,
+        'subtotal': subtotal,
+        'discount_amount': discount_amount,
+        'subtotal_after_discount': subtotal_after_discount,
+        'tva_amount': tva_amount,
+        'total': total,
+        'total_retenue': total_retenue,
+        'net_amount': net_amount,
+        'retenu_types': retenu_types,
+        'purchase_retenues': purchase_retenues,
+        'suppliers': suppliers_qs,
+        'supplies': supplies,
+    }
+    return render(request, 'sales/purchase_detail.html', context)
+
+
+@login_required
+def purchase_edit(request, purchase_id):
+    """Edit an existing purchase"""
+    purchase = get_object_or_404(Purchase, id=purchase_id)
+
+    if request.method != 'POST':
+        return redirect('purchase_detail', purchase.id)
+
+    try:
+        with transaction.atomic():
+            supplier_id = request.POST.get('supplier')
+            if supplier_id:
+                try:
+                    purchase.supplier = Supplier.objects.get(id=supplier_id)
+                except Supplier.DoesNotExist:
+                    raise ValueError('Fournisseur introuvable.')
+
+            purchase.notes = request.POST.get('notes', '')
+            if request.POST.get('tva'):
+                purchase.tva = Decimal(request.POST['tva'])
+            if request.POST.get('discount'):
+                purchase.discount = Decimal(request.POST['discount'])
+            if request.POST.get('timbre_fiscal'):
+                purchase.timbre_fiscal = Decimal(request.POST['timbre_fiscal'])
+
+            # Rebuild lines
+            purchase.purchase_lines.all().delete()
+
+            supply_ids = request.POST.getlist('supply_id[]')
+            quantities = request.POST.getlist('quantity[]')
+            unit_prices = request.POST.getlist('line_unit_price[]')
+
+            if not supply_ids:
+                raise ValueError('Vous devez ajouter au moins une ligne.')
+
+            for i, supply_id in enumerate(supply_ids):
+                if not supply_id:
+                    continue
+                try:
+                    supply = Supply.objects.get(id=supply_id)
+                    qty = Decimal(quantities[i]) if i < len(quantities) and quantities[i] else Decimal('1')
+                    price = Decimal(unit_prices[i]) if i < len(unit_prices) and unit_prices[i] else supply.unit_price
+                    PurchaseLine.objects.create(
+                        purchase=purchase,
+                        supply=supply,
+                        quantity=qty,
+                        unit_price=price,
+                    )
+                except Supply.DoesNotExist:
+                    pass
+
+            purchase.save()
+            messages.success(request, f'Achat #{purchase.uniqueId} modifié avec succès.')
+
+    except (ValueError, TypeError) as e:
+        messages.error(request, str(e))
+    except Exception as e:
+        messages.error(request, f'Erreur : {str(e)}')
+
+    return redirect('purchase_detail', purchase.id)
+
+
+@login_required
+def purchase_delete(request, purchase_id):
+    """Delete a purchase and reverse stock/ledger if confirmed"""
+    purchase = get_object_or_404(Purchase, id=purchase_id)
+
+    if request.method == 'POST':
+        purchase_ref = purchase.uniqueId
+
+        # If purchase was received, reverse stock
+        if purchase.status in ('RECEIVED', 'PAID'):
+            for line in purchase.purchase_lines.all():
+                line.supply.stock_quantity -= line.quantity
+                line.supply.save()
+
+            # Reverse ledger entries
+            if purchase.supplier:
+                purchase_total = purchase.calculate_total()
+                SupplierTransaction.objects.create(
+                    supplier=purchase.supplier,
+                    purchase=None,
+                    transaction_type='DEBIT',
+                    source='PURCHASE_DELETED',
+                    amount=purchase_total,
+                    description=f'Annulation achat #{purchase_ref}'
+                )
+
+        purchase.delete()
+        messages.success(request, f'Achat #{purchase_ref} supprimé avec succès.')
+
+    return redirect('purchases_list')
+
+
+@login_required
+def purchase_confirm(request, purchase_id):
+    """Confirm/receive a purchase: increment stock and create supplier CREDIT"""
+    purchase = get_object_or_404(Purchase, id=purchase_id)
+
+    if request.method == 'POST':
+        if purchase.status not in ('DRAFT', 'CONFIRMED'):
+            messages.warning(request, 'Cet achat a déjà été reçu.')
+            return redirect('purchase_detail', purchase.id)
+
+        with transaction.atomic():
+            # Increment stock for each line
+            for line in purchase.purchase_lines.all():
+                line.supply.stock_quantity += line.quantity
+                line.supply.save()
+
+            # Create supplier CREDIT transaction (we owe them)
+            purchase_total = purchase.calculate_total()
+            SupplierTransaction.objects.create(
+                supplier=purchase.supplier,
+                purchase=purchase,
+                transaction_type='CREDIT',
+                source='PURCHASE_CONFIRMED',
+                amount=purchase_total,
+                description=f'Achat #{purchase.uniqueId} reçu'
+            )
+
+            purchase.status = 'RECEIVED'
+            purchase.save()
+
+        messages.success(request, f'Achat #{purchase.uniqueId} confirmé et stock mis à jour.')
+
+    return redirect('purchase_detail', purchase.id)
+
+
+@login_required
+def process_purchase_payment(request, purchase_id):
+    """Process payment for a purchase: create supplier DEBIT"""
+    purchase = get_object_or_404(Purchase, id=purchase_id)
+
+    if request.method == 'POST':
+        if purchase.status == 'PAID':
+            messages.warning(request, 'Cet achat est déjà payé.')
+            return redirect('purchase_detail', purchase.id)
+
+        with transaction.atomic():
+            net_amount = purchase.get_net_amount()
+            SupplierTransaction.objects.create(
+                supplier=purchase.supplier,
+                purchase=purchase,
+                transaction_type='DEBIT',
+                source='PURCHASE_PAID',
+                amount=net_amount,
+                description=f'Paiement achat #{purchase.uniqueId}'
+            )
+
+            purchase.status = 'PAID'
+            purchase.save()
+
+        messages.success(request, f'Paiement de l\'achat #{purchase.uniqueId} enregistré.')
+
+    return redirect('purchase_detail', purchase.id)
+
+
+@login_required
+def purchase_retenu_create(request, purchase_id):
+    """Add retenu to a purchase"""
+    purchase = get_object_or_404(Purchase, id=purchase_id)
+
+    if request.method == 'POST':
+        retenu_type_id = request.POST.get('retenu_type')
+        base_amount = request.POST.get('base_amount')
+
+        if retenu_type_id and base_amount:
+            try:
+                retenu_type = Retenu.objects.get(id=retenu_type_id)
+                base = Decimal(base_amount)
+                calculated = (base * retenu_type.rate) / Decimal('100')
+
+                PurchaseRetenu.objects.create(
+                    purchase=purchase,
+                    retenu_type=retenu_type,
+                    base_amount=base,
+                    retenu_rate=retenu_type.rate,
+                    retenu_amount=calculated,
+                )
+                messages.success(request, 'Retenue ajoutée avec succès.')
+            except (Retenu.DoesNotExist, ValueError) as e:
+                messages.error(request, f'Erreur : {str(e)}')
+        else:
+            messages.error(request, 'Données manquantes.')
+
+    return redirect('purchase_detail', purchase.id)
+
+
+@login_required
+def purchase_retenu_delete(request, retenu_id):
+    """Delete a retenu from a purchase"""
+    retenu = get_object_or_404(PurchaseRetenu, id=retenu_id)
+    purchase_id = retenu.purchase_id
+
+    if request.method == 'POST':
+        retenu.delete()
+        messages.success(request, 'Retenue supprimée.')
+
+    return redirect('purchase_detail', purchase_id)
 
 
 @login_required

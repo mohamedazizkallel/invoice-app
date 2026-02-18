@@ -1,0 +1,295 @@
+{% extends 'partials/base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Fournitures - Application de facturation{% endblock %}
+
+{% block css %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+{% endblock %}
+
+{% block main %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Fournitures</h1>
+    <p>Gérer vos matières premières et fournitures.</p>
+  </div>
+  <div class="page-header-actions">
+    <button type="button" class="btn btn-modern-primary btn-modern" data-bs-toggle="modal" data-bs-target="#addSupplyModal">
+      <i class="bi bi-plus-circle me-2"></i>Ajouter une fourniture
+    </button>
+  </div>
+</div>
+
+{% if supplies %}
+<!-- Supplies Table -->
+<div class="modern-card">
+  <div class="table-responsive">
+    <table class="table modern-table mb-0">
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Catégorie</th>
+          <th>Unité</th>
+          <th class="text-end">Prix unitaire</th>
+          <th class="text-end">Stock</th>
+          <th class="text-end">Stock min.</th>
+          <th>Fournisseur</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for supply in supplies %}
+        <tr>
+          <td><strong>{{ supply.name }}</strong></td>
+          <td>{{ supply.get_category_display }}</td>
+          <td>{{ supply.unit }}</td>
+          <td class="text-end">{{ supply.unit_price|floatformat:3 }} TND</td>
+          <td class="text-end">
+            {% if supply.is_low_stock %}
+            <span class="badge-modern badge-danger">{{ supply.stock_quantity|floatformat:3 }}</span>
+            {% else %}
+            <span class="badge-modern badge-success">{{ supply.stock_quantity|floatformat:3 }}</span>
+            {% endif %}
+          </td>
+          <td class="text-end">{{ supply.min_stock|floatformat:3 }}</td>
+          <td>{{ supply.preferred_supplier.name|default:"-" }}</td>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm">
+              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewSupplyModal{{ supply.id }}" title="Voir">
+                <i class="bi bi-eye"></i>
+              </button>
+              <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editSupplyModal{{ supply.id }}" title="Modifier">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteSupplyModal{{ supply.id }}" title="Supprimer">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<!-- Empty State -->
+<div class="modern-card">
+  <div class="empty-state text-center py-5">
+    <i class="bi bi-box-seam fs-1 text-muted"></i>
+    <h3 class="mt-3 text-muted">Aucune fourniture pour le moment</h3>
+    <p class="text-muted">Cliquez ci-dessous pour ajouter votre première fourniture.</p>
+    <button type="button" class="btn btn-modern-primary btn-modern mt-3" data-bs-toggle="modal" data-bs-target="#addSupplyModal">
+      <i class="bi bi-plus-circle me-2"></i>Ajouter une fourniture
+    </button>
+  </div>
+</div>
+{% endif %}
+
+<!-- Add Supply Modal -->
+<div class="modal fade" id="addSupplyModal" tabindex="-1" aria-labelledby="addSupplyModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg rounded-4">
+      <form action="{% url 'supply_create' %}" method="post">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="addSupplyModalLabel">
+            <i class="bi bi-box-seam me-2 text-primary"></i> Ajouter une nouvelle fourniture
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body pt-2">
+          <div class="row g-3">
+            {% for field in form %}
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}
+              <small class="form-text text-muted">{{ field.help_text }}</small>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-check-circle me-1"></i> Ajouter
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- View, Edit, Delete Modals -->
+{% for supply in supplies %}
+
+<!-- View Supply Modal -->
+<div class="modal fade" id="viewSupplyModal{{ supply.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-semibold">
+          <i class="bi bi-eye me-2 text-primary"></i> Détails de la fourniture
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-2">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">Nom</label>
+            <p class="form-control-plaintext">{{ supply.name }}</p>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">Catégorie</label>
+            <p class="form-control-plaintext">{{ supply.get_category_display }}</p>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">Unité</label>
+            <p class="form-control-plaintext">{{ supply.unit }}</p>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">Prix unitaire</label>
+            <p class="form-control-plaintext">{{ supply.unit_price|floatformat:3 }} TND</p>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">Stock actuel</label>
+            <p class="form-control-plaintext">
+              {% if supply.is_low_stock %}
+              <span class="badge bg-danger">{{ supply.stock_quantity|floatformat:3 }} {{ supply.unit }}</span>
+              <small class="text-danger ms-1">Stock bas !</small>
+              {% else %}
+              <span class="badge bg-success">{{ supply.stock_quantity|floatformat:3 }} {{ supply.unit }}</span>
+              {% endif %}
+            </p>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">Stock minimum</label>
+            <p class="form-control-plaintext">{{ supply.min_stock|floatformat:3 }} {{ supply.unit }}</p>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">Fournisseur préféré</label>
+            <p class="form-control-plaintext">{{ supply.preferred_supplier.name|default:"Non défini" }}</p>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold text-muted">Description</label>
+            <p class="form-control-plaintext">{{ supply.description|default:"Aucune description" }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Supply Modal -->
+<div class="modal fade" id="editSupplyModal{{ supply.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg rounded-4">
+      <form action="{% url 'supply_edit' supply.id %}" method="post">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold">
+            <i class="bi bi-pencil me-2 text-secondary"></i> Modifier la fourniture
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body pt-2">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Nom</label>
+              <input type="text" class="form-control" name="name" value="{{ supply.name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Catégorie</label>
+              <select class="form-select" name="category">
+                <option value="raw_material" {% if supply.category == 'raw_material' %}selected{% endif %}>Matières premières</option>
+                <option value="consumable" {% if supply.category == 'consumable' %}selected{% endif %}>Consommables</option>
+                <option value="packaging" {% if supply.category == 'packaging' %}selected{% endif %}>Emballage</option>
+                <option value="spare_part" {% if supply.category == 'spare_part' %}selected{% endif %}>Pièces de rechange</option>
+                <option value="other" {% if supply.category == 'other' %}selected{% endif %}>Autre</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Unité</label>
+              <input type="text" class="form-control" name="unit" value="{{ supply.unit }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Prix unitaire</label>
+              <input type="number" step="0.001" class="form-control" name="unit_price" value="{{ supply.unit_price }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Stock actuel</label>
+              <input type="number" step="0.001" class="form-control" name="stock_quantity" value="{{ supply.stock_quantity }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Stock minimum</label>
+              <input type="number" step="0.001" class="form-control" name="min_stock" value="{{ supply.min_stock }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Fournisseur préféré</label>
+              <select class="form-select" name="preferred_supplier">
+                <option value="">-- Aucun --</option>
+                {% for supplier in suppliers %}
+                <option value="{{ supplier.id }}" {% if supply.preferred_supplier_id == supplier.id %}selected{% endif %}>{{ supplier.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Description</label>
+              <textarea class="form-control" name="description" rows="3">{{ supply.description }}</textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-check-circle me-1"></i> Enregistrer les modifications
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Supply Modal -->
+<div class="modal fade" id="deleteSupplyModal{{ supply.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg rounded-4">
+      <form action="{% url 'supply_delete' supply.id %}" method="post">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold text-danger">
+            <i class="bi bi-trash me-2"></i> Supprimer la fourniture
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body pt-2">
+          <div class="alert alert-danger rounded-3" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>Attention !</strong> Cette action ne peut pas être annulée.
+          </div>
+          <p class="mb-0">Êtes-vous sûr de vouloir supprimer la fourniture <strong>"{{ supply.name }}"</strong> ?</p>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger px-4">
+            <i class="bi bi-trash me-1"></i> Supprimer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endfor %}
+
+{% endblock %}

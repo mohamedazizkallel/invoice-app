@@ -161,3 +161,49 @@ class InvoiceRetenu(models.Model):
         return Decimal('0.000')
 
 
+class PurchaseRetenu(models.Model):
+    """Retention applied to a purchase"""
+    purchase = models.ForeignKey(
+        'sales.Purchase',
+        on_delete=models.CASCADE,
+        related_name='purchase_retenues'
+    )
+    retenu_type = models.ForeignKey(
+        Retenu,
+        on_delete=models.PROTECT,
+        verbose_name="Type de retenue"
+    )
+    base_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        verbose_name="Montant de base (D)"
+    )
+    retenu_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        verbose_name="Taux appliqué (%)"
+    )
+    retenu_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        verbose_name="Montant retenu (D)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Retenue sur achat"
+        verbose_name_plural = "Retenues sur achats"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.retenu_type} - {self.retenu_amount}D sur Achat #{self.purchase.uniqueId}"
+
+    def save(self, *args, **kwargs):
+        if self.retenu_type and not self.retenu_rate:
+            self.retenu_rate = self.retenu_type.rate
+        if self.base_amount and self.retenu_rate:
+            self.retenu_amount = (self.base_amount * self.retenu_rate) / Decimal('100')
+        super().save(*args, **kwargs)
+
+

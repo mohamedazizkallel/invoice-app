@@ -128,7 +128,208 @@ class Supplier(models.Model):
         self.slug = slug
         self.last_updated = timezone.localtime(timezone.now())
 
-        super().save(*args, **kwargs)    
+        super().save(*args, **kwargs)
+
+    def get_balance(self):
+        """Positive = we owe supplier (net credits)"""
+        from django.db.models import Sum, Q
+        totals = self.supplier_transactions.aggregate(
+            total_debit=Sum('amount', filter=Q(transaction_type='DEBIT')),
+            total_credit=Sum('amount', filter=Q(transaction_type='CREDIT'))
+        )
+        total_debit = totals['total_debit'] or Decimal('0')
+        total_credit = totals['total_credit'] or Decimal('0')
+        return total_credit - total_debit
+
+
+class SupplierTransaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('DEBIT', 'Debit'),
+        ('CREDIT', 'Credit'),
+    ]
+    SOURCE_TYPES = [
+        ('PURCHASE_CONFIRMED', 'Achat confirmé'),
+        ('PURCHASE_PAID', 'Achat payé'),
+        ('PURCHASE_DELETED', 'Achat annulé'),
+        ('MANUAL', 'Saisie manuelle'),
+    ]
+
+    supplier = models.ForeignKey('Supplier', on_delete=models.CASCADE, related_name='supplier_transactions')
+    purchase = models.ForeignKey('Purchase', on_delete=models.SET_NULL, null=True, blank=True, related_name='ledger_entries')
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
+    source = models.CharField(max_length=20, choices=SOURCE_TYPES, default='MANUAL')
+    amount = models.DecimalField(max_digits=15, decimal_places=3)
+    description = models.TextField(null=True, blank=True)
+    date_created = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-date_created']
+
+    def __str__(self):
+        return f"{self.supplier.name} - {self.transaction_type} - {self.amount}"
+
+    def save(self, *args, **kwargs):
+        if not self.date_created:
+            self.date_created = timezone.localtime(timezone.now())
+        super().save(*args, **kwargs)
+
+
+class Supply(models.Model):
+    CATEGORY_CHOICES = [
+        ('raw_material', 'Matières premières'),
+        ('consumable', 'Consommables'),
+        ('packaging', 'Emballage'),
+        ('spare_part', 'Pièces de rechange'),
+        ('other', 'Autre'),
+    ]
+
+    name = models.CharField(max_length=200)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='raw_material')
+    unit = models.CharField(max_length=50, default='pièce')
+    unit_price = models.DecimalField(max_digits=15, decimal_places=3, default=0)
+    stock_quantity = models.DecimalField(max_digits=15, decimal_places=3, default=0)
+    min_stock = models.DecimalField(max_digits=15, decimal_places=3, default=0)
+    preferred_supplier = models.ForeignKey('Supplier', on_delete=models.SET_NULL, null=True, blank=True, related_name='supplies')
+    description = models.TextField(null=True, blank=True)
+    uniqueId = models.CharField(max_length=100, null=True, blank=True)
+    slug = models.SlugField(max_length=500, unique=True, null=True, blank=True)
+    date_created = models.DateTimeField(null=True, blank=True)
+    last_updated = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Fourniture"
+        verbose_name_plural = "Fournitures"
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.stock_quantity} {self.unit})"
+
+    @property
+    def is_low_stock(self):
+        return self.stock_quantity <= self.min_stock
+
+    def save(self, *args, **kwargs):
+        now = timezone.localtime(timezone.now())
+        if not self.date_created:
+            self.date_created = now
+        if not self.uniqueId:
+            self.uniqueId = uuid4().hex[:8]
+        if not self.slug:
+            self.slug = f"{slugify(self.name or 'supply')}-{self.uniqueId}"
+        self.last_updated = now
+        super().save(*args, **kwargs)
+
+
+class Purchase(models.Model):
+    STATUS = [
+        ('DRAFT', 'Brouillon'),
+        ('CONFIRMED', 'Confirmé'),
+        ('RECEIVED', 'Reçu'),
+        ('PAID', 'Payé'),
+    ]
+
+    supplier = models.ForeignKey('Supplier', on_delete=models.SET_NULL, null=True, blank=True, related_name='purchases')
+    status = models.CharField(choices=STATUS, default='DRAFT', max_length=20)
+    notes = models.TextField(null=True, blank=True)
+    tva = models.DecimalField(max_digits=5, decimal_places=2, default=19.00)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    timbre_fiscal = models.DecimalField(max_digits=10, decimal_places=3, default=1.000)
+
+    uniqueId = models.CharField(null=True, blank=True, max_length=100)
+    slug = models.SlugField(max_length=500, unique=True, null=True)
+    date_created = models.DateTimeField(blank=True, null=True)
+    last_updated = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-date_created']
+
+    def __str__(self):
+        return f"Achat #{self.uniqueId} - {self.supplier}"
+
+    def calculate_subtotal(self):
+        subtotal = Decimal('0')
+        for line in self.purchase_lines.all():
+            subtotal += line.get_line_total()
+        return subtotal
+
+    def calculate_discount_amount(self):
+        subtotal = self.calculate_subtotal()
+        if self.discount:
+            return (subtotal * Decimal(str(self.discount))) / Decimal('100')
+        return Decimal('0')
+
+    def calculate_subtotal_after_discount(self):
+        return self.calculate_subtotal() - self.calculate_discount_amount()
+
+    def calculate_tva_amount(self):
+        subtotal_after_discount = self.calculate_subtotal_after_discount()
+        if self.tva:
+            return (subtotal_after_discount * Decimal(str(self.tva))) / Decimal('100')
+        return Decimal('0')
+
+    def calculate_total(self):
+        subtotal_after_discount = self.calculate_subtotal_after_discount()
+        tva_amount = self.calculate_tva_amount()
+        timbre = Decimal(str(self.timbre_fiscal)) if self.timbre_fiscal else Decimal('0')
+        return subtotal_after_discount + tva_amount + timbre
+
+    def get_total_retenue(self):
+        return self.purchase_retenues.aggregate(
+            total=Sum('retenu_amount')
+        )['total'] or Decimal('0.000')
+
+    def get_net_amount(self):
+        return self.calculate_total() - self.get_total_retenue()
+
+    def save(self, *args, **kwargs):
+        now = timezone.localtime(timezone.now())
+        if not self.date_created:
+            self.date_created = now
+        if not self.uniqueId:
+            year = str(now.year)
+            suffix = f"-{year}"
+            existing = Purchase.objects.filter(uniqueId__endswith=suffix).order_by('-uniqueId')
+            if existing.exists():
+                last_id = existing.first().uniqueId
+                last_number = int(last_id.split('-')[0])
+                next_number = last_number + 1
+            else:
+                next_number = 1
+            self.uniqueId = f"{str(next_number).zfill(3)}-{year}"
+        if not self.slug:
+            self.slug = f"purchase-{self.uniqueId}"
+        self.last_updated = now
+        super().save(*args, **kwargs)
+
+
+class PurchaseLine(models.Model):
+    purchase = models.ForeignKey('Purchase', on_delete=models.CASCADE, related_name='purchase_lines')
+    supply = models.ForeignKey('Supply', on_delete=models.PROTECT)
+    quantity = models.DecimalField(max_digits=15, decimal_places=3)
+    unit_price = models.DecimalField(max_digits=15, decimal_places=3)
+
+    def get_line_total(self):
+        return self.quantity * self.unit_price
+
+    def __str__(self):
+        return f"{self.supply.name} x {self.quantity}"
+
+
+class InvoiceSupplyUsage(models.Model):
+    invoice = models.ForeignKey('Invoice', on_delete=models.CASCADE, related_name='supply_usages')
+    service = models.ForeignKey('Service', on_delete=models.SET_NULL, null=True, blank=True)
+    supply = models.ForeignKey('Supply', on_delete=models.PROTECT)
+    quantity_used = models.DecimalField(max_digits=15, decimal_places=3)
+    date_used = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.supply.name} x {self.quantity_used} for Invoice #{self.invoice.uniqueId}"
+
+    def save(self, *args, **kwargs):
+        if not self.date_used:
+            self.date_used = timezone.localtime(timezone.now())
+        super().save(*args, **kwargs)
+
 
 class Invoice(models.Model):
     STATUS = [

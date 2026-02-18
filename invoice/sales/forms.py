@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.forms import widgets
-from .models import Client,Invoice,Settings,Service, Supplier, ClientTransaction
+from .models import Client,Invoice,Settings,Service, Supplier, ClientTransaction, SupplierTransaction, Supply, Purchase
 import json
 
 class DateInput(forms.DateInput):
@@ -162,4 +162,47 @@ class ClientTransactionForm(forms.ModelForm):
             'transaction_type': forms.Select(attrs={'class': 'form-select'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'min': '0.001', 'placeholder': '0.000'}),
             'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Description...'}),
+        }
+
+
+class SupplierTransactionForm(forms.ModelForm):
+    """Form for manual supplier ledger entries"""
+    class Meta:
+        model = SupplierTransaction
+        fields = ['transaction_type', 'amount', 'description']
+        widgets = {
+            'transaction_type': forms.Select(attrs={'class': 'form-select'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'min': '0.001', 'placeholder': '0.000'}),
+            'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Description...'}),
+        }
+
+
+class SupplyForm(forms.ModelForm):
+    """Form for supply/raw material management"""
+    class Meta:
+        model = Supply
+        fields = ['name', 'category', 'unit', 'unit_price', 'stock_quantity', 'min_stock', 'preferred_supplier', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nom de la fourniture'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'unit': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ex: kg, pièce, litre'}),
+            'unit_price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'placeholder': '0.000'}),
+            'stock_quantity': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'placeholder': '0.000'}),
+            'min_stock': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'placeholder': '0.000'}),
+            'preferred_supplier': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Description...'}),
+        }
+
+
+class PurchaseForm(forms.ModelForm):
+    """Form for purchase order header"""
+    class Meta:
+        model = Purchase
+        fields = ['supplier', 'notes', 'tva', 'discount', 'timbre_fiscal']
+        widgets = {
+            'supplier': forms.Select(attrs={'class': 'form-select'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Notes...'}),
+            'tva': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '19.00'}),
+            'discount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
+            'timbre_fiscal': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'placeholder': '1.000'}),
         }

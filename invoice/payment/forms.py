@@ -1,5 +1,5 @@
 from django import forms
-from .models import InvoiceRetenu, Retenu
+from .models import InvoiceRetenu, PurchaseRetenu, Retenu
 
 class InvoiceRetenuForm(forms.ModelForm):
 
@@ -104,3 +104,37 @@ class MultipleInvoiceRetenuForm(forms.Form):
                 created_retenues.append(invoice_retenu)
         
         return created_retenues
+
+
+class PurchaseRetenuForm(forms.ModelForm):
+    """Form for adding retenu to a purchase"""
+    class Meta:
+        model = PurchaseRetenu
+        fields = ['retenu_type', 'base_amount']
+        widgets = {
+            'retenu_type': forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'purchase_retenu_type_select'
+            }),
+            'base_amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.001',
+                'placeholder': '0.000',
+                'id': 'purchase_base_amount_input'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.purchase = kwargs.pop('purchase', None)
+        super().__init__(*args, **kwargs)
+        self.fields['retenu_type'].queryset = Retenu.objects.filter(is_active=True)
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.purchase:
+            instance.purchase = self.purchase
+        if instance.retenu_type:
+            instance.retenu_rate = instance.retenu_type.rate
+        if commit:
+            instance.save()
+        return instance
