@@ -1,6 +1,5 @@
 import re
 from datetime import datetime
-import pandas as pd 
 from decimal import Decimal
 from builder import build_xml_from_dataframe
 
