@@ -491,19 +491,14 @@
 
   <div class="container-fluid p-0">
     <div class="row g-0">
-
-      <!-- Sidebar -->
       <nav id="sidebarMenu" class="col-md-3 col-lg-2 modern-sidebar">
         <div class="sidebar-wrapper d-flex flex-column h-100">
 
-          <!-- ===================== -->
-          <!--   DASHBOARD          -->
-          <!-- ===================== -->
+          <!-- Dashboard -->
           <div class="sidebar-section">
             <ul class="nav flex-column">
               <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
-                  href="{% url 'dashboard' %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
                   <i class="bi bi-speedometer2"></i>
                   <span>Tableau de bord</span>
                 </a>
@@ -513,23 +508,18 @@
 
           <hr class="sidebar-divider">
 
-          <!-- ===================== -->
-          <!--   VENTES              -->
-          <!-- ===================== -->
+          <!-- Ventes -->
           <div class="sidebar-section">
             <div class="sidebar-heading">Ventes</div>
             <ul class="nav flex-column">
               <li class="nav-item">
-                <a class="nav-link {% if 'invoice' in request.path %}active{% endif %}"
-                  href="{% url 'invoices_list' %}">
+                <a class="nav-link {% if 'invoice' in request.path %}active{% endif %}" href="{% url 'invoices_list' %}">
                   <i class="bi bi-receipt"></i>
                   <span>Factures</span>
                 </a>
               </li>
-
               <li class="nav-item">
-                <a class="nav-link {% if 'clients' in request.path %}active{% endif %}"
-                  href="{% url 'clients' %}">
+                <a class="nav-link {% if 'clients' in request.path %}active{% endif %}" href="{% url 'clients' %}">
                   <i class="bi bi-people"></i>
                   <span>Clients</span>
                 </a>
@@ -539,60 +529,55 @@
 
           <hr class="sidebar-divider">
 
-          <!-- ===================== -->
-          <!--   GESTION             -->
-          <!-- ===================== -->
+          <!-- Catalogue -->
           <div class="sidebar-section">
-            <div class="sidebar-heading">Gestion</div>
+            <div class="sidebar-heading">Catalogue</div>
             <ul class="nav flex-column">
-
               <li class="nav-item">
-                <a class="nav-link {% if 'supplier' in request.path %}active{% endif %}"
-                  href="{% url 'suppliers' %}">
-                  <i class="bi bi-truck"></i>
-                  <span>Fournisseurs</span>
-                </a>
-              </li>
-
-              <li class="nav-item">
-                <a class="nav-link {% if 'service' in request.path %}active{% endif %}"
-                  href="{% url 'services_list' %}">
-                  <i class="bi bi-box-seam"></i>
+                <a class="nav-link {% if 'service' in request.path %}active{% endif %}" href="{% url 'services_list' %}">
+                  <i class="bi bi-briefcase"></i>
                   <span>Services</span>
                 </a>
               </li>
-
               <li class="nav-item">
-                <a class="nav-link {% if 'supplies' in request.path %}active{% endif %}"
-                  href="{% url 'supplies_list' %}">
-                  <i class="bi bi-archive"></i>
-                  <span>Fournitures</span>
+                <a class="nav-link {% if 'supplies' in request.path %}active{% endif %}" href="{% url 'supplies_list' %}">
+                  <i class="bi bi-box-seam"></i>
+                  <span>Produits</span>
                 </a>
               </li>
-
-              <li class="nav-item">
-                <a class="nav-link {% if 'purchase' in request.path %}active{% endif %}"
-                  href="{% url 'purchases_list' %}">
-                  <i class="bi bi-cart"></i>
-                  <span>Achats</span>
-                </a>
-              </li>
-
             </ul>
           </div>
 
           <hr class="sidebar-divider">
 
-          <!-- ===================== -->
-          <!--   PARAMÈTRES          -->
-          <!-- ===================== -->
+          <!-- Achats -->
+          <div class="sidebar-section">
+            <div class="sidebar-heading">Achats</div>
+            <ul class="nav flex-column">
+              <li class="nav-item">
+                <a class="nav-link {% if 'supplier' in request.path %}active{% endif %}" href="{% url 'suppliers' %}">
+                  <i class="bi bi-truck"></i>
+                  <span>Fournisseurs</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if 'purchase' in request.path %}active{% endif %}" href="{% url 'purchases_list' %}">
+                  <i class="bi bi-cart"></i>
+                  <span>Commandes</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <hr class="sidebar-divider">
+
+          <!-- Paramètres -->
           <div class="sidebar-section mt-auto">
             <div class="sidebar-heading">Paramètres</div>
             <ul class="nav flex-column">
               <li class="nav-item">
-                <a class="nav-link {% if 'settings' in request.path %}active{% endif %}"
-                  href="{% url 'settings_view' %}">
-                  <i class="bi bi-building"></i>
+                <a class="nav-link {% if 'settings' in request.path %}active{% endif %}" href="{% url 'settings_view' %}">
+                  <i class="bi bi-gear"></i>
                   <span>Entreprise</span>
                 </a>
               </li>
@@ -601,13 +586,9 @@
 
         </div>
       </nav>
-
-      <!-- Main Content Area -->
-      <div class="col-md-9 col-lg-10 main-content">
-        {% block main %}{% endblock %}
-      </div>
     </div>
   </div>
+
 
   <!-- Toast Notifications -->
   {% if messages %}
