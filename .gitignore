@@ -10,7 +10,7 @@ media/
 staticfiles/
 statistics/
 db.sqlite3/
-*migrations/
+# migrations tracked in git
 # Distribution / packaging
 .env
 !.env.example
