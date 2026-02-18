@@ -872,7 +872,9 @@ def purchase_download_xml(request, purchase_id):
     etree.ElementTree(root).write(buffer, encoding="UTF-8", xml_declaration=True, standalone=True, pretty_print=True)
     buffer.seek(0)
 
-    filename = f'RS_declaration_{purchase.uniqueId}.xml'
+    mois = purchase.date_created.month
+    trimestre = (mois - 1) // 3 + 1
+    filename = f'{settings_obj.mf}-{purchase.date_created.year}-T{trimestre}-0.xml'
     response = HttpResponse(buffer.read(), content_type='application/xml')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
