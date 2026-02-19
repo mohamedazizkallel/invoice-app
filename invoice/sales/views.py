@@ -630,8 +630,9 @@ def purchase_delete(request, purchase_id):
                 line.supply.stock_quantity -= line.quantity
                 line.supply.save()
 
-            # Reverse ledger entries
-            if purchase.supplier:
+            # Only reverse the ledger CREDIT if not yet paid.
+            # For PAID purchases the confirm CREDIT and payment DEBIT already cancel out (balance = 0).
+            if purchase.status == 'RECEIVED' and purchase.supplier:
                 purchase_total = purchase.calculate_total()
                 SupplierTransaction.objects.create(
                     supplier=purchase.supplier,
@@ -694,13 +695,13 @@ def process_purchase_payment(request, purchase_id):
             return redirect('purchases_list')
 
         with transaction.atomic():
-            net_amount = purchase.get_net_amount()
+            purchase_total = purchase.calculate_total()
             SupplierTransaction.objects.create(
                 supplier=purchase.supplier,
                 purchase=purchase,
                 transaction_type='DEBIT',
                 source='PURCHASE_PAID',
-                amount=net_amount,
+                amount=purchase_total,
                 description=f'Paiement achat #{purchase.uniqueId}'
             )
 
