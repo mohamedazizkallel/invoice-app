@@ -12,7 +12,7 @@ from .views import (dashboard, delete_supplier, edit_supplier,
                     purchases_list, purchase_create, purchase_detail, purchase_edit,
                     purchase_delete, purchase_confirm, process_purchase_payment,
                     purchase_retenu_create, purchase_retenu_delete,
-                    purchase_download_xml)
+                    purchase_download_xml, purchase_detail_modal)
 
 urlpatterns = [
     path('', login_view,name='login'),
@@ -65,4 +65,5 @@ urlpatterns = [
     path('purchases/<int:purchase_id>/retenu/create/', purchase_retenu_create, name='purchase_retenu_create'),
     path('purchases/retenu/<int:retenu_id>/delete/', purchase_retenu_delete, name='purchase_retenu_delete'),
     path('purchases/<int:purchase_id>/download-xml/', purchase_download_xml, name='purchase_download_xml'),
+    path('purchases/<int:purchase_id>/modal/', purchase_detail_modal, name='purchase_detail_modal'),
 ]

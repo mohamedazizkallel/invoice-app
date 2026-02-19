@@ -57,13 +57,41 @@
           <td>{{ supply.preferred_supplier.name|default:"-" }}</td>
           <td class="text-end">
             <div class="btn-group btn-group-sm">
-              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewSupplyModal{{ supply.id }}" title="Voir">
+              <button type="button" class="btn btn-outline-primary"
+                      data-bs-toggle="modal" data-bs-target="#viewSupplyModal"
+                      data-supply-name="{{ supply.name|escapejs }}"
+                      data-supply-category-display="{{ supply.get_category_display|escapejs }}"
+                      data-supply-unit="{{ supply.unit|escapejs }}"
+                      data-supply-unit-price="{{ supply.unit_price }}"
+                      data-supply-stock="{{ supply.stock_quantity }}"
+                      data-supply-min-stock="{{ supply.min_stock }}"
+                      data-supply-preferred-supplier="{{ supply.preferred_supplier.name|default:''|escapejs }}"
+                      data-supply-apply-fodec="{{ supply.apply_fodec|yesno:'true,false' }}"
+                      data-supply-is-low-stock="{{ supply.is_low_stock|yesno:'true,false' }}"
+                      data-supply-description="{{ supply.description|default:''|escapejs }}"
+                      title="Voir">
                 <i class="bi bi-eye"></i>
               </button>
-              <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editSupplyModal{{ supply.id }}" title="Modifier">
+              <button type="button" class="btn btn-outline-secondary"
+                      data-bs-toggle="modal" data-bs-target="#editSupplyModal"
+                      data-supply-name="{{ supply.name|escapejs }}"
+                      data-supply-category="{{ supply.category }}"
+                      data-supply-unit="{{ supply.unit|escapejs }}"
+                      data-supply-unit-price="{{ supply.unit_price }}"
+                      data-supply-stock="{{ supply.stock_quantity }}"
+                      data-supply-min-stock="{{ supply.min_stock }}"
+                      data-supply-preferred-supplier-id="{{ supply.preferred_supplier_id|default:'' }}"
+                      data-supply-apply-fodec="{{ supply.apply_fodec|yesno:'true,false' }}"
+                      data-supply-description="{{ supply.description|default:''|escapejs }}"
+                      data-edit-url="{% url 'supply_edit' supply.id %}"
+                      title="Modifier">
                 <i class="bi bi-pencil"></i>
               </button>
-              <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteSupplyModal{{ supply.id }}" title="Supprimer">
+              <button type="button" class="btn btn-outline-danger"
+                      data-bs-toggle="modal" data-bs-target="#deleteSupplyModal"
+                      data-supply-name="{{ supply.name|escapejs }}"
+                      data-delete-url="{% url 'supply_delete' supply.id %}"
+                      title="Supprimer">
                 <i class="bi bi-trash"></i>
               </button>
             </div>
@@ -134,11 +162,8 @@
   </div>
 </div>
 
-<!-- View, Edit, Delete Modals -->
-{% for supply in supplies %}
-
-<!-- View Supply Modal -->
-<div class="modal fade" id="viewSupplyModal{{ supply.id }}" tabindex="-1" aria-hidden="true">
+<!-- Shared View Supply Modal -->
+<div class="modal fade" id="viewSupplyModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content shadow-lg rounded-4">
       <div class="modal-header border-0 pb-0">
@@ -151,52 +176,39 @@
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label fw-semibold text-muted">Nom</label>
-            <p class="form-control-plaintext">{{ supply.name }}</p>
+            <p class="form-control-plaintext" id="viewSupplyName">-</p>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold text-muted">Catégorie</label>
-            <p class="form-control-plaintext">{{ supply.get_category_display }}</p>
+            <p class="form-control-plaintext" id="viewSupplyCategory">-</p>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold text-muted">Unité</label>
-            <p class="form-control-plaintext">{{ supply.unit }}</p>
+            <p class="form-control-plaintext" id="viewSupplyUnit">-</p>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold text-muted">Prix unitaire</label>
-            <p class="form-control-plaintext">{{ supply.unit_price|floatformat:3 }} TND</p>
+            <p class="form-control-plaintext" id="viewSupplyUnitPrice">-</p>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold text-muted">Stock actuel</label>
-            <p class="form-control-plaintext">
-              {% if supply.is_low_stock %}
-              <span class="badge bg-danger">{{ supply.stock_quantity|floatformat:3 }} {{ supply.unit }}</span>
-              <small class="text-danger ms-1">Stock bas !</small>
-              {% else %}
-              <span class="badge bg-success">{{ supply.stock_quantity|floatformat:3 }} {{ supply.unit }}</span>
-              {% endif %}
-            </p>
+            <p class="form-control-plaintext" id="viewSupplyStock">-</p>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold text-muted">Stock minimum</label>
-            <p class="form-control-plaintext">{{ supply.min_stock|floatformat:3 }} {{ supply.unit }}</p>
+            <p class="form-control-plaintext" id="viewSupplyMinStock">-</p>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold text-muted">Fournisseur préféré</label>
-            <p class="form-control-plaintext">{{ supply.preferred_supplier.name|default:"Non défini" }}</p>
+            <p class="form-control-plaintext" id="viewSupplyPreferredSupplier">-</p>
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold text-muted">FODEC (1%)</label>
-            <p class="form-control-plaintext">
-              {% if supply.apply_fodec %}
-              <span class="badge bg-info text-white">Oui</span>
-              {% else %}
-              <span class="badge bg-secondary">Non</span>
-              {% endif %}
-            </p>
+            <p class="form-control-plaintext" id="viewSupplyFodec">-</p>
           </div>
           <div class="col-12">
             <label class="form-label fw-semibold text-muted">Description</label>
-            <p class="form-control-plaintext">{{ supply.description|default:"Aucune description" }}</p>
+            <p class="form-control-plaintext" id="viewSupplyDescription">-</p>
           </div>
         </div>
       </div>
@@ -207,11 +219,11 @@
   </div>
 </div>
 
-<!-- Edit Supply Modal -->
-<div class="modal fade" id="editSupplyModal{{ supply.id }}" tabindex="-1" aria-hidden="true">
+<!-- Shared Edit Supply Modal -->
+<div class="modal fade" id="editSupplyModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content shadow-lg rounded-4">
-      <form action="{% url 'supply_edit' supply.id %}" method="post">
+      <form action="" method="post" id="editSupplyForm">
         {% csrf_token %}
         <div class="modal-header border-0 pb-0">
           <h5 class="modal-title fw-semibold">
@@ -223,52 +235,52 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Nom</label>
-              <input type="text" class="form-control" name="name" value="{{ supply.name }}" required>
+              <input type="text" class="form-control" name="name" id="editSupplyName" required>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Catégorie</label>
-              <select class="form-select" name="category">
-                <option value="raw_material" {% if supply.category == 'raw_material' %}selected{% endif %}>Matières premières</option>
-                <option value="consumable" {% if supply.category == 'consumable' %}selected{% endif %}>Consommables</option>
-                <option value="packaging" {% if supply.category == 'packaging' %}selected{% endif %}>Emballage</option>
-                <option value="spare_part" {% if supply.category == 'spare_part' %}selected{% endif %}>Pièces de rechange</option>
-                <option value="other" {% if supply.category == 'other' %}selected{% endif %}>Autre</option>
+              <select class="form-select" name="category" id="editSupplyCategory">
+                <option value="raw_material">Matières premières</option>
+                <option value="consumable">Consommables</option>
+                <option value="packaging">Emballage</option>
+                <option value="spare_part">Pièces de rechange</option>
+                <option value="other">Autre</option>
               </select>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Unité</label>
-              <input type="text" class="form-control" name="unit" value="{{ supply.unit }}" required>
+              <input type="text" class="form-control" name="unit" id="editSupplyUnit" required>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Prix unitaire</label>
-              <input type="number" step="0.001" class="form-control" name="unit_price" value="{{ supply.unit_price }}" required>
+              <input type="number" step="0.001" class="form-control" name="unit_price" id="editSupplyUnitPrice" required>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Stock actuel</label>
-              <input type="number" step="0.001" class="form-control" name="stock_quantity" value="{{ supply.stock_quantity }}" required>
+              <input type="number" step="0.001" class="form-control" name="stock_quantity" id="editSupplyStock" required>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Stock minimum</label>
-              <input type="number" step="0.001" class="form-control" name="min_stock" value="{{ supply.min_stock }}" required>
+              <input type="number" step="0.001" class="form-control" name="min_stock" id="editSupplyMinStock" required>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Fournisseur préféré</label>
-              <select class="form-select" name="preferred_supplier">
+              <select class="form-select" name="preferred_supplier" id="editSupplyPreferredSupplier">
                 <option value="">-- Aucun --</option>
                 {% for supplier in suppliers %}
-                <option value="{{ supplier.id }}" {% if supply.preferred_supplier_id == supplier.id %}selected{% endif %}>{{ supplier.name }}</option>
+                <option value="{{ supplier.id }}">{{ supplier.name }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-md-6">
               <div class="form-check mt-4">
-                <input type="checkbox" class="form-check-input" name="apply_fodec" id="editFodec{{ supply.id }}" {% if supply.apply_fodec %}checked{% endif %}>
-                <label class="form-check-label fw-semibold" for="editFodec{{ supply.id }}">FODEC (1%)</label>
+                <input type="checkbox" class="form-check-input" name="apply_fodec" id="editSupplyApplyFodec">
+                <label class="form-check-label fw-semibold" for="editSupplyApplyFodec">FODEC (1%)</label>
               </div>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold">Description</label>
-              <textarea class="form-control" name="description" rows="3">{{ supply.description }}</textarea>
+              <textarea class="form-control" name="description" rows="3" id="editSupplyDescription"></textarea>
             </div>
           </div>
         </div>
@@ -283,11 +295,11 @@
   </div>
 </div>
 
-<!-- Delete Supply Modal -->
-<div class="modal fade" id="deleteSupplyModal{{ supply.id }}" tabindex="-1" aria-hidden="true">
+<!-- Shared Delete Supply Modal -->
+<div class="modal fade" id="deleteSupplyModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content shadow-lg rounded-4">
-      <form action="{% url 'supply_delete' supply.id %}" method="post">
+      <form action="" method="post" id="deleteSupplyForm">
         {% csrf_token %}
         <div class="modal-header border-0 pb-0">
           <h5 class="modal-title fw-semibold text-danger">
@@ -300,7 +312,7 @@
             <i class="bi bi-exclamation-triangle me-2"></i>
             <strong>Attention !</strong> Cette action ne peut pas être annulée.
           </div>
-          <p class="mb-0">Êtes-vous sûr de vouloir supprimer la fourniture <strong>"{{ supply.name }}"</strong> ?</p>
+          <p class="mb-0">Êtes-vous sûr de vouloir supprimer la fourniture <strong id="deleteSupplyName"></strong> ?</p>
         </div>
         <div class="modal-footer border-0">
           <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
@@ -313,6 +325,52 @@
   </div>
 </div>
 
-{% endfor %}
+<script>
+document.getElementById('viewSupplyModal')?.addEventListener('show.bs.modal', function(event) {
+  const btn   = event.relatedTarget;
+  const unit  = btn.getAttribute('data-supply-unit');
+  const stock = parseFloat(btn.getAttribute('data-supply-stock') || 0);
+  const isLow = btn.getAttribute('data-supply-is-low-stock') === 'true';
+  const fodec = btn.getAttribute('data-supply-apply-fodec') === 'true';
+
+  document.getElementById('viewSupplyName').textContent      = btn.getAttribute('data-supply-name');
+  document.getElementById('viewSupplyCategory').textContent  = btn.getAttribute('data-supply-category-display');
+  document.getElementById('viewSupplyUnit').textContent      = unit;
+  document.getElementById('viewSupplyUnitPrice').textContent =
+    parseFloat(btn.getAttribute('data-supply-unit-price') || 0).toFixed(3) + ' TND';
+  document.getElementById('viewSupplyStock').innerHTML = isLow
+    ? `<span class="badge bg-danger">${stock.toFixed(3)} ${unit}</span> <small class="text-danger ms-1">Stock bas !</small>`
+    : `<span class="badge bg-success">${stock.toFixed(3)} ${unit}</span>`;
+  document.getElementById('viewSupplyMinStock').textContent =
+    parseFloat(btn.getAttribute('data-supply-min-stock') || 0).toFixed(3) + ' ' + unit;
+  document.getElementById('viewSupplyPreferredSupplier').textContent =
+    btn.getAttribute('data-supply-preferred-supplier') || 'Non défini';
+  document.getElementById('viewSupplyFodec').innerHTML = fodec
+    ? '<span class="badge bg-info text-white">Oui</span>'
+    : '<span class="badge bg-secondary">Non</span>';
+  document.getElementById('viewSupplyDescription').textContent =
+    btn.getAttribute('data-supply-description') || 'Aucune description';
+});
+
+document.getElementById('editSupplyModal')?.addEventListener('show.bs.modal', function(event) {
+  const btn = event.relatedTarget;
+  document.getElementById('editSupplyName').value              = btn.getAttribute('data-supply-name');
+  document.getElementById('editSupplyCategory').value          = btn.getAttribute('data-supply-category');
+  document.getElementById('editSupplyUnit').value              = btn.getAttribute('data-supply-unit');
+  document.getElementById('editSupplyUnitPrice').value         = btn.getAttribute('data-supply-unit-price');
+  document.getElementById('editSupplyStock').value             = btn.getAttribute('data-supply-stock');
+  document.getElementById('editSupplyMinStock').value          = btn.getAttribute('data-supply-min-stock');
+  document.getElementById('editSupplyPreferredSupplier').value = btn.getAttribute('data-supply-preferred-supplier-id') || '';
+  document.getElementById('editSupplyApplyFodec').checked      = btn.getAttribute('data-supply-apply-fodec') === 'true';
+  document.getElementById('editSupplyDescription').value       = btn.getAttribute('data-supply-description');
+  document.getElementById('editSupplyForm').action             = btn.getAttribute('data-edit-url');
+});
+
+document.getElementById('deleteSupplyModal')?.addEventListener('show.bs.modal', function(event) {
+  const btn = event.relatedTarget;
+  document.getElementById('deleteSupplyName').textContent = '"' + btn.getAttribute('data-supply-name') + '"';
+  document.getElementById('deleteSupplyForm').action = btn.getAttribute('data-delete-url');
+});
+</script>
 
 {% endblock %}

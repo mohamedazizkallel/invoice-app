@@ -159,13 +159,35 @@
 
             <td class="align-middle text-end">
               <div class="btn-group btn-group-sm">
-                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewServiceModal{{ service.id }}" title="Voir">
+                <button type="button" class="btn btn-outline-primary"
+                        data-bs-toggle="modal" data-bs-target="#viewServiceModal"
+                        data-service-id="{{ service.id }}"
+                        data-service-title="{{ service.title|escapejs }}"
+                        data-service-currency="{{ service.currency|default:'TND'|escapejs }}"
+                        data-service-price="{{ service.price }}"
+                        data-service-description="{{ service.description|default:''|escapejs }}"
+                        data-service-apply-fodec="{{ service.apply_fodec|yesno:'true,false' }}"
+                        data-edit-url="{% url 'edit_service' service.id %}"
+                        title="Voir">
                   <i class="bi bi-eye"></i>
                 </button>
-                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editServiceModal{{ service.id }}" title="Modifier">
+                <button type="button" class="btn btn-outline-secondary"
+                        data-bs-toggle="modal" data-bs-target="#editServiceModal"
+                        data-service-id="{{ service.id }}"
+                        data-service-title="{{ service.title|escapejs }}"
+                        data-service-currency="{{ service.currency|default:'TND'|escapejs }}"
+                        data-service-price="{{ service.price }}"
+                        data-service-description="{{ service.description|default:''|escapejs }}"
+                        data-service-apply-fodec="{{ service.apply_fodec|yesno:'true,false' }}"
+                        data-edit-url="{% url 'edit_service' service.id %}"
+                        title="Modifier">
                   <i class="bi bi-pencil"></i>
                 </button>
-                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteServiceModal{{ service.id }}" title="Supprimer">
+                <button type="button" class="btn btn-outline-danger"
+                        data-bs-toggle="modal" data-bs-target="#deleteServiceModal"
+                        data-service-title="{{ service.title|escapejs }}"
+                        data-delete-url="{% url 'delete_service' service.id %}"
+                        title="Supprimer">
                   <i class="bi bi-trash"></i>
                 </button>
               </div>
@@ -293,53 +315,46 @@
     </div>
   </div>
 
-  <!-- View, Edit, and Delete Modals for Each services -->
-  {% for service in services %}
-  
-  <!-- View Product Modal -->
-  <div class="modal fade" id="viewServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="viewServiceModalLabel{{ service.id }}" aria-hidden="true">
+  <!-- Shared View Service Modal -->
+  <div class="modal fade" id="viewServiceModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content shadow-lg rounded-4">
-        <!-- Modal Header -->
         <div class="modal-header border-0 pb-0">
-          <h5 class="modal-title fw-semibold" id="viewServiceModalLabel{{ service.id }}">
+          <h5 class="modal-title fw-semibold">
             <i class="bi bi-eye me-2 text-primary"></i> Détails du service
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        
-        <!-- Modal Body -->
         <div class="modal-body pt-2">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">Service ID</label>
-              <p class="form-control-plaintext">SER-{{ service.id|stringformat:"04d" }}</p>
+              <p class="form-control-plaintext" id="viewServiceId">-</p>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">Title</label>
-              <p class="form-control-plaintext">{{ service.title }}</p>
+              <p class="form-control-plaintext" id="viewServiceTitle">-</p>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">Currency</label>
               <p class="form-control-plaintext">
-                <span class="badge bg-secondary">{{ service.currency|default:"TND" }}</span>
+                <span class="badge bg-secondary" id="viewServiceCurrency">-</span>
               </p>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">Price</label>
-              <p class="form-control-plaintext">{{ service.currency|default:"TND" }} {{ service.price|floatformat:2 }}</p>
+              <p class="form-control-plaintext" id="viewServicePrice">-</p>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold text-muted">Description</label>
-              <p class="form-control-plaintext">{{ service.description|default:"Aucune description disponible" }}</p>
+              <p class="form-control-plaintext" id="viewServiceDescription">-</p>
             </div>
           </div>
         </div>
-        
-        <!-- Modal Footer -->
         <div class="modal-footer border-0">
           <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary px-4" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#editServicetModal{{ service.id }}">
+          <button type="button" class="btn btn-primary px-4" id="viewServiceEditBtn"
+                  data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#editServiceModal">
             <i class="bi bi-pencil me-1"></i> Modifier le service
           </button>
         </div>
@@ -347,50 +362,44 @@
     </div>
   </div>
 
-  <!-- Edit Product Modal -->
-  <div class="modal fade" id="editServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="editServiceModalLabel{{ service.id }}" aria-hidden="true">
+  <!-- Shared Edit Service Modal -->
+  <div class="modal fade" id="editServiceModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content shadow-lg rounded-4">
-        <form action="{% url 'edit_service' service.id %}" method="post" enctype="multipart/form-data">
+        <form action="" method="post" enctype="multipart/form-data" id="editServiceForm">
           {% csrf_token %}
-
-          <!-- Modal Header -->
           <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title fw-semibold" id="editServiceModalLabel{{ service.id }}">
+            <h5 class="modal-title fw-semibold">
               <i class="bi bi-pencil me-2 text-secondary"></i> Modifier le service
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-
-          <!-- Modal Body -->
           <div class="modal-body pt-2">
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Titre</label>
-                <input type="text" class="form-control" name="title" value="{{ service.title }}" required>
+                <input type="text" class="form-control" name="title" id="editServiceTitle" required>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Devise</label>
-                <input type="text" class="form-control" name="currency" value="{{ service.currency|default:'TND' }}">
+                <input type="text" class="form-control" name="currency" id="editServiceCurrency">
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Prix</label>
-                <input type="number" step="10" class="form-control" name="price" value="{{ service.price }}" required>
+                <input type="number" step="10" class="form-control" name="price" id="editServicePrice" required>
               </div>
               <div class="col-12">
                 <label class="form-label fw-semibold">Description</label>
-                <textarea class="form-control" name="description" rows="3">{{ service.description }}</textarea>
+                <textarea class="form-control" name="description" rows="3" id="editServiceDescription"></textarea>
               </div>
               <div class="col-md-6">
                 <div class="form-check mt-2">
-                  <input type="checkbox" class="form-check-input" name="apply_fodec" id="fodec_{{ service.id }}" {% if service.apply_fodec %}checked{% endif %}>
-                  <label class="form-check-label fw-semibold" for="fodec_{{ service.id }}">Appliquer FODEC (1%) par défaut</label>
+                  <input type="checkbox" class="form-check-input" name="apply_fodec" id="editServiceApplyFodec">
+                  <label class="form-check-label fw-semibold" for="editServiceApplyFodec">Appliquer FODEC (1%) par défaut</label>
                 </div>
               </div>
             </div>
           </div>
-
-          <!-- Modal Footer -->
           <div class="modal-footer border-0">
             <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-primary px-4">
@@ -402,31 +411,25 @@
     </div>
   </div>
 
-  <!-- Delete Product Modal -->
-  <div class="modal fade" id="deleteServiceModal{{ service.id }}" tabindex="-1" aria-labelledby="deleteServiceModalLabel{{ service.id }}" aria-hidden="true">
+  <!-- Shared Delete Service Modal -->
+  <div class="modal fade" id="deleteServiceModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content shadow-lg rounded-4">
-        <form action="{% url 'delete_service' service.id %}" method="post">
+        <form action="" method="post" id="deleteServiceForm">
           {% csrf_token %}
-
-          <!-- Modal Header -->
           <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title fw-semibold text-danger" id="deleteServiceModalLabel{{ service.id }}">
+            <h5 class="modal-title fw-semibold text-danger">
               <i class="bi bi-trash me-2"></i> Supprimer le service
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-
-          <!-- Modal Body -->
           <div class="modal-body pt-2">
             <div class="alert alert-danger rounded-3" role="alert">
               <i class="bi bi-exclamation-triangle me-2"></i>
               <strong>Warning!</strong> This action cannot be undone.
             </div>
-            <p class="mb-0">Êtes-vous sûr de vouloir supprimer le service <strong>"{{ service.title }}"</strong> ?</p>
+            <p class="mb-0">Êtes-vous sûr de vouloir supprimer le service <strong id="deleteServiceTitle"></strong> ?</p>
           </div>
-
-          <!-- Modal Footer -->
           <div class="modal-footer border-0">
             <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-danger px-4">
@@ -438,9 +441,44 @@
     </div>
   </div>
 
-  {% endfor %}
-
 <script>
+  document.getElementById('viewServiceModal')?.addEventListener('show.bs.modal', function(event) {
+    const btn = event.relatedTarget;
+    const id       = btn.getAttribute('data-service-id');
+    const currency = btn.getAttribute('data-service-currency');
+    const price    = parseFloat(btn.getAttribute('data-service-price') || 0);
+
+    document.getElementById('viewServiceId').textContent          = 'SER-' + String(id).padStart(4, '0');
+    document.getElementById('viewServiceTitle').textContent       = btn.getAttribute('data-service-title');
+    document.getElementById('viewServiceCurrency').textContent    = currency;
+    document.getElementById('viewServicePrice').textContent       = currency + ' ' + price.toFixed(2);
+    document.getElementById('viewServiceDescription').textContent =
+      btn.getAttribute('data-service-description') || 'Aucune description disponible';
+
+    // Mirror data attrs onto the "Modifier" button so the edit modal listener works
+    const editBtn = document.getElementById('viewServiceEditBtn');
+    ['data-service-id','data-service-title','data-service-currency','data-service-price',
+     'data-service-description','data-service-apply-fodec','data-edit-url'].forEach(attr => {
+      editBtn.setAttribute(attr, btn.getAttribute(attr) || '');
+    });
+  });
+
+  document.getElementById('editServiceModal')?.addEventListener('show.bs.modal', function(event) {
+    const btn = event.relatedTarget;
+    document.getElementById('editServiceTitle').value       = btn.getAttribute('data-service-title');
+    document.getElementById('editServiceCurrency').value   = btn.getAttribute('data-service-currency');
+    document.getElementById('editServicePrice').value      = btn.getAttribute('data-service-price');
+    document.getElementById('editServiceDescription').value = btn.getAttribute('data-service-description');
+    document.getElementById('editServiceApplyFodec').checked = btn.getAttribute('data-service-apply-fodec') === 'true';
+    document.getElementById('editServiceForm').action      = btn.getAttribute('data-edit-url');
+  });
+
+  document.getElementById('deleteServiceModal')?.addEventListener('show.bs.modal', function(event) {
+    const btn = event.relatedTarget;
+    document.getElementById('deleteServiceTitle').textContent = '"' + btn.getAttribute('data-service-title') + '"';
+    document.getElementById('deleteServiceForm').action = btn.getAttribute('data-delete-url');
+  });
+
   // Display selected file name
   document.getElementById('excelFile')?.addEventListener('change', function(e) {
     const fileName = e.target.files[0]?.name;

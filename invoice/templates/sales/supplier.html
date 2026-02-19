@@ -50,13 +50,32 @@
             <button class="btn btn-sm btn-outline-success" onclick="openSupplierLedgerModal({{ Supplier.id }})" title="Grand Livre">
               <i class="bi bi-journal-text"></i>
             </button>
-            <a href="#" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewSupplierModal{{ Supplier.id }}">
+            <a href="#" class="btn btn-sm btn-outline-primary"
+               data-bs-toggle="modal" data-bs-target="#viewSupplierModal"
+               data-supplier-id="{{ Supplier.id }}"
+               data-supplier-name="{{ Supplier.name|escapejs }}"
+               data-supplier-email="{{ Supplier.emailAddress|escapejs }}"
+               data-supplier-address="{{ Supplier.adress|escapejs }}"
+               data-supplier-description="{{ Supplier.description|default:''|escapejs }}"
+               title="Voir">
               <i class="bi bi-eye"></i>
             </a>
-            <a href="#" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editSupplierModal{{ Supplier.id }}">
+            <a href="#" class="btn btn-sm btn-outline-primary"
+               data-bs-toggle="modal" data-bs-target="#editSupplierModal"
+               data-supplier-id="{{ Supplier.id }}"
+               data-supplier-name="{{ Supplier.name|escapejs }}"
+               data-supplier-email="{{ Supplier.emailAddress|escapejs }}"
+               data-supplier-address="{{ Supplier.adress|escapejs }}"
+               data-supplier-mf="{{ Supplier.mf|escapejs }}"
+               data-edit-url="{% url 'edit_supplier' Supplier.id %}"
+               title="Modifier">
               <i class="bi bi-pencil"></i>
             </a>
-            <a href="#" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteSupplierModal{{ Supplier.id }}">
+            <a href="#" class="btn btn-sm btn-outline-danger"
+               data-bs-toggle="modal" data-bs-target="#deleteSupplierModal"
+               data-supplier-name="{{ Supplier.name|escapejs }}"
+               data-delete-url="{% url 'delete-supplier' Supplier.id %}"
+               title="Supprimer">
               <i class="bi bi-trash"></i>
             </a>
           </td>
@@ -107,88 +126,81 @@
     </div>
   </div>
 
-  <!-- View Supplier Modal -->
-  {% for Supplier in Suppliers %}
-  <div class="modal fade" id="viewSupplierModal{{ Supplier.id }}" tabindex="-1" aria-labelledby="viewSupplierModalLabel{{ Supplier.id }}" aria-hidden="true">
+  <!-- Shared View Supplier Modal -->
+  <div class="modal fade" id="viewSupplierModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content shadow-lg rounded-4">
         <div class="modal-header border-0 pb-0">
-          <h5 class="modal-title fw-semibold" id="viewSupplierModalLabel{{ Supplier.id }}">
+          <h5 class="modal-title fw-semibold">
             <i class="bi bi-eye me-2 text-primary"></i> Détails du fournisseur
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-
         <div class="modal-body pt-2">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">ID Fournisseur</label>
-              <p class="form-control-plaintext">FR-{{ Supplier.id|stringformat:"04d" }}</p>
+              <p class="form-control-plaintext" id="viewSupplierId">-</p>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">Nom du fournisseur</label>
-              <p class="form-control-plaintext">{{ Supplier.name }}</p>
+              <p class="form-control-plaintext" id="viewSupplierName">-</p>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">Email</label>
               <p class="form-control-plaintext">
-                <span class="badge bg-secondary">{{ Supplier.emailAddress }}</span>
+                <span class="badge bg-secondary" id="viewSupplierEmail">-</span>
               </p>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold text-muted">Adresse</label>
-              <p class="form-control-plaintext">{{ Supplier.adress }}</p>
+              <p class="form-control-plaintext" id="viewSupplierAddress">-</p>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold text-muted">Description</label>
-              <p class="form-control-plaintext">{{ Supplier.description|default:"Aucun détail disponible" }}</p>
+              <p class="form-control-plaintext" id="viewSupplierDescription">-</p>
             </div>
           </div>
         </div>
-
         <div class="modal-footer border-0">
           <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Fermer</button>
         </div>
       </div>
     </div>
   </div>
-  {% endfor %}
 
-  <!-- Edit Supplier Modal -->
-  {% for Supplier in Suppliers %}
-  <div class="modal fade" id="editSupplierModal{{ Supplier.id }}" tabindex="-1" aria-labelledby="editSupplierModalLabel{{ Supplier.id }}" aria-hidden="true">
+  <!-- Shared Edit Supplier Modal -->
+  <div class="modal fade" id="editSupplierModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content shadow-lg rounded-4">
-        <form action="{% url 'edit_supplier' Supplier.id %}" method="post" enctype="multipart/form-data">
+        <form action="" method="post" enctype="multipart/form-data" id="editSupplierForm">
           {% csrf_token %}
           <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title fw-semibold" id="editSupplierModalLabel{{ Supplier.id }}">
+            <h5 class="modal-title fw-semibold">
               <i class="bi bi-pencil me-2 text-secondary"></i> Modifier le fournisseur
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-
           <div class="modal-body pt-2">
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Nom</label>
-                <input type="text" class="form-control" name="name" value="{{ Supplier.name }}" required>
+                <input type="text" class="form-control" name="name" id="editSupplierName" required>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold">Email</label>
-                <input type="email" class="form-control" name="emailAddress" value="{{ Supplier.emailAddress }}" required>
+                <input type="email" class="form-control" name="emailAddress" id="editSupplierEmail" required>
               </div>
               <div class="col-6">
                 <label class="form-label fw-semibold">Adresse</label>
-                <input type="text" class="form-control" name="adress" value="{{ Supplier.adress }}" required>
+                <input type="text" class="form-control" name="adress" id="editSupplierAddress" required>
               </div>
               <div class="col-6">
                 <label class="form-label fw-semibold">MF</label>
-                <input type="text" class="form-control" name="mf" value="{{ Supplier.mf }}" required>
+                <input type="text" class="form-control" name="mf" id="editSupplierMf" required>
               </div>
             </div>
           </div>
-
           <div class="modal-footer border-0">
             <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
             <button type="submit" class="btn btn-primary px-4">
@@ -199,30 +211,26 @@
       </div>
     </div>
   </div>
-  {% endfor %}
 
-  <!-- Delete Supplier Modal -->
-  {% for Supplier in Suppliers %}
-  <div class="modal fade" id="deleteSupplierModal{{ Supplier.id }}" tabindex="-1" aria-labelledby="deleteSupplierModalLabel{{ Supplier.id }}" aria-hidden="true">
+  <!-- Shared Delete Supplier Modal -->
+  <div class="modal fade" id="deleteSupplierModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content shadow-lg rounded-4">
-        <form action="{% url 'delete-supplier' Supplier.id %}" method="post">
+        <form action="" method="post" id="deleteSupplierForm">
           {% csrf_token %}
           <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title fw-semibold text-danger" id="deleteSupplierModalLabel{{ Supplier.id }}">
+            <h5 class="modal-title fw-semibold text-danger">
               <i class="bi bi-trash me-2"></i> Supprimer le fournisseur
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-
           <div class="modal-body pt-2">
             <div class="alert alert-danger rounded-3" role="alert">
               <i class="bi bi-exclamation-triangle me-2"></i>
               <strong>Attention !</strong> Cette action ne peut pas être annulée.
             </div>
-            <p class="mb-0">Êtes-vous sûr de vouloir supprimer le fournisseur <strong>"{{ Supplier.name }}"</strong> ?</p>
+            <p class="mb-0">Êtes-vous sûr de vouloir supprimer le fournisseur <strong id="deleteSupplierName"></strong> ?</p>
           </div>
-
           <div class="modal-footer border-0">
             <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
             <button type="submit" class="btn btn-danger px-4">
@@ -233,7 +241,6 @@
       </div>
     </div>
   </div>
-  {% endfor %}
 
   <!-- Supplier Ledger Modal (shared, loaded via AJAX) -->
   <div class="modal fade" id="supplierLedgerModal" tabindex="-1" aria-labelledby="supplierLedgerModalLabel" aria-hidden="true">
@@ -329,6 +336,32 @@
   </div>
 
 <script>
+document.getElementById('viewSupplierModal')?.addEventListener('show.bs.modal', function(event) {
+  const btn = event.relatedTarget;
+  const id = btn.getAttribute('data-supplier-id');
+  document.getElementById('viewSupplierId').textContent = 'FR-' + String(id).padStart(4, '0');
+  document.getElementById('viewSupplierName').textContent = btn.getAttribute('data-supplier-name');
+  document.getElementById('viewSupplierEmail').textContent = btn.getAttribute('data-supplier-email');
+  document.getElementById('viewSupplierAddress').textContent = btn.getAttribute('data-supplier-address');
+  document.getElementById('viewSupplierDescription').textContent =
+    btn.getAttribute('data-supplier-description') || 'Aucun détail disponible';
+});
+
+document.getElementById('editSupplierModal')?.addEventListener('show.bs.modal', function(event) {
+  const btn = event.relatedTarget;
+  document.getElementById('editSupplierName').value    = btn.getAttribute('data-supplier-name');
+  document.getElementById('editSupplierEmail').value   = btn.getAttribute('data-supplier-email');
+  document.getElementById('editSupplierAddress').value = btn.getAttribute('data-supplier-address');
+  document.getElementById('editSupplierMf').value      = btn.getAttribute('data-supplier-mf');
+  document.getElementById('editSupplierForm').action   = btn.getAttribute('data-edit-url');
+});
+
+document.getElementById('deleteSupplierModal')?.addEventListener('show.bs.modal', function(event) {
+  const btn = event.relatedTarget;
+  document.getElementById('deleteSupplierName').textContent = '"' + btn.getAttribute('data-supplier-name') + '"';
+  document.getElementById('deleteSupplierForm').action = btn.getAttribute('data-delete-url');
+});
+
 function openSupplierLedgerModal(supplierId) {
   const modal = new bootstrap.Modal(document.getElementById('supplierLedgerModal'));
   const tableBody = document.getElementById('supplierLedgerTableBody');

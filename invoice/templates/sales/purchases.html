@@ -76,7 +76,13 @@
           </td>
           <td class="text-end">{{ purchase.calculate_total|floatformat:3 }} TND</td>
           <td class="text-end">
-            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#purchaseDetailModal{{ purchase.id }}" title="Détails">
+            <button type="button" class="btn btn-sm btn-outline-primary"
+                    data-bs-toggle="modal" data-bs-target="#purchaseDetailModal"
+                    data-detail-url="{% url 'purchase_detail_modal' purchase.id %}"
+                    data-unique-id="{{ purchase.uniqueId }}"
+                    data-status-class="{% if purchase.status == 'PAID' %}badge-success{% elif purchase.status == 'RECEIVED' %}badge-info{% elif purchase.status == 'CONFIRMED' %}badge-warning{% else %}badge-secondary{% endif %}"
+                    data-status-display="{{ purchase.get_status_display }}"
+                    title="Détails">
               <i class="bi bi-eye"></i>
             </button>
             {% if purchase.purchase_retenues.all %}
@@ -85,7 +91,11 @@
             </a>
             {% endif %}
             {% if purchase.status == 'DRAFT' %}
-            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deletePurchaseModal{{ purchase.id }}" title="Supprimer">
+            <button type="button" class="btn btn-sm btn-outline-danger"
+                    data-bs-toggle="modal" data-bs-target="#deletePurchaseModal"
+                    data-unique-id="{{ purchase.uniqueId }}"
+                    data-delete-url="{% url 'purchase_delete' purchase.id %}"
+                    title="Supprimer">
               <i class="bi bi-trash"></i>
             </button>
             {% endif %}
@@ -193,306 +203,24 @@
   </div>
 </div>
 
-<!-- Purchase Detail + Delete Modals -->
-{% for purchase in purchases %}
-
-<!-- Detail Modal -->
-<div class="modal fade" id="purchaseDetailModal{{ purchase.id }}" tabindex="-1" aria-hidden="true">
+<!-- Shared Purchase Detail Modal (AJAX-loaded body) -->
+<div class="modal fade" id="purchaseDetailModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content shadow-lg rounded-4">
       <div class="modal-header border-0 pb-0">
         <h5 class="modal-title fw-semibold">
-          <i class="bi bi-cart me-2 text-primary"></i> Achat #{{ purchase.uniqueId }}
-          <span class="badge-modern ms-2 {% if purchase.status == 'PAID' %}badge-success{% elif purchase.status == 'RECEIVED' %}badge-info{% elif purchase.status == 'CONFIRMED' %}badge-warning{% else %}badge-secondary{% endif %}">
-            {{ purchase.get_status_display }}
-          </span>
+          <i class="bi bi-cart me-2 text-primary"></i>
+          Achat <span id="purchaseDetailTitle"></span>
+          <span id="purchaseDetailBadge" class="ms-2"></span>
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-
-      <div class="modal-body pt-2">
-        <!-- Supplier & Date -->
-        <p class="text-muted mb-3">
-          Fournisseur : <strong>{{ purchase.supplier.name|default:"N/A" }}</strong> |
-          Date : {{ purchase.date_created|date:"d/m/Y" }}
-        </p>
-
-        <!-- Action Buttons -->
-        <div class="mb-3">
-          {% if purchase.status == 'DRAFT' or purchase.status == 'CONFIRMED' %}
-          <form method="post" action="{% url 'purchase_confirm' purchase.id %}" class="d-inline">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-success btn-sm">
-              <i class="bi bi-check-circle me-1"></i>Confirmer et recevoir
-            </button>
-          </form>
-          {% endif %}
-          {% if purchase.status == 'RECEIVED' %}
-          <form method="post" action="{% url 'process_purchase_payment' purchase.id %}" class="d-inline">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-primary btn-sm">
-              <i class="bi bi-cash me-1"></i>Marquer comme payé
-            </button>
-          </form>
-          {% endif %}
-          {% if purchase.purchase_retenues.all %}
-          <a href="{% url 'purchase_download_xml' purchase.id %}" class="btn btn-sm btn-outline-success">
-            <i class="bi bi-file-earmark-code me-1"></i>Télécharger XML RS
-          </a>
-          {% endif %}
-        </div>
-
-        <!-- Purchase Lines Table -->
-        <h6 class="fw-semibold"><i class="bi bi-list-ul me-1"></i> Lignes d'achat</h6>
-        <div class="table-responsive">
-          <table class="table table-sm mb-3">
-            <thead class="table-light">
-              <tr>
-                <th>#</th>
-                <th>Fourniture</th>
-                <th>Unité</th>
-                <th class="text-end">Prix unit.</th>
-                <th class="text-end">Qté</th>
-                <th class="text-center">FODEC</th>
-                <th class="text-end">Total HT</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for line in purchase.purchase_lines.all %}
-              <tr>
-                <td>{{ forloop.counter }}</td>
-                <td><strong>{{ line.supply.name }}</strong></td>
-                <td>{{ line.supply.unit }}</td>
-                <td class="text-end">{{ line.unit_price|floatformat:3 }}</td>
-                <td class="text-end">{{ line.quantity|floatformat:3 }}</td>
-                <td class="text-center">
-                  {% if line.has_fodec %}
-                  <span class="badge bg-info text-white" style="font-size:0.7rem;">1%</span>
-                  {% else %}
-                  <span class="text-muted">—</span>
-                  {% endif %}
-                </td>
-                <td class="text-end fw-semibold">{{ line.get_line_total|floatformat:3 }}</td>
-              </tr>
-              {% empty %}
-              <tr><td colspan="7" class="text-center text-muted py-3">Aucune ligne d'achat</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="row">
-          <!-- Left Column: Notes + Edit -->
-          <div class="col-md-6">
-            {% if purchase.notes %}
-            <div class="mb-3">
-              <h6 class="fw-semibold"><i class="bi bi-chat-text me-1"></i> Notes</h6>
-              <p class="mb-0 text-muted">{{ purchase.notes }}</p>
-            </div>
-            {% endif %}
-
-            <!-- Edit Form (DRAFT only) -->
-            {% if purchase.status == 'DRAFT' %}
-            <div class="border rounded-3 p-3">
-              <h6 class="fw-semibold"><i class="bi bi-pencil me-1"></i> Modifier l'achat</h6>
-              <form method="post" action="{% url 'purchase_edit' purchase.id %}">
-                {% csrf_token %}
-                <div class="row g-3">
-                  <div class="col-md-12">
-                    <label class="form-label small">Fournisseur</label>
-                    <select class="form-select form-select-sm" name="supplier">
-                      {% for supplier in suppliers %}
-                      <option value="{{ supplier.id }}" {% if purchase.supplier_id == supplier.id %}selected{% endif %}>{{ supplier.name }}</option>
-                      {% endfor %}
-                    </select>
-                  </div>
-                  <div class="col-md-12">
-                    <label class="form-label small">Notes</label>
-                    <textarea class="form-control form-control-sm" name="notes" rows="2">{{ purchase.notes }}</textarea>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label small">TVA (%)</label>
-                    <input type="number" step="0.01" class="form-control form-control-sm" name="tva" value="{{ purchase.tva }}">
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label small">Remise (%)</label>
-                    <input type="number" step="0.01" class="form-control form-control-sm" name="discount" value="{{ purchase.discount }}">
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label small">Timbre (D)</label>
-                    <input type="number" step="0.001" class="form-control form-control-sm" name="timbre_fiscal" value="{{ purchase.timbre_fiscal }}">
-                  </div>
-                </div>
-
-                <h6 class="fw-semibold mt-3 mb-2 small">Lignes</h6>
-                <div id="editPurchaseLines{{ purchase.id }}">
-                  {% for line in purchase.purchase_lines.all %}
-                  <div class="row g-2 mb-2 edit-purchase-line">
-                    <div class="col-md-5">
-                      <select class="form-select form-select-sm" name="supply_id[]" required>
-                        <option value="">-- Fourniture --</option>
-                        {% for supply in supplies %}
-                        <option value="{{ supply.id }}" {% if line.supply_id == supply.id %}selected{% endif %}>{{ supply.name }} ({{ supply.unit }})</option>
-                        {% endfor %}
-                      </select>
-                    </div>
-                    <div class="col-md-2">
-                      <input type="number" step="0.001" class="form-control form-control-sm" name="quantity[]" value="{{ line.quantity }}" required>
-                    </div>
-                    <div class="col-md-3">
-                      <input type="number" step="0.001" class="form-control form-control-sm" name="line_unit_price[]" value="{{ line.unit_price }}" required>
-                    </div>
-                    <div class="col-md-2">
-                      <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="removeEditLine(this, {{ purchase.id }})">
-                        <i class="bi bi-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                  {% endfor %}
-                </div>
-                <button type="button" class="btn btn-sm btn-outline-primary mt-1" onclick="addEditLine({{ purchase.id }})">
-                  <i class="bi bi-plus-circle me-1"></i> Ajouter une ligne
-                </button>
-                <div class="mt-3">
-                  <button type="submit" class="btn btn-primary btn-sm">
-                    <i class="bi bi-check-circle me-1"></i> Enregistrer
-                  </button>
-                </div>
-              </form>
-            </div>
-            {% endif %}
-          </div>
-
-          <!-- Right Column: Financial Summary + Retenues -->
-          <div class="col-md-6">
-            <!-- Financial Summary -->
-            <table class="table table-sm mb-3">
-              <tr>
-                <td class="text-muted">Sous-total HT</td>
-                <td class="text-end fw-semibold">{{ purchase.calculate_subtotal|floatformat:3 }} TND</td>
-              </tr>
-              {% if purchase.discount %}
-              <tr>
-                <td class="text-muted">Remise ({{ purchase.discount }}%)</td>
-                <td class="text-end text-danger">-{{ purchase.calculate_discount_amount|floatformat:3 }} TND</td>
-              </tr>
-              <tr>
-                <td class="text-muted">Sous-total après remise</td>
-                <td class="text-end">{{ purchase.calculate_subtotal_after_discount|floatformat:3 }} TND</td>
-              </tr>
-              {% endif %}
-              {% if purchase.calculate_total_fodec %}
-              <tr>
-                <td class="text-muted">FODEC (1%)</td>
-                <td class="text-end">{{ purchase.calculate_total_fodec|floatformat:3 }} TND</td>
-              </tr>
-              {% endif %}
-              <tr>
-                <td class="text-muted">TVA ({{ purchase.tva }}%)</td>
-                <td class="text-end">{{ purchase.calculate_tva_amount|floatformat:3 }} TND</td>
-              </tr>
-              {% if purchase.get_total_retenue %}
-              <tr>
-                <td class="text-muted">Total retenue</td>
-                <td class="text-end text-danger">-{{ purchase.get_total_retenue|floatformat:3 }} TND</td>
-              </tr>
-              {% endif %}
-              <tr>
-                <td class="text-muted">Timbre fiscal</td>
-                <td class="text-end">{{ purchase.timbre_fiscal|floatformat:3 }} TND</td>
-              </tr>
-              <tr class="table-active">
-                <td class="fw-bold">Total TTC</td>
-                <td class="text-end fw-bold fs-5">{{ purchase.calculate_total|floatformat:3 }} TND</td>
-              </tr>
-              {% if purchase.get_total_retenue %}
-              <tr class="table-active">
-                <td class="fw-bold">Net à payer</td>
-                <td class="text-end fw-bold fs-5">{{ purchase.get_net_amount|floatformat:3 }} TND</td>
-              </tr>
-              {% endif %}
-            </table>
-
-            <!-- Retenues Section -->
-            <h6 class="fw-semibold mb-2"><i class="bi bi-percent me-1"></i> Retenues à la source</h6>
-
-            {% if purchase.purchase_retenues.all %}
-            <div class="table-responsive">
-              <table class="table table-sm mb-3">
-                <thead class="table-light">
-                  <tr>
-                    <th>Type</th>
-                    <th class="text-end">Base</th>
-                    <th class="text-end">Taux</th>
-                    <th class="text-end">Montant</th>
-                    <th class="text-end">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for ret in purchase.purchase_retenues.all %}
-                  <tr>
-                    <td><small>{{ ret.retenu_type }}</small></td>
-                    <td class="text-end">{{ ret.base_amount|floatformat:3 }}</td>
-                    <td class="text-end">{{ ret.retenu_rate }}%</td>
-                    <td class="text-end fw-semibold">{{ ret.retenu_amount|floatformat:3 }}</td>
-                    <td class="text-end">
-                      <form method="post" action="{% url 'purchase_retenu_delete' ret.id %}" class="d-inline">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
-                          <i class="bi bi-trash"></i>
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-            {% else %}
-            <p class="text-muted small">Aucune retenue appliquée.</p>
-            {% endif %}
-
-            <!-- Add Retenu Form -->
-            <form method="post" action="{% url 'purchase_retenu_create' purchase.id %}">
-              {% csrf_token %}
-              <div class="row g-2 align-items-end">
-                <div class="col-md-5">
-                  <label class="form-label small">Type de retenue</label>
-                  <select class="form-select form-select-sm" name="retenu_type" required>
-                    <option value="">-- Sélectionner --</option>
-                    {% for retenu in retenu_types %}
-                    <option value="{{ retenu.id }}">{{ retenu }} ({{ retenu.rate }}%)</option>
-                    {% endfor %}
-                  </select>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label small">Montant de base</label>
-                  <input type="number" step="0.001" class="form-control form-control-sm" name="base_amount" value="{{ purchase.calculate_total_before_timbre|floatformat:3 }}" required>
-                </div>
-                <div class="col-md-3">
-                  <button type="submit" class="btn btn-sm btn-outline-primary w-100">
-                    <i class="bi bi-plus me-1"></i> Ajouter
-                  </button>
-                </div>
-              </div>
-            </form>
-
-            <!-- Delete Zone (DRAFT only) -->
-            {% if purchase.status == 'DRAFT' %}
-            <div class="border border-danger rounded-3 p-3 mt-3">
-              <h6 class="fw-semibold text-danger small"><i class="bi bi-trash me-1"></i> Zone dangereuse</h6>
-              <form method="post" action="{% url 'purchase_delete' purchase.id %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-danger btn-sm">
-                  <i class="bi bi-trash me-1"></i> Supprimer l'achat
-                </button>
-              </form>
-            </div>
-            {% endif %}
-          </div>
+      <div class="modal-body pt-2" id="purchaseDetailBody">
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-3 text-muted">Chargement...</p>
         </div>
       </div>
-
       <div class="modal-footer border-0">
         <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Fermer</button>
       </div>
@@ -500,12 +228,11 @@
   </div>
 </div>
 
-<!-- Delete Modal -->
-{% if purchase.status == 'DRAFT' %}
-<div class="modal fade" id="deletePurchaseModal{{ purchase.id }}" tabindex="-1" aria-hidden="true">
+<!-- Shared Delete Purchase Modal -->
+<div class="modal fade" id="deletePurchaseModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content shadow-lg rounded-4">
-      <form action="{% url 'purchase_delete' purchase.id %}" method="post">
+      <form action="" method="post" id="deletePurchaseForm">
         {% csrf_token %}
         <div class="modal-header border-0 pb-0">
           <h5 class="modal-title fw-semibold text-danger">
@@ -518,7 +245,7 @@
             <i class="bi bi-exclamation-triangle me-2"></i>
             <strong>Attention !</strong> Cette action ne peut pas être annulée.
           </div>
-          <p class="mb-0">Êtes-vous sûr de vouloir supprimer l'achat <strong>#{{ purchase.uniqueId }}</strong> ?</p>
+          <p class="mb-0">Êtes-vous sûr de vouloir supprimer l'achat <strong id="deletePurchaseTitle"></strong> ?</p>
         </div>
         <div class="modal-footer border-0">
           <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
@@ -530,11 +257,34 @@
     </div>
   </div>
 </div>
-{% endif %}
-
-{% endfor %}
 
 <script>
+/* === Detail Modal (AJAX) === */
+document.getElementById('purchaseDetailModal')?.addEventListener('show.bs.modal', function(event) {
+  const btn = event.relatedTarget;
+  document.getElementById('purchaseDetailTitle').textContent = '#' + btn.getAttribute('data-unique-id');
+  document.getElementById('purchaseDetailBadge').innerHTML =
+    `<span class="badge-modern ${btn.getAttribute('data-status-class')}">${btn.getAttribute('data-status-display')}</span>`;
+
+  const body = document.getElementById('purchaseDetailBody');
+  body.innerHTML = `<div class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-3 text-muted">Chargement...</p>
+  </div>`;
+
+  fetch(btn.getAttribute('data-detail-url'))
+    .then(r => r.text())
+    .then(html => { body.innerHTML = html; })
+    .catch(() => { body.innerHTML = '<p class="text-danger text-center mt-3">Erreur de chargement.</p>'; });
+});
+
+/* === Delete Modal === */
+document.getElementById('deletePurchaseModal')?.addEventListener('show.bs.modal', function(event) {
+  const btn = event.relatedTarget;
+  document.getElementById('deletePurchaseTitle').textContent = '#' + btn.getAttribute('data-unique-id');
+  document.getElementById('deletePurchaseForm').action = btn.getAttribute('data-delete-url');
+});
+
 /* === Create Modal JS === */
 function addPurchaseLine() {
   const container = document.getElementById('purchaseLines');

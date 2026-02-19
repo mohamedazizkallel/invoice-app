@@ -1278,6 +1278,23 @@ def invoice_detail(request, invoice_id=None, slug=None):
 
 
 @login_required
+def purchase_detail_modal(request, purchase_id):
+    """Return rendered HTML for the shared purchase detail modal body."""
+    purchase = get_object_or_404(
+        Purchase.objects.select_related('supplier')
+                        .prefetch_related('purchase_lines__supply', 'purchase_retenues__retenu_type'),
+        id=purchase_id,
+    )
+    context = {
+        'purchase': purchase,
+        'suppliers': Supplier.objects.all().order_by('name'),
+        'supplies': Supply.objects.all().order_by('name'),
+        'retenu_types': Retenu.objects.filter(is_active=True).order_by('category', 'rate'),
+    }
+    return render(request, 'partials/purchase_detail_modal.html', context)
+
+
+@login_required
 def invoice_modal_data(request, invoice_id):
     """Return JSON data needed to populate the shared edit invoice modal."""
     invoice = get_object_or_404(Invoice, id=invoice_id)
