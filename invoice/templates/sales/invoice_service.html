@@ -752,7 +752,7 @@
     document.getElementById("editModalContent").style.display = "none";
     document.getElementById("editInvoiceForm").action = editUrl;
 
-    fetch(modalUrl)
+    fetch(modalUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       .then(r => r.json())
       .then(data => {
         document.getElementById("editClient").value   = data.client_id;

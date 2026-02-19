@@ -382,7 +382,7 @@ function openSupplierLedgerModal(supplierId) {
   modal.show();
 
   // Fetch transactions
-  fetch(`/suppliers/${supplierId}/transactions/`)
+  fetch(`/suppliers/${supplierId}/transactions/`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(response => response.json())
     .then(data => {
       nameEl.textContent = data.supplier_name;

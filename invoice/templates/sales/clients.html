@@ -381,7 +381,7 @@ function openLedgerModal(clientId) {
   modal.show();
 
   // Fetch transactions
-  fetch(`/clients/${clientId}/transactions/`)
+  fetch(`/clients/${clientId}/transactions/`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(response => response.json())
     .then(data => {
       clientNameEl.textContent = data.client_name;

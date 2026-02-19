@@ -272,7 +272,7 @@ document.getElementById('purchaseDetailModal')?.addEventListener('show.bs.modal'
     <p class="mt-3 text-muted">Chargement...</p>
   </div>`;
 
-  fetch(btn.getAttribute('data-detail-url'))
+  fetch(btn.getAttribute('data-detail-url'), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(r => r.text())
     .then(html => { body.innerHTML = html; })
     .catch(() => { body.innerHTML = '<p class="text-danger text-center mt-3">Erreur de chargement.</p>'; });
