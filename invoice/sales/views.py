@@ -215,7 +215,7 @@ def client_transactions(request, client_id):
 
 @login_required
 def client_add_transaction(request, client_id):
-    """Add a manual credit/debit entry for a client"""
+    """Add a manual credit/debit entry for a client, optionally linked to an invoice."""
     client = get_object_or_404(Client, id=client_id)
 
     if request.method == 'POST':
@@ -224,12 +224,56 @@ def client_add_transaction(request, client_id):
             txn = form.save(commit=False)
             txn.client = client
             txn.source = 'MANUAL'
+
+            # Link to invoice and update amount_paid for CREDIT transactions
+            invoice_id = request.POST.get('invoice_id', '').strip()
+            if invoice_id and txn.transaction_type == 'CREDIT':
+                try:
+                    invoice = Invoice.objects.prefetch_related('invoice_services').get(id=invoice_id, client=client)
+                    txn.invoice = invoice
+                    remaining = invoice.calculate_total() - invoice.amount_paid
+                    applied = min(Decimal(str(txn.amount)), remaining)
+                    if applied > 0:
+                        invoice.amount_paid += applied
+                        if invoice.amount_paid >= invoice.calculate_total():
+                            invoice.status = 'PAID'
+                        invoice.save()
+                except Invoice.DoesNotExist:
+                    pass
+
             txn.save()
             messages.success(request, f'Transaction ajoutée pour "{client.clientname}"')
         else:
             messages.error(request, 'Données de transaction invalides')
 
     return redirect('clients')
+
+
+@login_required
+def client_unpaid_invoices(request, client_id):
+    """AJAX: return list of unpaid/partially-paid invoices for a client with remaining balance."""
+    client = get_object_or_404(Client, id=client_id)
+    invoices = (
+        Invoice.objects
+        .filter(client=client)
+        .exclude(status='PAID')
+        .prefetch_related('invoice_services')
+        .order_by('-date_created')
+    )
+    result = []
+    for inv in invoices:
+        total = inv.calculate_total()
+        remaining = total - inv.amount_paid
+        if remaining > 0:
+            result.append({
+                'id': inv.id,
+                'ref': f'INV-{inv.uniqueId}' if inv.uniqueId else f'#{inv.id}',
+                'title': inv.title or '',
+                'total': float(total),
+                'amount_paid': float(inv.amount_paid),
+                'remaining': float(remaining),
+            })
+    return JsonResponse({'invoices': result})
 
 @login_required
 def suppliers(request):
@@ -933,7 +977,7 @@ def purchase_download_xml(request, purchase_id):
 @login_required
 def invoices_list(request):
     """Display all invoices with filtering and search"""
-    invoices = Invoice.objects.all().select_related('client')
+    invoices = Invoice.objects.all().select_related('client').prefetch_related('invoice_services__service')
 
     # Search filter
     search_query = request.GET.get('search', '')
@@ -976,9 +1020,9 @@ def invoices_list(request):
     overdue_invoices = status_counts['overdue']
     paid_invoices = status_counts['paid']
 
-    # Paginate — inject count so Paginator skips its own COUNT query
+    # Paginate — pre-populate cached_property so Paginator skips its own COUNT query
     paginator = Paginator(invoices, 20)
-    paginator._count = total_invoices
+    paginator.__dict__['count'] = total_invoices
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -1384,16 +1428,13 @@ def invoice_delete(request, invoice_id):
                     description=f'Annulation facture {invoice.uniqueId} - {invoice_title}'
                 )
 
-            had_credit = ClientTransaction.objects.filter(
-                invoice=invoice, source='INVOICE_PAID', transaction_type='CREDIT'
-            ).exists()
-            if had_credit:
+            if invoice.amount_paid > 0:
                 ClientTransaction.objects.create(
                     client=invoice.client,
                     invoice=None,
                     transaction_type='DEBIT',
                     source='INVOICE_DELETED',
-                    amount=invoice_total,
+                    amount=invoice.amount_paid,
                     description=f'Annulation paiement facture {invoice.uniqueId} - {invoice_title}'
                 )
 

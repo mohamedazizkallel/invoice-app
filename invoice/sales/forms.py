@@ -99,7 +99,7 @@ class InvoiceForm(forms.ModelForm):
         # Auto-populate from settings if creating new invoice
         if not self.instance.pk:
             try:
-                settings = Settings.objects.first()
+                settings = Settings.get_cached()
                 if settings:
                     # Set default TVA (typically 19% in Tunisia)
                     self.fields['tva'].initial = 19.00

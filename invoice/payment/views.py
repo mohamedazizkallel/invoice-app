@@ -167,36 +167,46 @@ def payment_detail(request, invoice_id):
 @login_required
 @require_POST
 def process_payment(request, invoice_id):
-    """
-    Process payment for an invoice
-    """
-    invoice = get_object_or_404(Invoice, id=invoice_id)
+    """Process full or partial payment for an invoice."""
+    invoice = get_object_or_404(Invoice.objects.prefetch_related('invoice_services'), id=invoice_id)
 
-    payment_date = request.POST.get('payment_date')
+    try:
+        payment_amount = Decimal(request.POST.get('payment_amount', '0'))
+    except Exception:
+        payment_amount = Decimal('0')
+
     payment_notes = request.POST.get('payment_notes', '')
 
-    # Update invoice status to PAID
-    invoice.status = 'PAID'
+    total = invoice.calculate_total()
+    remaining = total - invoice.amount_paid
+
+    # Clamp to what's still owed
+    payment_amount = min(payment_amount, remaining)
+
+    if payment_amount <= 0:
+        messages.error(request, 'Montant invalide ou facture déjà soldée.')
+        return redirect('invoices_list')
+
+    invoice.amount_paid += payment_amount
+    if invoice.amount_paid >= total:
+        invoice.status = 'PAID'
     invoice.save()
 
-    # Auto-CREDIT ledger entry when payment is processed
     if invoice.client:
-        existing_credit = ClientTransaction.objects.filter(
-            invoice=invoice, source='INVOICE_PAID', transaction_type='CREDIT'
-        ).exists()
-        if not existing_credit:
-            ClientTransaction.objects.create(
-                client=invoice.client,
-                invoice=invoice,
-                transaction_type='CREDIT',
-                source='INVOICE_PAID',
-                amount=invoice.calculate_total(),
-                description=f'Paiement facture {invoice.uniqueId} - {invoice.title}'
-            )
+        ClientTransaction.objects.create(
+            client=invoice.client,
+            invoice=invoice,
+            transaction_type='CREDIT',
+            source='INVOICE_PAID',
+            amount=payment_amount,
+            description=f'Paiement facture {invoice.uniqueId} — {payment_amount:.3f} D'
+            + (f' — {payment_notes}' if payment_notes else ''),
+        )
 
     messages.success(
         request,
-        f'Payment processed successfully for Invoice #{invoice.uniqueId or invoice.id}. Amount: {invoice.calculate_total()}D'
+        f'Paiement de {payment_amount:.3f} D enregistré pour la facture #{invoice.uniqueId or invoice.id}.'
+        + (' Facture soldée.' if invoice.status == 'PAID' else f' Reste : {(total - invoice.amount_paid):.3f} D.')
     )
 
     return redirect('invoice_detail', invoice_id=invoice.id)

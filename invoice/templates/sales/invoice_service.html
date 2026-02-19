@@ -116,7 +116,7 @@
     </div>
     <div class="col-md-3">
       <button type="submit" class="btn btn-modern-primary btn-modern w-100">
-        <i class="bi bi-funnel me-2"></i>Apply Filter
+        <i class="bi bi-funnel me-2"></i>Appliquer le filtre
       </button>
     </div>
   </form>
@@ -145,10 +145,10 @@
               </a>
             </td>
             <td>{{ invoice.client.clientname|default:"Aucun client" }}</td>
-            <td>{{ invoice.date_created|date:"M d, Y"|default:"N/A" }}</td>
+            <td>{{ invoice.date_created|date:"d/m/Y"|default:"N/A" }}</td>
             <td>
               <span class="badge-modern {% if invoice.status == 'PAID' %}badge-success{% elif invoice.status == 'OVERDUE' %}badge-danger{% elif invoice.status == 'CURRENT' %}badge-info{% else %}badge-secondary{% endif %}">
-                {{ invoice.status }}
+                {{ invoice.get_status_display }}
               </span>
             </td>
             <td class="text-end">
@@ -170,12 +170,13 @@
                 <button type="button"
                         class="btn btn-outline-success"
                         title="Traiter le paiement"
-                        data-bs-toggle="modal" 
+                        data-bs-toggle="modal"
                         data-bs-target="#paymentModal"
                         data-invoice-id="{{ invoice.id }}"
                         data-invoice-number="INV-{{ invoice.uniqueId|default:invoice.id }}"
                         data-client-name="{{ invoice.client.clientname }}"
-                        data-total-amount="{{ invoice.total_amount }}">
+                        data-total-amount="{{ invoice.calculate_total }}"
+                        data-amount-paid="{{ invoice.amount_paid }}">
                   <i class="bi bi-cash-coin"></i>
                 </button>
                 {% endif %}
@@ -201,11 +202,11 @@
       <ul class="pagination justify-content-center mb-0">
         {% if page_obj.has_previous %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}">Previous</a>
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}">Précédent</a>
         </li>
         {% else %}
         <li class="page-item disabled">
-          <span class="page-link">Previous</span>
+          <span class="page-link">Précédent</span>
         </li>
         {% endif %}
 
@@ -219,11 +220,11 @@
 
         {% if page_obj.has_next %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}">Next</a>
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}">Suivant</a>
         </li>
         {% else %}
         <li class="page-item disabled">
-          <span class="page-link">Next</span>
+          <span class="page-link">Suivant</span>
         </li>
         {% endif %}
       </ul>
@@ -267,7 +268,7 @@
               <div class="modal-body pt-2">
               {% if form.errors %}
               <div class="alert alert-danger rounded-3" role="alert">
-                  <strong><i class="bi bi-exclamation-triangle me-2"></i> Please correct the following errors:</strong>
+                  <strong><i class="bi bi-exclamation-triangle me-2"></i> Veuillez corriger les erreurs suivantes :</strong>
                   <ul class="mt-2 mb-0">
                   {% for field, errors in form.errors.items %}
                       {% for error in errors %}
@@ -380,28 +381,28 @@
                 </div>
 
                 <div class="col-md-3">
-                  <label class="form-label fw-semibold">Status</label>
+                  <label class="form-label fw-semibold">Statut</label>
                   <select class="form-select" name="status" id="editStatus">
-                    <option value="CURRENT">Current</option>
-                    <option value="OVERDUE">Overdue</option>
-                    <option value="PAID">Paid</option>
+                    <option value="CURRENT">Actuel</option>
+                    <option value="OVERDUE">En retard</option>
+                    <option value="PAID">Payé</option>
                   </select>
                 </div>
 
                 <div class="col-md-3">
                   <label class="form-label fw-semibold">TVA (%)</label>
                   <input type="number" step="0.01" class="form-control" name="tva" id="editTva">
-                  <small class="text-muted">Default: {{ settings.tva|default:19.00 }}%</small>
+                  <small class="text-muted">Par défaut : {{ settings.tva|default:19.00 }}%</small>
                 </div>
 
                 <div class="col-md-3">
                   <label class="form-label fw-semibold">Timbre Fiscal</label>
                   <input type="number" step="0.001" class="form-control" name="timbre_fiscal" id="editTimbre">
-                  <small class="text-muted">Default: {{ settings.dt|default:1.000 }}D</small>
+                  <small class="text-muted">Par défaut : {{ settings.dt|default:1.000 }}D</small>
                 </div>
 
                 <div class="col-md-3">
-                  <label class="form-label fw-semibold">Discount (%)</label>
+                  <label class="form-label fw-semibold">Réduction (%)</label>
                   <input type="number" step="0.01" class="form-control" name="discount" id="editDiscount">
                 </div>
 
@@ -414,10 +415,10 @@
                   <hr class="my-3">
                   <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="mb-0 fw-semibold">
-                      <i class="bi bi-box-seam me-2"></i> Add/Edit Service
+                      <i class="bi bi-box-seam me-2"></i> Modifier les services
                     </h6>
                     <button type="button" class="btn btn-sm btn-outline-primary" id="addEditServiceRow">
-                      <i class="bi bi-plus-circle me-1"></i> Add Service
+                      <i class="bi bi-plus-circle me-1"></i> Ajouter un service
                     </button>
                   </div>
                   <div id="editServicesContainer"></div>
@@ -430,9 +431,9 @@
           </div>
 
           <div class="modal-footer border-0">
-            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
             <button type="submit" class="btn btn-primary px-4">
-              <i class="bi bi-check-circle me-1"></i> Save Changes
+              <i class="bi bi-check-circle me-1"></i> Enregistrer
             </button>
           </div>
         </form>
@@ -448,21 +449,21 @@
           {% csrf_token %}
           <div class="modal-header border-0 pb-0">
             <h5 class="modal-title fw-semibold text-danger">
-              <i class="bi bi-trash me-2"></i> Delete Invoice
+              <i class="bi bi-trash me-2"></i> Supprimer la facture
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body pt-2">
             <div class="alert alert-danger rounded-3" role="alert">
               <i class="bi bi-exclamation-triangle me-2"></i>
-              <strong>Warning!</strong> This action cannot be undone.
+              <strong>Attention !</strong> Cette action est irréversible.
             </div>
-            <p class="mb-0">Are you sure you want to delete invoice <strong id="deleteInvoiceTitle"></strong>?</p>
+            <p class="mb-0">Êtes-vous sûr de vouloir supprimer la facture <strong id="deleteInvoiceTitle"></strong> ?</p>
           </div>
           <div class="modal-footer border-0">
-            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
             <button type="submit" class="btn btn-danger px-4">
-              <i class="bi bi-trash me-1"></i> Delete Invoice
+              <i class="bi bi-trash me-1"></i> Supprimer la facture
             </button>
           </div>
         </form>
@@ -479,15 +480,16 @@
           <input type="hidden" name="invoice_id" id="payment_invoice_id">
           <div class="modal-header border-0 pb-0">
             <h5 class="modal-title fw-semibold" id="paymentModalLabel">
-              <i class="bi bi-cash-coin me-2 text-success"></i> Process Payment
+              <i class="bi bi-cash-coin me-2 text-success"></i> Traiter le paiement
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body pt-2">
-            <div class="alert alert-info rounded-3" role="alert">
+            <!-- Invoice summary -->
+            <div class="alert alert-info rounded-3 mb-3" role="alert">
               <div class="row">
                 <div class="col-md-4">
-                  <small class="text-muted">Invoice Number</small>
+                  <small class="text-muted">N° de facture</small>
                   <div class="fw-bold" id="payment_invoice_number">-</div>
                 </div>
                 <div class="col-md-4">
@@ -495,26 +497,51 @@
                   <div class="fw-bold" id="payment_client_name">-</div>
                 </div>
                 <div class="col-md-4">
-                  <small class="text-muted">Invoice Total</small>
+                  <small class="text-muted">Total de la facture</small>
                   <div class="fw-bold text-primary" id="payment_total_amount">0.000 D</div>
                 </div>
               </div>
             </div>
+
+            <!-- Payment progress -->
+            <div class="card border-0 bg-light rounded-3 mb-3" id="payment_progress_card">
+              <div class="card-body py-2">
+                <div class="row text-center">
+                  <div class="col-4">
+                    <small class="text-muted d-block">Déjà payé</small>
+                    <span class="fw-semibold text-success" id="payment_already_paid">0.000 D</span>
+                  </div>
+                  <div class="col-4">
+                    <small class="text-muted d-block">Reste à payer</small>
+                    <span class="fw-semibold text-danger" id="payment_remaining">0.000 D</span>
+                  </div>
+                  <div class="col-4">
+                    <small class="text-muted d-block">Après ce paiement</small>
+                    <span class="fw-semibold text-primary" id="payment_after">0.000 D</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="row g-3 mb-3">
-              <div class="col-md-12">
-                <label class="form-label fw-semibold">Payment Date <span class="text-danger">*</span></label>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Montant à payer (D) <span class="text-danger">*</span></label>
+                <input type="number" step="0.001" min="0.001" class="form-control" name="payment_amount" id="payment_amount_input" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Date de paiement <span class="text-danger">*</span></label>
                 <input type="date" class="form-control" name="payment_date" required>
               </div>
             </div>
             <div class="mb-3">
-              <label class="form-label fw-semibold">Payment Notes</label>
-              <textarea class="form-control" name="payment_notes" rows="3" placeholder="Payment method, reference number, etc..."></textarea>
+              <label class="form-label fw-semibold">Notes de paiement</label>
+              <textarea class="form-control" name="payment_notes" rows="2" placeholder="Mode de paiement, numéro de référence, etc..."></textarea>
             </div>
           </div>
           <div class="modal-footer border-0">
-            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
             <button type="submit" class="btn btn-success px-4">
-              <i class="bi bi-check-circle me-1"></i> Confirm Payment
+              <i class="bi bi-check-circle me-1"></i> Confirmer le paiement
             </button>
           </div>
         </form>
@@ -555,7 +582,7 @@
           <div class="col-md-5">
             <label class="form-label small mb-1">Service</label>
             <select name="service_id[]" class="form-select form-select-sm create-service-select" data-row="${serviceRowCounter}">
-              <option value="">Select Service</option>
+              <option value="">Sélectionner un service</option>
               ${availableServices.map(s => `
                 <option value="${s.id}" data-price="${s.price}" data-currency="${s.currency}" data-fodec="${s.apply_fodec}">
                   ${s.title} - ${s.currency} ${s.price}
@@ -642,7 +669,7 @@
 
       if (!selects[i].value) {
         e.preventDefault();
-        alert("Please select a service.");
+        alert("Veuillez sélectionner un service.");
         return;
       }
 
@@ -654,7 +681,7 @@
 
     if (list.length === 0) {
       e.preventDefault();
-      alert("Add at least one service.");
+      alert("Veuillez ajouter au moins un service.");
       return;
     }
 
@@ -706,7 +733,7 @@
           <div class="col-md-5">
             <label class="form-label small mb-1">Service</label>
             <select name="service_id[]" class="form-select form-select-sm edit-service-select" data-row="${editServiceCounter}">
-              <option value="">Select Service</option>
+              <option value="">Sélectionner un service</option>
               ${availableServices.map(s => `
                 <option value="${s.id}" data-price="${s.price}" data-currency="${s.currency}" data-fodec="${s.apply_fodec}">
                   ${s.title} - ${s.currency} ${s.price}
@@ -774,7 +801,7 @@
       })
       .catch(() => {
         document.getElementById("editModalSpinner").innerHTML =
-          '<p class="text-danger mt-3 text-center">Failed to load invoice data.</p>';
+          '<p class="text-danger mt-3 text-center">Erreur lors du chargement des données.</p>';
       });
   });
 
@@ -791,28 +818,50 @@
   });
   document.addEventListener('DOMContentLoaded', function() {
     const paymentModal = document.getElementById('paymentModal');
+    const amountInput = document.getElementById('payment_amount_input');
 
-    // Populate modal when opened
+    function updatePaymentAfter() {
+      const remaining = parseFloat(paymentModal.dataset.remaining || '0');
+      const entered = parseFloat(amountInput.value || '0');
+      const applied = Math.min(entered, remaining);
+      const afterEl = document.getElementById('payment_after');
+      afterEl.textContent = Math.max(0, remaining - applied).toFixed(3) + ' D';
+    }
+
+    amountInput?.addEventListener('input', updatePaymentAfter);
+
     paymentModal?.addEventListener('show.bs.modal', function(event) {
       const button = event.relatedTarget;
-      const invoiceId = button.getAttribute('data-invoice-id');
+      const invoiceId   = button.getAttribute('data-invoice-id');
       const invoiceNumber = button.getAttribute('data-invoice-number');
-      const clientName = button.getAttribute('data-client-name');
-      const totalAmount = parseFloat(button.getAttribute('data-total-amount'));
+      const clientName  = button.getAttribute('data-client-name');
+      const total       = parseFloat(button.getAttribute('data-total-amount'));
+      const amountPaid  = parseFloat(button.getAttribute('data-amount-paid') || '0');
+      const remaining   = Math.max(0, total - amountPaid);
 
-      // Populate form fields
-      document.getElementById('payment_invoice_id').value = invoiceId;
+      // Store remaining for live recalculation
+      paymentModal.dataset.remaining = remaining;
+
+      document.getElementById('payment_invoice_id').value           = invoiceId;
       document.getElementById('payment_invoice_number').textContent = invoiceNumber;
-      document.getElementById('payment_client_name').textContent = clientName;
-      document.getElementById('payment_total_amount').textContent = totalAmount.toFixed(3) + ' D';
+      document.getElementById('payment_client_name').textContent    = clientName;
+      document.getElementById('payment_total_amount').textContent   = total.toFixed(3) + ' D';
+      document.getElementById('payment_already_paid').textContent   = amountPaid.toFixed(3) + ' D';
+      document.getElementById('payment_remaining').textContent      = remaining.toFixed(3) + ' D';
+      document.getElementById('payment_after').textContent         = remaining.toFixed(3) + ' D';
+
+      // Hide progress card if no prior payments
+      document.getElementById('payment_progress_card').style.display =
+        amountPaid > 0 ? '' : 'none';
+
+      // Default amount = full remaining
+      amountInput.value = remaining.toFixed(3);
+      amountInput.max   = remaining.toFixed(3);
 
       // Set today's date as default
-      const today = new Date().toISOString().split('T')[0];
-      document.querySelector('input[name="payment_date"]').value = today;
+      document.querySelector('input[name="payment_date"]').value = new Date().toISOString().split('T')[0];
 
-      // Update form action
-      const form = document.getElementById('paymentForm');
-      form.action = `/payment/invoice/${invoiceId}/process-payment/`;
+      document.getElementById('paymentForm').action = `/payment/invoice/${invoiceId}/process-payment/`;
     });
   });
 </script>

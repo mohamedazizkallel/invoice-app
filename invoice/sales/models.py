@@ -366,6 +366,7 @@ class Invoice(models.Model):
     tva = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="TVA percentage (overrides Settings if set)")
     timbre_fiscal = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True, help_text="Timbre fiscal amount (overrides Settings if set)")
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Discount percentage", null=True, blank=True)
+    amount_paid = models.DecimalField(max_digits=15, decimal_places=3, default=Decimal('0.000'), help_text="Total amount paid so far (partial or full)")
 
     is_locked = models.BooleanField(default=False)
     uniqueId = models.CharField(null=True, blank=True, max_length=100)
