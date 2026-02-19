@@ -45,6 +45,7 @@ if DEBUG:
     INTERNAL_IPS = ['127.0.0.1', '::1']
     DEBUG_TOOLBAR_CONFIG = {
         'SHOW_TOOLBAR_CALLBACK': lambda request: True,
+        'RESULTS_CACHE_SIZE': 100
     }
 
 ROOT_URLCONF = 'invoice.urls'
