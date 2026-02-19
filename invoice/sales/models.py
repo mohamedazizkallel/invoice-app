@@ -284,9 +284,10 @@ class Purchase(models.Model):
         return self.calculate_total_before_timbre() + timbre
 
     def get_total_retenue(self):
-        return self.purchase_retenues.aggregate(
-            total=Sum('retenu_amount')
-        )['total'] or Decimal('0.000')
+        return sum(
+            (r.retenu_amount for r in self.purchase_retenues.all()),
+            Decimal('0.000')
+        )
 
     def get_net_amount(self):
         return self.calculate_total() - self.get_total_retenue()
@@ -379,28 +380,16 @@ class Invoice(models.Model):
         return reversed('invoice-detail', kwargs={'slug': self.slug})
     
     def get_tva(self):
-        """Get TVA from invoice or fallback to Settings"""
+        """Get TVA from invoice. save() already auto-populates from Settings."""
         if self.tva is not None:
             return Decimal(str(self.tva))
-        
-        # Get from Settings
-        settings = Settings.objects.first()
-        if settings and settings.tva is not None:
-            return Decimal(str(settings.tva))
-        
-        return Decimal('19.00')  # Default fallback
-    
+        return Decimal('19.00')
+
     def get_timbre_fiscal(self):
-        """Get Timbre Fiscal from invoice or fallback to Settings"""
+        """Get Timbre Fiscal from invoice. save() already auto-populates from Settings."""
         if self.timbre_fiscal is not None:
             return Decimal(str(self.timbre_fiscal))
-        
-        # Get from Settings (dt field)
-        settings = Settings.objects.first()
-        if settings and settings.dt is not None:
-            return Decimal(str(settings.dt))
-        
-        return Decimal('1.000')  # Default fallback
+        return Decimal('1.000')
     
     def calculate_service_subtotal(self):
         """Calculate subtotal for all invoice services (services) before discount"""
@@ -449,10 +438,16 @@ class Invoice(models.Model):
         return total
     
     def calculate_total(self):
-        timbre = self.get_timbre_fiscal() 
-        tva_total = self.calculate_total_tva()
-        total = tva_total + timbre
-        return total
+        # Fetch invoice_services once — sub-methods would each re-query, causing 6× hits
+        services = list(self.invoice_services.all())
+        subtotal = sum(svc.get_line_ht() for svc in services)
+        fodec = sum(svc.get_fodec_amount() for svc in services)
+        discount_amount = (subtotal * Decimal(str(self.discount))) / Decimal('100') if self.discount else Decimal('0')
+        subtotal_after_discount = subtotal - discount_amount
+        tva_base = subtotal_after_discount + fodec
+        tva = (tva_base * self.get_tva()) / Decimal('100')
+        timbre = self.get_timbre_fiscal()
+        return tva_base + tva + timbre
     
     def get_total_retenue(self):
         """Total retenue à la source"""

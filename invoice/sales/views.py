@@ -74,24 +74,25 @@ def logout_view(request):
 @login_required
 def dashboard(request):
     # Get recent invoices
-    invoices = Invoice.objects.all().select_related('client').prefetch_related('service').order_by('-date_created')[:10]
+    invoices = Invoice.objects.all().select_related('client').prefetch_related('invoice_services__service').order_by('-date_created')[:10]
 
     # Calculate statistics
     total_invoices = Invoice.objects.count()
 
     # Outstanding amount (CURRENT + OVERDUE invoices)
-    outstanding_invoices = Invoice.objects.filter(status__in=['CURRENT', 'OVERDUE'])
+    outstanding_invoices = Invoice.objects.filter(
+        status__in=['CURRENT', 'OVERDUE']
+    ).prefetch_related('invoice_services__service')
     outstanding_amount = sum(invoice.calculate_total() for invoice in outstanding_invoices)
 
     # Paid this month
-
     current_month = datetime.now().month
     current_year = datetime.now().year
     paid_this_month_invoices = Invoice.objects.filter(
         status='PAID',
         date_created__month=current_month,
         date_created__year=current_year
-    )
+    ).prefetch_related('invoice_services__service')
     paid_this_month_amount = sum(invoice.calculate_total() for invoice in paid_this_month_invoices)
 
     # Currency (default to TND)
@@ -891,8 +892,8 @@ def purchase_download_xml(request, purchase_id):
 @login_required
 def invoices_list(request):
     """Display all invoices with filtering and search"""
-    invoices = Invoice.objects.all().select_related('client').prefetch_related('service')
-    
+    invoices = Invoice.objects.all().select_related('client')
+
     # Search filter
     search_query = request.GET.get('search', '')
     if search_query:
@@ -942,11 +943,16 @@ def invoices_list(request):
 
     retenu_types = Retenu.objects.filter(is_active=True).order_by('category', 'rate')
 
-    # Calculate statistics
-    total_invoices = invoices.count()
-    current_invoices = invoices.filter(status='CURRENT').count()
-    overdue_invoices = invoices.filter(status='OVERDUE').count()
-    paid_invoices = invoices.filter(status='PAID').count()
+    # Calculate statistics — one aggregate query instead of four
+    status_counts = invoices.aggregate(
+        current=Count('id', filter=Q(status='CURRENT')),
+        overdue=Count('id', filter=Q(status='OVERDUE')),
+        paid=Count('id', filter=Q(status='PAID')),
+    )
+    total_invoices = page_obj.paginator.count
+    current_invoices = status_counts['current']
+    overdue_invoices = status_counts['overdue']
+    paid_invoices = status_counts['paid']
 
     context = {
         'invoices': page_obj,
@@ -1269,6 +1275,31 @@ def invoice_detail(request, invoice_id=None, slug=None):
     }
     
     return render(request, 'sales/invoice_detail_service.html', context)
+
+
+@login_required
+def invoice_modal_data(request, invoice_id):
+    """Return JSON data needed to populate the shared edit invoice modal."""
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    services = [
+        {
+            'service_id': inv_svc.service_id,
+            'unit_price': str(inv_svc.unit_price),
+            'has_fodec': inv_svc.has_fodec,
+        }
+        for inv_svc in invoice.invoice_services.all()
+    ]
+    return JsonResponse({
+        'id': invoice.id,
+        'status': invoice.status,
+        'client_id': invoice.client_id,
+        'tva': str(invoice.tva) if invoice.tva is not None else '19.00',
+        'timbre_fiscal': str(invoice.timbre_fiscal) if invoice.timbre_fiscal is not None else '1.000',
+        'discount': str(invoice.discount) if invoice.discount is not None else '0.00',
+        'notes': invoice.notes or '',
+        'services': services,
+    })
+
 
 @login_required
 def invoice_delete(request, invoice_id):

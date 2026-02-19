@@ -156,7 +156,12 @@
                 <a href="{% url 'invoice_detail' invoice.id %}" class="btn btn-outline-primary" title="Voir">
                   <i class="bi bi-eye"></i>
                 </a>
-                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editInvoiceModal{{ invoice.id }}" title="Modifier">
+                <button type="button" class="btn btn-outline-secondary"
+                        data-bs-toggle="modal" data-bs-target="#editInvoiceModal"
+                        data-invoice-id="{{ invoice.id }}"
+                        data-edit-url="{% url 'invoice_edit' invoice.id %}"
+                        data-modal-url="{% url 'invoice_modal_data' invoice.id %}"
+                        title="Modifier">
                   <i class="bi bi-pencil"></i>
                 </button>
 
@@ -175,7 +180,11 @@
                 </button>
                 {% endif %}
                 
-                <button type="button" class="btn btn-outline-danger" title="Supprimer" data-bs-toggle="modal" data-bs-target="#deleteInvoiceModal{{ invoice.id }}">
+                <button type="button" class="btn btn-outline-danger" title="Supprimer"
+                        data-bs-toggle="modal" data-bs-target="#deleteInvoiceModal"
+                        data-invoice-id="{{ invoice.id }}"
+                        data-delete-url="{% url 'invoice_delete' invoice.id %}"
+                        data-invoice-title="#{{ invoice.uniqueId|default:invoice.id }}">
                   <i class="bi bi-trash"></i>
                 </button>
               </div>
@@ -337,149 +346,89 @@
       </div>
     </div>
 
-  <!-- Edit and Delete Modals for Each Invoice -->
-  {% for invoice in invoices %}
-  
-  <!-- Edit Invoice Modal -->
-  <div class="modal fade" id="editInvoiceModal{{ invoice.id }}" tabindex="-1" aria-labelledby="editInvoiceModalLabel{{ invoice.id }}" aria-hidden="true">
+  <!-- Shared Edit Invoice Modal (single instance, populated via AJAX) -->
+  <div class="modal fade" id="editInvoiceModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content shadow-lg rounded-4">
-        <form action="{% url 'invoice_edit' invoice.id %}" method="post" id="editInvoiceForm{{ invoice.id }}">
+        <form action="" method="post" id="editInvoiceForm">
           {% csrf_token %}
-          <input type="hidden" name="services_data" id="edit_services_data_{{ invoice.id }}">
 
-          <!-- Modal Header -->
           <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title fw-semibold" id="editInvoiceModalLabel{{ invoice.id }}">
+            <h5 class="modal-title fw-semibold">
               <i class="bi bi-pencil me-2 text-secondary"></i> Modifier la facture
             </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
 
-          <!-- Modal Body -->
-          <div class="modal-body pt-2">
-            {% if form.errors %}
-            <div class="alert alert-danger rounded-3" role="alert">
-              <strong><i class="bi bi-exclamation-triangle me-2"></i> Please correct the following errors:</strong>
-              <ul class="mt-2 mb-0">
-                {% for field, errors in form.errors.items %}
-                  {% for error in errors %}
-                  <li>{{ field }}: {{ error }}</li>
-                  {% endfor %}
-                {% endfor %}
-              </ul>
+          <div class="modal-body pt-2" id="editModalBody">
+            <!-- Spinner shown while fetching -->
+            <div id="editModalSpinner" class="text-center py-5">
+              <div class="spinner-border text-primary" role="status"></div>
+              <p class="mt-3 text-muted">Chargement...</p>
             </div>
-            {% endif %}
 
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Client</label>
-                <select class="form-select" name="client" required>
-                  {% for client in clients %}
-                  <option value="{{ client.id }}" {% if invoice.client.id == client.id %}selected{% endif %}>
-                    {{ client.clientname }}
-                  </option>
-                  {% endfor %}
-                </select>
-              </div>
-
-              <div class="col-md-3">
-                <label class="form-label fw-semibold">Status</label>
-                <select class="form-select" name="status">
-                  <option value="CURRENT" {% if invoice.status == "CURRENT" %}selected{% endif %}>Current</option>
-                  <option value="OVERDUE" {% if invoice.status == "OVERDUE" %}selected{% endif %}>Overdue</option>
-                  <option value="PAID" {% if invoice.status == "PAID" %}selected{% endif %}>Paid</option>
-                </select>
-              </div>
-
-              <div class="col-md-3">
-                <label class="form-label fw-semibold">TVA (%)</label>
-                <input type="number" step="0.01" class="form-control" name="tva" value="{{ invoice.tva|default:19.00 }}">
-                <small class="text-muted">Default: {{ settings.tva|default:19.00 }}%</small>
-              </div>
-
-              <div class="col-md-3">
-                <label class="form-label fw-semibold">Timbre Fiscal </label>
-                <input type="number" step="0.001" class="form-control" name="timbre_fiscal" value="{{ invoice.timbre_fiscal|default:settings.dt|default:1.000 }}">
-                <small class="text-muted">Default: {{ settings.dt|default:1.000 }}D</small>
-              </div>
-
-              <div class="col-md-3">
-                <label class="form-label fw-semibold">Discount (%)</label>
-                <input type="number" step="0.01" class="form-control" name="discount" value="{{ invoice.discount|default:0.00 }}">
-              </div>
-
-              <div class="col-12">
-                <label class="form-label fw-semibold">Notes</label>
-                <textarea class="form-control" name="notes" rows="2">{{ invoice.notes }}</textarea>
-              </div>
-
-              <!-- Service Section -->
-              <div class="col-12">
-                <hr class="my-3">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                  <h6 class="mb-0 fw-semibold">
-                    <i class="bi bi-box-seam me-2"></i> Add/Edit Service
-                  </h6>
-                  <button type="button" class="btn btn-sm btn-outline-primary" id="addEditServiceRow_{{ invoice.id }}">
-                    <i class="bi bi-plus-circle me-1"></i> Add Service
-                  </button>
+            <!-- Form content, shown after fetch -->
+            <div id="editModalContent" style="display:none;">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Client</label>
+                  <select class="form-select" name="client" id="editClient" required>
+                    {% for client in clients %}
+                    <option value="{{ client.id }}">{{ client.clientname }}</option>
+                    {% endfor %}
+                  </select>
                 </div>
 
-                <div id="editServicesContainer_{{ invoice.id }}">
-                  <!-- Preloaded service Rows -->
-                  {% for inv_service in invoice.invoice_services.all %}
-                  <div class="card mb-2">
-                    <div class="card-body p-3">
-                      <div class="row g-2 align-items-end">
-                        <div class="col-md-5">
-                          <label class="form-label small mb-1">Services</label>
-                          <select class="form-select form-select-sm service-select" data-row="{{ forloop.counter0 }}">
-                            {% for p in services %}
-                              <option value="{{ p.id }}"
-                                      data-price="{{ p.price|default:0 }}"
-                                      data-currency="{{ p.currency|default:'TND' }}"
-                                      data-fodec="{{ p.apply_fodec|yesno:'true,false' }}"
-                                      {% if p.id == inv_service.service.id %}selected{% endif %}>
-                                {{ p.title }} - {{ p.currency|default:'TND' }} {{ p.price|default:0 }}
-                              </option>
-                            {% endfor %}
-                          </select>
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">FODEC</label>
-                          <input type="hidden" name="has_fodec[]" value="{% if inv_service.has_fodec %}1{% else %}0{% endif %}" class="fodec-hidden">
-                          <button type="button" class="btn btn-sm w-100 fodec-toggle {% if inv_service.has_fodec %}btn-success{% else %}btn-outline-secondary{% endif %}">
-                            FODEC 1%
-                          </button>
-                        </div>
-                        <div class="col-md-2">
-                          <label class="form-label small mb-1">Total</label>
-                          <input type="number" step="0.001" name="unit_price[]" class="form-control form-control-sm line-total" data-row="{{ forloop.counter0 }}" value="{{ inv_service.unit_price }}">
-                        </div>
-                        <div class="col-md-1">
-                          <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-service" data-row="{{ forloop.counter0 }}">
-                            <i class="bi bi-trash"></i>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Status</label>
+                  <select class="form-select" name="status" id="editStatus">
+                    <option value="CURRENT">Current</option>
+                    <option value="OVERDUE">Overdue</option>
+                    <option value="PAID">Paid</option>
+                  </select>
+                </div>
+
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">TVA (%)</label>
+                  <input type="number" step="0.01" class="form-control" name="tva" id="editTva">
+                  <small class="text-muted">Default: {{ settings.tva|default:19.00 }}%</small>
+                </div>
+
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Timbre Fiscal</label>
+                  <input type="number" step="0.001" class="form-control" name="timbre_fiscal" id="editTimbre">
+                  <small class="text-muted">Default: {{ settings.dt|default:1.000 }}D</small>
+                </div>
+
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Discount (%)</label>
+                  <input type="number" step="0.01" class="form-control" name="discount" id="editDiscount">
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Notes</label>
+                  <textarea class="form-control" name="notes" rows="2" id="editNotes"></textarea>
+                </div>
+
+                <div class="col-12">
+                  <hr class="my-3">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0 fw-semibold">
+                      <i class="bi bi-box-seam me-2"></i> Add/Edit Service
+                    </h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addEditServiceRow">
+                      <i class="bi bi-plus-circle me-1"></i> Add Service
+                    </button>
                   </div>
-                  {% endfor %}
-                </div>
-
-                <div class="alert alert-info mt-3" role="alert">
-                  <small>
-                    <i class="bi bi-info-circle me-1"></i>
-                    Cliquez sur « Ajouter un service » pour sélectionner un service
-                  </small>
+                  <div id="editServicesContainer"></div>
+                  <div class="alert alert-info mt-3" role="alert">
+                    <small><i class="bi bi-info-circle me-1"></i> Cliquez sur « Ajouter un service » pour sélectionner un service</small>
+                  </div>
                 </div>
               </div>
-
             </div>
           </div>
 
-          <!-- Modal Footer -->
           <div class="modal-footer border-0">
             <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-primary px-4">
@@ -491,31 +440,25 @@
     </div>
   </div>
 
-  <!-- Delete Invoice Modal -->
-  <div class="modal fade" id="deleteInvoiceModal{{ invoice.id }}" tabindex="-1" aria-labelledby="deleteInvoiceModalLabel{{ invoice.id }}" aria-hidden="true">
+  <!-- Shared Delete Invoice Modal -->
+  <div class="modal fade" id="deleteInvoiceModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content shadow-lg rounded-4">
-        <form action="{% url 'invoice_delete' invoice.id %}" method="post">
+        <form action="" method="post" id="deleteInvoiceForm">
           {% csrf_token %}
-
-          <!-- Modal Header -->
           <div class="modal-header border-0 pb-0">
-            <h5 class="modal-title fw-semibold text-danger" id="deleteInvoiceModalLabel{{ invoice.id }}">
+            <h5 class="modal-title fw-semibold text-danger">
               <i class="bi bi-trash me-2"></i> Delete Invoice
             </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
-
-          <!-- Modal Body -->
           <div class="modal-body pt-2">
             <div class="alert alert-danger rounded-3" role="alert">
               <i class="bi bi-exclamation-triangle me-2"></i>
               <strong>Warning!</strong> This action cannot be undone.
             </div>
-            <p class="mb-0">Are you sure you want to delete the invoice <strong>"{{ invoice.title }}"</strong>?</p>
+            <p class="mb-0">Are you sure you want to delete invoice <strong id="deleteInvoiceTitle"></strong>?</p>
           </div>
-
-          <!-- Modal Footer -->
           <div class="modal-footer border-0">
             <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-danger px-4">
@@ -526,25 +469,21 @@
       </div>
     </div>
   </div>
-  <!-- Payment Modal -->
+
+  <!-- Payment Modal (single instance) -->
   <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content shadow-lg rounded-4">
         <form id="paymentForm" method="post">
           {% csrf_token %}
           <input type="hidden" name="invoice_id" id="payment_invoice_id">
-
-          <!-- Modal Header -->
           <div class="modal-header border-0 pb-0">
             <h5 class="modal-title fw-semibold" id="paymentModalLabel">
               <i class="bi bi-cash-coin me-2 text-success"></i> Process Payment
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-
-          <!-- Modal Body -->
           <div class="modal-body pt-2">
-            <!-- Invoice Info -->
             <div class="alert alert-info rounded-3" role="alert">
               <div class="row">
                 <div class="col-md-4">
@@ -561,23 +500,17 @@
                 </div>
               </div>
             </div>
-
-            <!-- Payment Details -->
             <div class="row g-3 mb-3">
               <div class="col-md-12">
                 <label class="form-label fw-semibold">Payment Date <span class="text-danger">*</span></label>
                 <input type="date" class="form-control" name="payment_date" required>
               </div>
             </div>
-
-            <!-- Payment Notes -->
             <div class="mb-3">
               <label class="form-label fw-semibold">Payment Notes</label>
               <textarea class="form-control" name="payment_notes" rows="3" placeholder="Payment method, reference number, etc..."></textarea>
             </div>
           </div>
-
-          <!-- Modal Footer -->
           <div class="modal-footer border-0">
             <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-success px-4">
@@ -588,8 +521,6 @@
       </div>
     </div>
   </div>
-
-  {% endfor %}
 </main>
 
 <!-- ============================================================== -->
@@ -736,132 +667,128 @@
     }
   });
 
-  {% for invoice in invoices %}
-  (function() {
-    const invoiceId = {{ invoice.id }};
-    let editServiceCounter = {{ invoice.invoice_services.all|length }};
+  // ── Shared Edit Modal (AJAX-populated) ──────────────────────────────────────
 
-    // Helper to wire up FODEC toggle on any card
-    function initFodecToggle(card) {
-      const fodecBtn = card.querySelector(".fodec-toggle");
-      const fodecHidden = card.querySelector(".fodec-hidden");
-      if (fodecBtn && fodecHidden) {
-        fodecBtn.addEventListener("click", () => {
-          const enabled = fodecHidden.value !== "1";
-          fodecHidden.value = enabled ? "1" : "0";
-          fodecBtn.classList.toggle("btn-success", enabled);
-          fodecBtn.classList.toggle("btn-outline-secondary", !enabled);
-        });
-      }
+  let editServiceCounter = 0;
+
+  function wireEditRow(row) {
+    const fodecBtn = row.querySelector(".fodec-toggle");
+    const fodecHidden = row.querySelector(".fodec-hidden");
+    const select = row.querySelector(".edit-service-select");
+    const total = row.querySelector(".line-total");
+
+    function setFodec(enabled) {
+      fodecHidden.value = enabled ? "1" : "0";
+      fodecBtn.classList.toggle("btn-success", enabled);
+      fodecBtn.classList.toggle("btn-outline-secondary", !enabled);
     }
 
-    // Add Service Row Handler
-    document.getElementById(`addEditServiceRow_${invoiceId}`)?.addEventListener("click", () => {
-      const container = document.getElementById(`editServicesContainer_${invoiceId}`);
+    fodecBtn.addEventListener("click", () => setFodec(fodecHidden.value !== "1"));
 
-      const row = document.createElement("div");
-      row.className = "card mb-2";
-      row.innerHTML = `
-        <div class="card-body p-3">
-          <div class="row g-2 align-items-end">
-            <div class="col-md-5">
-              <label class="form-label small mb-1">Service</label>
-              <select name="service_id[]" class="form-select form-select-sm edit-service-select" data-row="${editServiceCounter}">
-                <option value="">Select Service</option>
-                ${availableServices.map(s => `
-                  <option value="${s.id}" data-price="${s.price}" data-currency="${s.currency}" data-fodec="${s.apply_fodec}">
-                    ${s.title} - ${s.currency} ${s.price}
-                  </option>
-                `).join("")}
-              </select>
-            </div>
+    select.addEventListener("change", () => {
+      const opt = select.options[select.selectedIndex];
+      if (!select.value) { total.value = ""; return; }
+      total.value = parseFloat(opt.dataset.price || 0).toFixed(3);
+      setFodec(opt.dataset.fodec === "true");
+    });
 
-            <div class="col-md-2">
-              <label class="form-label small mb-1">FODEC</label>
-              <input type="hidden" name="has_fodec[]" value="0" class="fodec-hidden">
-              <button type="button" class="btn btn-sm btn-outline-secondary w-100 fodec-toggle">
-                FODEC 1%
-              </button>
-            </div>
+    row.querySelector(".remove-service").onclick = () => row.remove();
 
-            <div class="col-md-3">
-              <label class="form-label small mb-1">Total</label>
-              <input type="number" step="0.001" name="unit_price[]" class="form-control form-control-sm line-total">
-            </div>
+    return { setFodec };
+  }
 
-            <div class="col-md-1">
-              <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-service">
-                <i class="bi bi-trash"></i>
-              </button>
-            </div>
+  function addEditServiceRowWithData(container, serviceId, unitPrice, hasFodec) {
+    const row = document.createElement("div");
+    row.className = "card mb-2";
+    row.innerHTML = `
+      <div class="card-body p-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-5">
+            <label class="form-label small mb-1">Service</label>
+            <select name="service_id[]" class="form-select form-select-sm edit-service-select" data-row="${editServiceCounter}">
+              <option value="">Select Service</option>
+              ${availableServices.map(s => `
+                <option value="${s.id}" data-price="${s.price}" data-currency="${s.currency}" data-fodec="${s.apply_fodec}">
+                  ${s.title} - ${s.currency} ${s.price}
+                </option>
+              `).join("")}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small mb-1">FODEC</label>
+            <input type="hidden" name="has_fodec[]" value="0" class="fodec-hidden">
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100 fodec-toggle">
+              FODEC 1%
+            </button>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">Total</label>
+            <input type="number" step="0.001" name="unit_price[]" class="form-control form-control-sm line-total">
+          </div>
+          <div class="col-md-1">
+            <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-service">
+              <i class="bi bi-trash"></i>
+            </button>
           </div>
         </div>
-      `;
+      </div>
+    `;
+    container.appendChild(row);
+    editServiceCounter++;
 
-      container.appendChild(row);
+    const { setFodec } = wireEditRow(row);
 
-      const select = row.querySelector(".edit-service-select");
-      const total = row.querySelector(".line-total");
-      const fodecBtn = row.querySelector(".fodec-toggle");
-      const fodecHidden = row.querySelector(".fodec-hidden");
+    if (serviceId) row.querySelector(".edit-service-select").value = serviceId;
+    if (unitPrice)  row.querySelector(".line-total").value = parseFloat(unitPrice).toFixed(3);
+    setFodec(!!hasFodec);
+  }
 
-      function setFodec(enabled) {
-        fodecHidden.value = enabled ? "1" : "0";
-        fodecBtn.classList.toggle("btn-success", enabled);
-        fodecBtn.classList.toggle("btn-outline-secondary", !enabled);
-      }
+  document.getElementById("editInvoiceModal")?.addEventListener("show.bs.modal", function(event) {
+    const btn = event.relatedTarget;
+    const modalUrl = btn.getAttribute("data-modal-url");
+    const editUrl  = btn.getAttribute("data-edit-url");
 
-      fodecBtn.addEventListener("click", () => {
-        setFodec(fodecHidden.value !== "1");
+    document.getElementById("editModalSpinner").style.display = "";
+    document.getElementById("editModalContent").style.display = "none";
+    document.getElementById("editInvoiceForm").action = editUrl;
+
+    fetch(modalUrl)
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById("editClient").value   = data.client_id;
+        document.getElementById("editStatus").value   = data.status;
+        document.getElementById("editTva").value      = data.tva;
+        document.getElementById("editTimbre").value   = data.timbre_fiscal;
+        document.getElementById("editDiscount").value = data.discount;
+        document.getElementById("editNotes").value    = data.notes;
+
+        const container = document.getElementById("editServicesContainer");
+        container.innerHTML = "";
+        editServiceCounter = 0;
+        data.services.forEach(svc =>
+          addEditServiceRowWithData(container, svc.service_id, svc.unit_price, svc.has_fodec)
+        );
+
+        document.getElementById("editModalSpinner").style.display = "none";
+        document.getElementById("editModalContent").style.display = "";
+      })
+      .catch(() => {
+        document.getElementById("editModalSpinner").innerHTML =
+          '<p class="text-danger mt-3 text-center">Failed to load invoice data.</p>';
       });
+  });
 
-      function updateTotals() {
-        const opt = select.options[select.selectedIndex];
-        const price = parseFloat(opt.dataset.price || 0);
+  document.getElementById("addEditServiceRow")?.addEventListener("click", () => {
+    addEditServiceRowWithData(document.getElementById("editServicesContainer"), null, null, false);
+  });
 
-        if (!select.value) {
-          total.value = "";
-          return;
-        }
+  // ── Shared Delete Modal ───────────────────────────────────────────────────
 
-        total.value = price.toFixed(3);
-
-        // Auto-enable FODEC if the service has apply_fodec
-        const autoFodec = opt.dataset.fodec === "true";
-        setFodec(autoFodec);
-      }
-
-      select.addEventListener("change", updateTotals);
-      row.querySelector(".remove-service").onclick = () => row.remove();
-
-      editServiceCounter++;
-    });
-
-
-    // Initialize existing service rows with change listeners
-    document.querySelectorAll(`#editServicesContainer_${invoiceId} .card`).forEach(card => {
-      const select = card.querySelector(".service-select");
-      const total = card.querySelector(".line-total");
-
-      if (select && total) {
-        // Change name attribute to array format
-        select.name = "service_id[]";
-
-        function updateTotals() {
-          const opt = select.options[select.selectedIndex];
-          const price = parseFloat(opt.dataset.price || 0);
-          total.value = price.toFixed(3);
-        }
-
-        select.addEventListener("change", updateTotals);
-        card.querySelector(".remove-service")?.addEventListener("click", () => card.remove());
-
-        // Wire up FODEC toggle for preloaded rows
-        initFodecToggle(card);
-      }
-    });
-  })();
-  {% endfor %}
+  document.getElementById("deleteInvoiceModal")?.addEventListener("show.bs.modal", function(event) {
+    const btn = event.relatedTarget;
+    document.getElementById("deleteInvoiceTitle").textContent = btn.getAttribute("data-invoice-title");
+    document.getElementById("deleteInvoiceForm").action = btn.getAttribute("data-delete-url");
+  });
   document.addEventListener('DOMContentLoaded', function() {
     const paymentModal = document.getElementById('paymentModal');
 
