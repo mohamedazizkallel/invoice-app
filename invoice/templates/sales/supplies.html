@@ -22,6 +22,37 @@
   </div>
 </div>
 
+<!-- Filter Bar -->
+<div class="modern-card mb-3">
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label">Rechercher</label>
+      <input type="text" class="form-control" name="search" placeholder="Nom ou description..." value="{{ search_query }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Catégorie</label>
+      <select class="form-select" name="category">
+        <option value="">Toutes</option>
+        {% for value, label in category_choices %}
+        <option value="{{ value }}" {% if category_filter == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <div class="form-check mt-4">
+        <input class="form-check-input" type="checkbox" name="low_stock" id="lowStockCheck" value="1" {% if low_stock_filter %}checked{% endif %}>
+        <label class="form-check-label" for="lowStockCheck">Stock bas</label>
+      </div>
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+      <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+      {% if search_query or category_filter or low_stock_filter %}
+      <a href="{% url 'supplies_list' %}" class="btn btn-outline-secondary w-100"><i class="bi bi-x-lg me-1"></i>Reset</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
 {% if supplies %}
 <!-- Supplies Table -->
 <div class="modern-card">
@@ -108,11 +139,17 @@
 <div class="modern-card">
   <div class="empty-state text-center py-5">
     <i class="bi bi-box-seam fs-1 text-muted"></i>
+    {% if search_query or category_filter or low_stock_filter %}
+    <h3 class="mt-3 text-muted">Aucun résultat</h3>
+    <p class="text-muted">Aucune fourniture ne correspond à vos critères.</p>
+    <a href="{% url 'supplies_list' %}" class="btn btn-outline-secondary mt-3"><i class="bi bi-x-lg me-1"></i>Effacer les filtres</a>
+    {% else %}
     <h3 class="mt-3 text-muted">Aucune fourniture pour le moment</h3>
     <p class="text-muted">Cliquez ci-dessous pour ajouter votre première fourniture.</p>
     <button type="button" class="btn btn-modern-primary btn-modern mt-3" data-bs-toggle="modal" data-bs-target="#addSupplyModal">
       <i class="bi bi-plus-circle me-2"></i>Ajouter une fourniture
     </button>
+    {% endif %}
   </div>
 </div>
 {% endif %}

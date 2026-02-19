@@ -20,6 +20,30 @@
     </div>
   </div>
 
+<!-- Filter Bar -->
+<div class="modern-card mb-3">
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-6">
+      <label class="form-label">Rechercher</label>
+      <input type="text" class="form-control" name="search" placeholder="Nom, email ou adresse..." value="{{ search_query }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Type</label>
+      <select class="form-select" name="status">
+        <option value="">Tous</option>
+        <option value="Person Physique" {% if status_filter == "Person Physique" %}selected{% endif %}>Personne physique</option>
+        <option value="Person Moral" {% if status_filter == "Person Moral" %}selected{% endif %}>Personne morale</option>
+      </select>
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+      <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+      {% if search_query or status_filter %}
+      <a href="{% url 'suppliers' %}" class="btn btn-outline-secondary w-100"><i class="bi bi-x-lg me-1"></i>Reset</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
   {% if Suppliers %}
   <div class="modern-card">
     <div class="table-responsive">
@@ -89,6 +113,11 @@
   {% else %}
   <div class="modern-card">
     <div class="empty-state">
+    {% if search_query or status_filter %}
+    <h3>Aucun résultat</h3>
+    <p class="text-muted">Aucun fournisseur ne correspond à vos critères de recherche.</p>
+    <a href="{% url 'suppliers' %}" class="btn btn-outline-secondary mt-3"><i class="bi bi-x-lg me-1"></i>Effacer les filtres</a>
+    {% else %}
     <h3>Aucun fournisseur pour le moment</h3>
     <p class="text-muted">Cliquez ci-dessous pour ajouter votre premier fournisseur.</p>
     <img src="{% static 'assets/img/SupplierBackground.svg' %}" width="200">
@@ -96,6 +125,7 @@
     <button type="button" class="btn btn-modern-primary btn-modern" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
       <i class="bi bi-plus-circle me-2"></i>Ajouter un fournisseur
     </button>
+    {% endif %}
     </div>
   </div>
   {% endif %}

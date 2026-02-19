@@ -110,8 +110,6 @@ def dashboard(request):
 
 @login_required
 def clients(request):
-    clients_qs = Client.objects.all()
-    
     if request.method == 'POST':
         form = ClientForm(request.POST, request.FILES)
         if form.is_valid():
@@ -121,13 +119,29 @@ def clients(request):
         else:
             messages.error(request, 'Problem processing your request')
             return redirect('clients')
-    
+
+    clients_qs = Client.objects.all().order_by('clientname')
+
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        clients_qs = clients_qs.filter(
+            Q(clientname__icontains=search_query) |
+            Q(emailAddress__icontains=search_query) |
+            Q(adress__icontains=search_query)
+        )
+
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        clients_qs = clients_qs.filter(status=status_filter)
+
     form = ClientForm()
     transaction_form = ClientTransactionForm()
     return render(request, 'sales/clients.html', {
         'clients': clients_qs,
         'form': form,
         'transaction_form': transaction_form,
+        'search_query': search_query,
+        'status_filter': status_filter,
     })
 
 @login_required
@@ -219,8 +233,6 @@ def client_add_transaction(request, client_id):
 
 @login_required
 def suppliers(request):
-    suppliers_qs = Supplier.objects.all()
-    
     if request.method == 'POST':
         form = SupplierForm(request.POST, request.FILES)
         if form.is_valid():
@@ -230,10 +242,30 @@ def suppliers(request):
         else:
             messages.error(request, 'Problem processing your request')
             return redirect('suppliers')
-    
+
+    suppliers_qs = Supplier.objects.all().order_by('name')
+
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        suppliers_qs = suppliers_qs.filter(
+            Q(name__icontains=search_query) |
+            Q(emailAddress__icontains=search_query) |
+            Q(adress__icontains=search_query)
+        )
+
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        suppliers_qs = suppliers_qs.filter(status=status_filter)
+
     form = SupplierForm()
     transaction_form = SupplierTransactionForm()
-    return render(request, 'sales/supplier.html', {'Suppliers': suppliers_qs, 'form': form, 'transaction_form': transaction_form})
+    return render(request, 'sales/supplier.html', {
+        'Suppliers': suppliers_qs,
+        'form': form,
+        'transaction_form': transaction_form,
+        'search_query': search_query,
+        'status_filter': status_filter,
+    })
 
 @login_required
 def edit_supplier(request, client_id):
@@ -330,13 +362,22 @@ def supplies_list(request):
     """Display all supplies"""
     supplies = Supply.objects.all().select_related('preferred_supplier')
 
-    search_query = request.GET.get('search', '')
+    search_query = request.GET.get('search', '').strip()
     if search_query:
         supplies = supplies.filter(
             Q(name__icontains=search_query) |
-            Q(description__icontains=search_query) |
-            Q(category__icontains=search_query)
+            Q(description__icontains=search_query)
         )
+
+    category_filter = request.GET.get('category', '')
+    if category_filter:
+        supplies = supplies.filter(category=category_filter)
+
+    low_stock_filter = request.GET.get('low_stock', '')
+    if low_stock_filter:
+        # is_low_stock is a property; filter via DB expression instead
+        from django.db.models import F
+        supplies = supplies.filter(stock_quantity__lte=F('min_stock'))
 
     form = SupplyForm()
     suppliers_qs = Supplier.objects.all().order_by('name')
@@ -344,6 +385,10 @@ def supplies_list(request):
         'supplies': supplies,
         'form': form,
         'suppliers': suppliers_qs,
+        'search_query': search_query,
+        'category_filter': category_filter,
+        'low_stock_filter': low_stock_filter,
+        'category_choices': Supply.CATEGORY_CHOICES,
     })
 
 
@@ -415,8 +460,8 @@ def supply_delete(request, supply_id):
 def purchases_list(request):
     """Display all purchases"""
     purchases = Purchase.objects.all().select_related('supplier').prefetch_related(
-        'purchase_lines__supply',
-        'purchase_retenues__retenu_type',
+        'purchase_lines',     # needed for calculate_total — supply details not required
+        'purchase_retenues',  # needed for the XML download button check — retenu_type details not required
     )
 
     search_query = request.GET.get('search', '')
@@ -431,16 +476,12 @@ def purchases_list(request):
     if status_filter:
         purchases = purchases.filter(status=status_filter)
 
-    suppliers_qs = Supplier.objects.all().order_by('name')
-    supplies = Supply.objects.all().order_by('name')
-    retenu_types = Retenu.objects.filter(is_active=True).order_by('category', 'rate')
-
     context = {
         'purchases': purchases,
-        'suppliers': suppliers_qs,
-        'supplies': supplies,
+        'suppliers': Supplier.objects.all().order_by('name'),
+        'supplies': Supply.objects.all().order_by('name'),
         'form': PurchaseForm(),
-        'retenu_types': retenu_types,
+        # retenu_types omitted — only used in the AJAX purchase detail partial
     }
     return render(request, 'sales/purchases.html', context)
 
@@ -923,15 +964,28 @@ def invoices_list(request):
     sort_by = request.GET.get('sort', '-date_created')
     invoices = invoices.order_by(sort_by)
     
-    # Pagination
+    # Calculate statistics + total in one query, before paginating
+    status_counts = invoices.aggregate(
+        total=Count('id'),
+        current=Count('id', filter=Q(status='CURRENT')),
+        overdue=Count('id', filter=Q(status='OVERDUE')),
+        paid=Count('id', filter=Q(status='PAID')),
+    )
+    total_invoices = status_counts['total']
+    current_invoices = status_counts['current']
+    overdue_invoices = status_counts['overdue']
+    paid_invoices = status_counts['paid']
+
+    # Paginate — inject count so Paginator skips its own COUNT query
     paginator = Paginator(invoices, 20)
+    paginator._count = total_invoices
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
     # Get all clients and services for dropdowns
     clients = Client.objects.all().order_by('clientname')
     services = Service.objects.all().order_by('title')
-    
+
     # Get Settings for form defaults (create if doesn't exist)
     settings = Settings.objects.first()
     if not settings:
@@ -940,19 +994,7 @@ def invoices_list(request):
             tva=Decimal('19.00'),
             dt=Decimal('1.000')
         )
-
-    retenu_types = Retenu.objects.filter(is_active=True).order_by('category', 'rate')
-
-    # Calculate statistics — one aggregate query instead of four
-    status_counts = invoices.aggregate(
-        current=Count('id', filter=Q(status='CURRENT')),
-        overdue=Count('id', filter=Q(status='OVERDUE')),
-        paid=Count('id', filter=Q(status='PAID')),
-    )
-    total_invoices = page_obj.paginator.count
-    current_invoices = status_counts['current']
-    overdue_invoices = status_counts['overdue']
-    paid_invoices = status_counts['paid']
+    # retenu_types omitted — not referenced in invoice_service.html
 
     context = {
         'invoices': page_obj,
@@ -966,7 +1008,6 @@ def invoices_list(request):
         'overdue_invoices': overdue_invoices,
         'paid_invoices': paid_invoices,
         'settings': settings,
-        'retenu_types': retenu_types,
         'current_year': timezone.now().year,
     }
     
