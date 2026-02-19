@@ -44,7 +44,16 @@ if DEBUG:
     MIDDLEWARE = ['debug_toolbar.middleware.DebugToolbarMiddleware'] + MIDDLEWARE
     INTERNAL_IPS = ['127.0.0.1', '::1']
     DEBUG_TOOLBAR_CONFIG = {
-        'SHOW_TOOLBAR_CALLBACK': lambda request: request.META.get('HTTP_X_REQUESTED_WITH') != 'XMLHttpRequest',
+        # Allow /__debug__/ requests through even if XHR (DjDT's own render_panel uses XHR
+        # and its @require_show_toolbar decorator checks this callback — if we block all XHR
+        # the toolbar can never load its own panel data).
+        # The middleware's is_toolbar_request() guard still prevents /__debug__/ from being
+        # stored as debug entries, so it won't pollute the store.
+        'SHOW_TOOLBAR_CALLBACK': lambda request: (
+            request.META.get('HTTP_X_REQUESTED_WITH') != 'XMLHttpRequest'
+            or request.path.startswith('/__debug__/')
+        ),
+        'RESULTS_CACHE_SIZE': 100,  # default is 25; bumped so normal navigation doesn't evict entries
     }
 
 ROOT_URLCONF = 'invoice.urls'
