@@ -542,7 +542,19 @@ class Settings(models.Model):
     def get_absolute_url(self):
         return reversed('settings-detail', kwargs={'slug': self.slug})
 
+    CACHE_KEY = 'company_settings'
+
+    @classmethod
+    def get_cached(cls):
+        from django.core.cache import cache
+        obj = cache.get(cls.CACHE_KEY)
+        if obj is None:
+            obj = cls.objects.first()
+            cache.set(cls.CACHE_KEY, obj, timeout=None)  # no expiry — invalidated on save
+        return obj
+
     def save(self, *args, **kwargs):
+        from django.core.cache import cache
         now = timezone.localtime(timezone.now())
         if not self.date_created:
             self.date_created = now
@@ -553,6 +565,7 @@ class Settings(models.Model):
             self.slug = f"{base_slug}-{self.uniqueId}"
         self.last_updated = now
         super().save(*args, **kwargs)
+        cache.delete(self.CACHE_KEY)  # invalidate so next read fetches fresh data
 
 class Service(models.Model):
     CURRENCY = [

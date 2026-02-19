@@ -837,7 +837,7 @@ def purchase_download_xml(request, purchase_id):
         messages.error(request, 'Aucune retenue à exporter.')
         return redirect('purchases_list')
 
-    settings_obj = Settings.objects.first()
+    settings_obj = Settings.get_cached()
     if not settings_obj or not settings_obj.mf:
         messages.error(request, "Veuillez configurer les paramètres de l'entreprise (MF requis).")
         return redirect('purchases_list')
@@ -987,7 +987,7 @@ def invoices_list(request):
     services = Service.objects.all().order_by('title')
 
     # Get Settings for form defaults (create if doesn't exist)
-    settings = Settings.objects.first()
+    settings = Settings.get_cached()
     if not settings:
         settings = Settings.objects.create(
             clientname="My Company",
@@ -1039,7 +1039,7 @@ def invoice_create(request):
             status = request.POST.get('status', 'CURRENT')
             notes = request.POST.get('notes', '')
             # Get Settings for defaults
-            settings = Settings.objects.first()
+            settings = Settings.get_cached()
             
             # TVA and Timbre Fiscal - use form values or fall back to Settings
             tva_input = request.POST.get('tva', '').strip()
@@ -1294,7 +1294,7 @@ def invoice_detail(request, invoice_id=None, slug=None):
     all_services = Service.objects.all().order_by('title')
     # Get settings
     try:
-        p_settings = Settings.objects.first()
+        p_settings = Settings.get_cached()
     except Exception as e:
         p_settings = None
     
@@ -1789,7 +1789,7 @@ def delete_service(request, service_id):
 @login_required
 def settings_view(request):
     """View and edit company settings"""
-    settings = Settings.objects.first()
+    settings = Settings.get_cached()
     
     if request.method == 'POST':
         if settings:
