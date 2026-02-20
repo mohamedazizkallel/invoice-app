@@ -518,7 +518,7 @@ class Invoice(models.Model):
 
 class Settings(models.Model):
     clientname = models.CharField(null=True, blank=True, max_length=200)
-    clientLogo = models.ImageField(default='default_logo.jpg', upload_to='company_logos')
+    clientLogo = models.TextField(null=True, blank=True, help_text="Base64-encoded data URL of the company logo")
     uniqueId = models.CharField(null=True, blank=True, max_length=100)
     adress = models.CharField(null=True, blank=True, max_length=200)
     status = models.CharField(null=True, blank=True, choices=category,max_length=200)

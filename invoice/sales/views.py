@@ -1830,29 +1830,34 @@ def delete_service(request, service_id):
 @login_required
 def settings_view(request):
     """View and edit company settings"""
+    import base64 as _b64
     settings = Settings.get_cached()
-    
+
     if request.method == 'POST':
-        if settings:
-            form = SettingsForm(request.POST, request.FILES, instance=settings)
-        else:
-            form = SettingsForm(request.POST, request.FILES)
-        
+        form = SettingsForm(request.POST, request.FILES, instance=settings)
+
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Settings updated successfully!')
+            obj = form.save(commit=False)
+
+            logo_file = request.FILES.get('logo_upload')
+            if logo_file:
+                if logo_file.size > 2 * 1024 * 1024:
+                    messages.error(request, 'Le logo ne doit pas dépasser 2 Mo.')
+                    return render(request, 'sales/settings.html', {'form': form, 'settings': settings})
+                raw = logo_file.read()
+                encoded = _b64.b64encode(raw).decode('utf-8')
+                obj.clientLogo = f'data:{logo_file.content_type};base64,{encoded}'
+            elif request.POST.get('clear_logo'):
+                obj.clientLogo = None
+            elif settings:
+                obj.clientLogo = settings.clientLogo  # keep existing
+
+            obj.save()
+            messages.success(request, 'Paramètres mis à jour.')
             return redirect('settings_view')
         else:
-            messages.error(request, 'Please correct the errors below.')
+            messages.error(request, 'Veuillez corriger les erreurs ci-dessous.')
     else:
-        if settings:
-            form = SettingsForm(instance=settings)
-        else:
-            form = SettingsForm()
-    
-    context = {
-        'form': form,
-        'settings': settings,
-    }
-    
-    return render(request, 'sales/settings.html', context)
+        form = SettingsForm(instance=settings)
+
+    return render(request, 'sales/settings.html', {'form': form, 'settings': settings})

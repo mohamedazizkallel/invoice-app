@@ -29,28 +29,39 @@ class UserLoginForm(forms.ModelForm):
         
 class SettingsForm(forms.ModelForm):
     """Form for company settings"""
+
+    # Handled separately in the view — converted to base64 before saving
+    logo_upload = forms.ImageField(
+        required=False,
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/*',
+            'id': 'logoUploadInput',
+        }),
+        label='Logo de l\'entreprise',
+        help_text='PNG, JPG ou SVG. Max 2 Mo.',
+    )
+
     class Meta:
         model = Settings
-        fields = ['clientname', 'clientLogo', 'adress', 'mf','tva','dt','status','rib']
+        fields = ['clientname', 'adress', 'mf', 'tva', 'dt', 'status', 'rib']
         labels = {
-            'clientname': 'Company Name',
-            'clientLogo': 'Company Logo',
-            'adress': 'Company Address',
-            'mf': 'Tax Registration Number (MF)',
+            'clientname': 'Nom de l\'entreprise',
+            'adress': 'Adresse',
+            'mf': 'Matricule fiscal (MF)',
             'tva': 'Taxe sur la Valeur Ajoutée (TVA)',
             'dt': 'Droit de Timbre (DT)',
             'rib': 'R.I.B',
             'status': "Classification d'individu ou société",
         }
         widgets = {
-            'clientname': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter company name'}),
-            'adress': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter company address'}),
+            'clientname': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nom de l\'entreprise'}),
+            'adress': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Adresse de l\'entreprise'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
-            'mf': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter MF number'}),
-            'tva': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter TVA '}),
-            'rib': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter RIB '}),
-            'dt': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter DT'}),
-            'clientLogo': forms.FileInput(attrs={'class': 'form-control'}),
+            'mf': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Numéro MF'}),
+            'tva': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'TVA (%)'}),
+            'rib': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'RIB'}),
+            'dt': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'DT (D)'}),
         }
 
 
