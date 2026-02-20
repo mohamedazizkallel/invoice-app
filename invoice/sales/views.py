@@ -913,7 +913,7 @@ def purchase_download_xml(request, purchase_id):
     id_tax = etree.SubElement(ben, "IdTaxpayer")
     mf_el = etree.SubElement(id_tax, "MatriculeFiscal")
     etree.SubElement(mf_el, "TypeIdentifiant").text = "1"
-    etree.SubElement(mf_el, "Identifiant").text = supplier.mf
+    etree.SubElement(mf_el, "Identifiant").text = supplier.mf[:8]
     etree.SubElement(mf_el, "CategorieContribuable").text = supplier.status or "PM"
     etree.SubElement(ben, "Resident").text = "1"
     etree.SubElement(ben, "NometprenonOuRaisonsociale").text = supplier.name or ""
@@ -968,7 +968,7 @@ def purchase_download_xml(request, purchase_id):
 
     mois = purchase.date_created.month
     trimestre = (mois - 1) // 3 + 1
-    filename = f'{supplier.mf}-{purchase.date_created.year}-{trimestre}-0.xml'
+    filename = f'{supplier.mf[:8]}-{purchase.date_created.year}-{trimestre}-0.xml'
     response = HttpResponse(buffer.read(), content_type='application/xml')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
