@@ -1861,3 +1861,20 @@ def settings_view(request):
         form = SettingsForm(instance=settings)
 
     return render(request, 'sales/settings.html', {'form': form, 'settings': settings})
+
+
+def company_logo(request):
+    """Serve the company logo stored as a base64 data URL."""
+    import base64 as _b64, re
+    from django.http import Http404
+    obj = Settings.get_cached()
+    if not obj or not obj.clientLogo:
+        raise Http404
+    match = re.match(r'data:([^;]+);base64,(.+)', obj.clientLogo, re.DOTALL)
+    if not match:
+        raise Http404
+    content_type = match.group(1)
+    image_data = _b64.b64decode(match.group(2))
+    response = HttpResponse(image_data, content_type=content_type)
+    response['Cache-Control'] = 'public, max-age=86400'
+    return response

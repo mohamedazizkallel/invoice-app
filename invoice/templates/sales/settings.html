@@ -149,7 +149,7 @@
             <!-- Preview box -->
             <div id="logoPreviewBox">
               {% if settings and settings.clientLogo %}
-                <img id="logoPreviewImg" src="{{ settings.clientLogo }}" alt="Logo">
+                <img id="logoPreviewImg" src="{% url 'company_logo' %}" alt="Logo">
               {% else %}
                 <span class="placeholder-text" id="logoPlaceholder">Aucun logo</span>
                 <img id="logoPreviewImg" src="" alt="Logo" style="display:none;">

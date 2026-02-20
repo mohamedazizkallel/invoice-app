@@ -354,7 +354,7 @@
 
                 <div class="invoice-logo-brand">
                     {% if p_settings and p_settings.clientLogo %}
-                        <img src="{{ p_settings.clientLogo }}" alt="Company Logo">
+                        <img src="{% url 'company_logo' %}" alt="Company Logo">
                     {% else %}
                         <img src="{% static 'assets/img/logo.png' %}" alt="Company Logo">
                     {% endif %}

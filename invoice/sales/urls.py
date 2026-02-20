@@ -12,12 +12,14 @@ from .views import (dashboard, delete_supplier, edit_supplier,
                     purchases_list, purchase_create, purchase_detail, purchase_edit,
                     purchase_delete, purchase_confirm, process_purchase_payment,
                     purchase_retenu_create, purchase_retenu_delete,
-                    purchase_download_xml, purchase_detail_modal)
+                    purchase_download_xml, purchase_detail_modal,
+                    company_logo)
 
 urlpatterns = [
     path('', login_view,name='login'),
     path('logout', logout_view,name='logout'),
     path('dashboard/', dashboard,name='dashboard'),
+    path('logo/', company_logo, name='company_logo'),
     path('settings/', settings_view,name='settings_view'),
     path('clients/', clients,name='clients'),
     path('clients/<int:client_id>/edit/', edit_client,name='edit_client'),
