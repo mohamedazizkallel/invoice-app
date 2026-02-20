@@ -8,6 +8,7 @@
     <meta name="author" content="Swift Technology">
     <title>{% block title %}Facture Swift{% endblock %}</title>
 
+    <link rel="shortcut icon" href="{% static 'assets/img/logo1.png' %}">
     <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
     <link href="{% static 'assets/css/dashboard.css' %}" rel="stylesheet">
     <link href="{% static 'assets/css/bootstrap-icons.css' %}" rel="stylesheet">
@@ -449,6 +450,36 @@
       .badge-info { background: #d1ecf1; color: #0c5460; }
       .badge-secondary { background: #e2e3e5; color: #383d41; }
 
+      /* Fixed Footer */
+      .app-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 42px;
+        background: white;
+        border-top: 1px solid #e9ecef;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 1.5rem;
+        z-index: 1000;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.04);
+      }
+
+      /* Offset footer past the sidebar on md+ screens */
+      @media (min-width: 768px) {
+        .app-footer { left: 25%; }           /* col-md-3 */
+      }
+      @media (min-width: 992px) {
+        .app-footer { left: 16.6667%; }      /* col-lg-2 */
+      }
+
+      /* Push page content above the footer */
+      .main-content {
+        padding-bottom: 58px;
+      }
+
       /* Empty State */
       .empty-state {
         text-align: center;
@@ -595,6 +626,19 @@
       </div>
     </div>
   </div>
+
+  <!-- Fixed footer -->
+  <footer class="app-footer">
+    <span class="text-muted small">Made with ❤️ <strong>Swift Technology</strong></span>
+    <span class="d-flex gap-3 text-muted small">
+      <a href="tel:+21625056604" class="text-muted text-decoration-none">
+        <i class="bi bi-telephone me-1"></i>+216 25 056 604
+      </a>
+      <a href="mailto:ak@swifttechcorp.com" class="text-muted text-decoration-none">
+        <i class="bi bi-envelope me-1"></i>ak@swifttechcorp.com
+      </a>
+    </span>
+  </footer>
 
 
   <!-- Toast Notifications -->
