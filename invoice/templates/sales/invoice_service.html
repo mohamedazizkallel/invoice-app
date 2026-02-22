@@ -6,7 +6,7 @@
 {% load static %}
 {% load crispy_forms_tags %}
 
-{% block title %}Factures{% endblock %}
+{% block title %}Ventes{% endblock %}
 
 {% block css %}
 <style>
@@ -76,12 +76,12 @@
 <!-- Page Header -->
 <div class="page-header d-flex justify-content-between align-items-center">
   <div>
-    <h1>Factures</h1>
-    <p>Créer et gérer vos factures</p>
+    <h1>Ventes</h1>
+    <p>Créer et gérer vos factures ventes</p>
   </div>
   <div class="page-header-actions">
     <button type="button" class="btn btn-modern-primary btn-modern" data-bs-toggle="modal" data-bs-target="#createInvoiceModal">
-      <i class="bi bi-plus-circle me-2"></i>Créer une facture
+      <i class="bi bi-plus-circle me-2"></i>Créer une facture vente
     </button>
   </div>
 </div>
@@ -279,60 +279,55 @@
               </div>
               {% endif %}
 
-              <div class="row g-3">
+              <div class="row g-2">
                 <div class="col-md-6">
-                  <label class="form-label fw-semibold">Client</label>
-                  <select class="form-select ts-select" name="client" required>
+                  <label class="form-label fw-semibold mb-1">Client</label>
+                  <select class="form-select form-select-sm ts-select" name="client" required>
                       <option value="">Sélectionner un client</option>
                       {% for client in clients %}
                       <option value="{{ client.id }}">{{ client.clientname }}</option>
                       {% endfor %}
                   </select>
-                  </div>
+                </div>
 
-                  <div class="col-md-3">
-                  <label class="form-label fw-semibold">Statut</label>
-                  <select class="form-select" name="status">
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold mb-1">Statut</label>
+                  <select class="form-select form-select-sm" name="status">
                     <option value="CURRENT">Actuel</option>
                     <option value="OVERDUE">En retard</option>
                     <option value="PAID">Payé</option>
                   </select>
-                  </div>
+                </div>
 
-                  <div class="col-md-3">
-                    <label class="form-label fw-semibold">TVA (%)</label>
-                    <input type="number" step="0.01" class="form-control" name="tva" value="{{ settings.tva|default:19.00 }}" placeholder="{{ settings.tva|default:19.00 }}">
-                    <small class="text-muted">Par défaut : {{ settings.tva|default:19.00 }}%</small>
-                  </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold mb-1">TVA (%)</label>
+                  <input type="number" step="0.01" class="form-control form-control-sm" name="tva" value="{{ settings.tva|default:19.00 }}" placeholder="{{ settings.tva|default:19.00 }}">
+                </div>
 
-                  <div class="col-md-3">
-                    <label class="form-label fw-semibold">Timbre Fiscal </label>
-                    <input type="number" step="0.001" class="form-control" name="timbre_fiscal" value="{{ settings.dt|default:1.000 }}" placeholder="{{ settings.dt|default:1.000 }}">
-                    <small class="text-muted">Par défaut depuis les paramètres : {{ settings.dt|default:1.000 }}D</small>
-                  </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold mb-1">Timbre Fiscal</label>
+                  <input type="number" step="0.001" class="form-control form-control-sm" name="timbre_fiscal" value="{{ settings.dt|default:1.000 }}" placeholder="{{ settings.dt|default:1.000 }}">
+                </div>
 
-                  <div class="col-md-3">
-                    <label class="form-label fw-semibold">Réduction (%)</label>
-                    <input type="number" step="0.01" class="form-control" name="discount" value="0.00">
-                  </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold mb-1">Réduction (%)</label>
+                  <input type="number" step="0.01" class="form-control form-control-sm" name="discount" value="0.00">
+                </div>
 
-                  <div class="col-12">
-                    <label class="form-label fw-semibold">Remarques</label>
-                    <textarea class="form-control" name="notes" rows="2"></textarea>
-                  </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold mb-1">Remarques</label>
+                  <textarea class="form-control form-control-sm" name="notes" rows="1"></textarea>
+                </div>
 
-                  <div class="col-12">
-                    <hr class="my-3">
-                    <div class="d-flex justify-content-between mb-3">
-                      <h6 class="fw-semibold"><i class="bi bi-briefcase me-2"></i> Ajouter des services</h6>
-                      <button type="button" class="btn btn-sm btn-outline-primary" id="addServiceRow">
-                        <i class="bi bi-plus-circle me-1"></i> Ajouter un service
-                      </button>
-                    </div>
-
-                    <!-- This container was missing -->
-                    <div id="servicesContainer"></div>
+                <div class="col-12">
+                  <hr class="my-1">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-semibold mb-0"><i class="bi bi-briefcase me-2"></i>Ajouter des services</h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addServiceRow">
+                      <i class="bi bi-plus-circle me-1"></i>Ajouter un service
+                    </button>
                   </div>
+                  <div id="servicesContainer"></div>
                 </div>
               </div>
 

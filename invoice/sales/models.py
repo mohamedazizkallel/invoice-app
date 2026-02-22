@@ -482,30 +482,28 @@ class Invoice(models.Model):
         if not self.date_created:
             self.date_created = now
         
-        # Generate sequential invoice number: NUMBER-YEAR (resets annually)
+        # Generate sequential invoice number: FV-NUMBER-YEAR (resets annually)
         if not self.uniqueId:
-            year = str(now.year)  # 2025
-            
-            # Find the highest invoice number for this year
-            # Example: "001-2025", "002-2025"
-            suffix = f"-{year}"
-            
-            # Get all invoices from this year
+            year = str(now.year)
+
+            # Get all invoices with the FV- prefix for this year
             existing_invoices = Invoice.objects.filter(
-                uniqueId__endswith=suffix
-            ).order_by('-uniqueId')
-            
+                uniqueId__startswith='FV-',
+                uniqueId__endswith=f'-{year}'
+            ).order_by('-date_created')
+
             if existing_invoices.exists():
-                # Extract the number from the last invoice
                 last_id = existing_invoices.first().uniqueId
-                last_number = int(last_id.split('-')[0])
+                try:
+                    last_number = int(last_id.split('-')[1])
+                except (ValueError, IndexError):
+                    last_number = 0
                 next_number = last_number + 1
             else:
-                # First invoice of this year
                 next_number = 1
-            
-            # Format: 001-2025, 002-2025, etc.
-            self.uniqueId = f"{str(next_number).zfill(3)}-{year}"
+
+            # Format: FV-001-2026, FV-002-2026, etc.
+            self.uniqueId = f"FV-{str(next_number).zfill(3)}-{year}"
 
         if not self.slug:
             base_slug = slugify(self.title or "invoice")
