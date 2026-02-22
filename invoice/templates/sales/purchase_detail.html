@@ -105,7 +105,7 @@
         <div class="row g-3">
           <div class="col-md-12">
             <label class="form-label">Fournisseur</label>
-            <select class="form-select" name="supplier">
+            <select class="form-select ts-select" name="supplier">
               {% for supplier in suppliers %}
               <option value="{{ supplier.id }}" {% if purchase.supplier_id == supplier.id %}selected{% endif %}>{{ supplier.name }}</option>
               {% endfor %}

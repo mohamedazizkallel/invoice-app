@@ -14,7 +14,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.http import JsonResponse
 from .forms import ClientForm, InvoiceForm, SupplierForm, UserLoginForm, SettingsForm, ServiceForm, ClientTransactionForm, SupplierTransactionForm, SupplyForm, PurchaseForm
-from .models import Client,Invoice,Settings,Service,InvoiceService,Supplier,ClientTransaction, SupplierTransaction, Supply, Purchase, PurchaseLine, InvoiceSupplyUsage
+from .models import Client,Invoice,Settings,Service,InvoiceService,Supplier,ClientTransaction, SupplierTransaction, Supply, Purchase, PurchaseLine, InvoiceSupplyUsage, CreditNote
 from payment.models import Retenu, PurchaseRetenu
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,logout,login as auth_login
@@ -183,7 +183,7 @@ def delete_client(request, pk):
 def client_transactions(request, client_id):
     """AJAX endpoint: return client transactions and balance as JSON"""
     client = get_object_or_404(Client, id=client_id)
-    transactions = client.transactions.all().order_by('date_created')
+    transactions = client.transactions.select_related('invoice', 'credit_note').order_by('date_created')
 
     running_balance = Decimal('0')
     transaction_list = []
@@ -203,6 +203,8 @@ def client_transactions(request, client_id):
             'running_balance': float(running_balance),
             'invoice_id': txn.invoice_id,
             'invoice_ref': txn.invoice.uniqueId if txn.invoice else None,
+            'credit_note_id': txn.credit_note_id,
+            'credit_note_ref': txn.credit_note.uniqueId if txn.credit_note else None,
         })
 
     return JsonResponse({
@@ -1878,3 +1880,246 @@ def company_logo(request):
     response = HttpResponse(image_data, content_type=content_type)
     response['Cache-Control'] = 'public, max-age=86400'
     return response
+
+
+# ---------------------------------------------------------------------------
+# Avoirs (Factures d'Avoir / Credit Notes)
+# ---------------------------------------------------------------------------
+
+@login_required
+def avoirs_list(request):
+    """List all credit notes with pagination."""
+    avoirs = CreditNote.objects.all().select_related('client', 'invoice').order_by('-date_created')
+    clients = Client.objects.all().order_by('clientname')
+    settings_obj = Settings.get_cached()
+
+    paginator = Paginator(avoirs, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    total_ttc = sum(a.calculate_total() for a in avoirs)
+
+    return render(request, 'sales/avoirs.html', {
+        'avoirs': page_obj,
+        'clients': clients,
+        'total_ttc': total_ttc,
+        'count': avoirs.count(),
+        'settings_obj': settings_obj,
+    })
+
+
+@login_required
+def avoir_create(request):
+    """Create a new credit note and post a CREDIT ledger entry."""
+    if request.method != 'POST':
+        return redirect('avoirs_list')
+
+    try:
+        with transaction.atomic():
+            client_id = request.POST.get('client')
+            if not client_id:
+                messages.error(request, 'Client requis.')
+                return redirect('avoirs_list')
+
+            client = get_object_or_404(Client, id=client_id)
+
+            description = request.POST.get('description', '').strip()
+            if not description:
+                messages.error(request, 'La description est requise.')
+                return redirect('avoirs_list')
+
+            amount_ht_raw = request.POST.get('amount_ht', '').strip()
+            if not amount_ht_raw:
+                messages.error(request, 'Le montant HT est requis.')
+                return redirect('avoirs_list')
+            amount_ht = Decimal(amount_ht_raw)
+
+            # TVA: use submitted value or fall back to Settings
+            tva_raw = request.POST.get('tva', '').strip()
+            if tva_raw:
+                tva = Decimal(tva_raw)
+            else:
+                s = Settings.get_cached()
+                tva = Decimal(str(s.tva)) if s and s.tva else Decimal('19.00')
+
+            # Optional linked invoice
+            invoice_id = request.POST.get('invoice_id', '').strip()
+            linked_invoice = None
+            if invoice_id:
+                try:
+                    linked_invoice = Invoice.objects.get(id=invoice_id, client=client)
+                except Invoice.DoesNotExist:
+                    pass
+
+            credit_note = CreditNote.objects.create(
+                client=client,
+                invoice=linked_invoice,
+                description=description,
+                amount_ht=amount_ht,
+                tva=tva,
+            )
+
+            ClientTransaction.objects.create(
+                client=client,
+                credit_note=credit_note,
+                invoice=credit_note.invoice,
+                transaction_type='CREDIT',
+                source='AVOIR_CREATED',
+                amount=credit_note.calculate_total(),
+                description=f'Avoir {credit_note.uniqueId}',
+            )
+
+            messages.success(request, f'Avoir {credit_note.uniqueId} créé avec succès.')
+            return redirect('avoir_detail', credit_note.id)
+
+    except (ValueError, TypeError) as e:
+        messages.error(request, str(e))
+    except Exception as e:
+        messages.error(request, f'Erreur lors de la création: {str(e)}')
+
+    return redirect('avoirs_list')
+
+
+@login_required
+def avoir_edit(request, avoir_id):
+    """Edit a credit note and update its CREDIT ledger entry."""
+    credit_note = get_object_or_404(CreditNote, id=avoir_id)
+    next_page = request.POST.get('next', 'detail')
+
+    if request.method != 'POST':
+        return redirect('avoir_detail', avoir_id)
+
+    try:
+        with transaction.atomic():
+            description = request.POST.get('description', '').strip()
+            if not description:
+                raise ValueError('La description est requise.')
+
+            amount_ht_raw = request.POST.get('amount_ht', '').strip()
+            if not amount_ht_raw:
+                raise ValueError('Le montant HT est requis.')
+            credit_note.amount_ht = Decimal(amount_ht_raw)
+
+            tva_raw = request.POST.get('tva', '').strip()
+            if tva_raw:
+                credit_note.tva = Decimal(tva_raw)
+
+            credit_note.description = description
+
+            # Optional linked invoice (must belong to same client)
+            invoice_id = request.POST.get('invoice_id', '').strip()
+            if invoice_id:
+                try:
+                    credit_note.invoice = Invoice.objects.get(id=invoice_id, client=credit_note.client)
+                except Invoice.DoesNotExist:
+                    credit_note.invoice = None
+            else:
+                credit_note.invoice = None
+
+            credit_note.save()
+
+            # Update the matching CREDIT ledger entry
+            ledger_entry = ClientTransaction.objects.filter(
+                credit_note=credit_note,
+                source='AVOIR_CREATED',
+                transaction_type='CREDIT',
+            ).first()
+
+            new_total = credit_note.calculate_total()
+            if ledger_entry:
+                ledger_entry.amount = new_total
+                ledger_entry.invoice = credit_note.invoice
+                ledger_entry.save()
+            else:
+                ClientTransaction.objects.create(
+                    client=credit_note.client,
+                    credit_note=credit_note,
+                    invoice=credit_note.invoice,
+                    transaction_type='CREDIT',
+                    source='AVOIR_CREATED',
+                    amount=new_total,
+                    description=f'Avoir {credit_note.uniqueId}',
+                )
+
+            messages.success(request, f'Avoir {credit_note.uniqueId} modifié avec succès.')
+
+    except (ValueError, TypeError) as e:
+        messages.error(request, str(e))
+    except Exception as e:
+        messages.error(request, f'Erreur lors de la modification: {str(e)}')
+
+    if next_page == 'detail':
+        return redirect('avoir_detail', avoir_id)
+    return redirect('avoirs_list')
+
+
+@login_required
+def avoir_delete(request, avoir_id):
+    """Delete a credit note and post a DEBIT reversal to the ledger."""
+    credit_note = get_object_or_404(CreditNote, id=avoir_id)
+
+    if request.method != 'POST':
+        return redirect('avoirs_list')
+
+    try:
+        with transaction.atomic():
+            ClientTransaction.objects.create(
+                client=credit_note.client,
+                credit_note=credit_note,
+                invoice=credit_note.invoice,
+                transaction_type='DEBIT',
+                source='AVOIR_DELETED',
+                amount=credit_note.calculate_total(),
+                description=f'Annulation avoir {credit_note.uniqueId}',
+            )
+            unique_id = credit_note.uniqueId
+            credit_note.delete()
+            messages.success(request, f'Avoir {unique_id} supprimé.')
+    except Exception as e:
+        messages.error(request, f'Erreur lors de la suppression: {str(e)}')
+
+    return redirect('avoirs_list')
+
+
+@login_required
+def avoir_detail(request, avoir_id):
+    """Display a printable credit note detail page."""
+    credit_note = get_object_or_404(CreditNote, id=avoir_id)
+    settings_obj = Settings.get_cached()
+    return render(request, 'sales/avoir_detail.html', {
+        'avoir': credit_note,
+        'settings_obj': settings_obj,
+    })
+
+
+@login_required
+def avoir_modal_data(request, avoir_id):
+    """Return JSON data for populating the edit modal."""
+    credit_note = get_object_or_404(CreditNote, id=avoir_id)
+    return JsonResponse({
+        'id': credit_note.id,
+        'client_id': credit_note.client_id,
+        'invoice_id': credit_note.invoice_id or '',
+        'description': credit_note.description,
+        'amount_ht': str(credit_note.amount_ht),
+        'tva': str(credit_note.tva),
+        'uniqueId': credit_note.uniqueId,
+    })
+
+
+@login_required
+def client_all_invoices(request, client_id):
+    """Return JSON list of all invoices for a client (for the avoir link dropdown)."""
+    client = get_object_or_404(Client, id=client_id)
+    invoices = Invoice.objects.filter(client=client).order_by('-date_created').values(
+        'id', 'uniqueId', 'date_created'
+    )
+    data = [
+        {
+            'id': inv['id'],
+            'uniqueId': inv['uniqueId'],
+            'date': inv['date_created'].strftime('%d/%m/%Y') if inv['date_created'] else '',
+        }
+        for inv in invoices
+    ]
+    return JsonResponse(data, safe=False)

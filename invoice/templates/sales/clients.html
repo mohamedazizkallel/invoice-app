@@ -476,14 +476,17 @@ function openLedgerModal(clientId) {
         data.transactions.forEach(txn => {
           const balClass = txn.running_balance > 0 ? 'text-danger' : 'text-success';
           const invoiceLink = txn.invoice_id
-            ? ` <a href="/invoices/${txn.invoice_id}/" class="text-decoration-none">(${txn.invoice_ref})</a>`
+            ? ` <a href="/invoices/${txn.invoice_id}/" class="text-decoration-none badge bg-light text-primary border">#${txn.invoice_ref}</a>`
+            : '';
+          const avoirLink = txn.credit_note_id
+            ? ` <a href="/avoirs/${txn.credit_note_id}/" class="text-decoration-none badge bg-light text-warning border">${txn.credit_note_ref}</a>`
             : '';
           const debitCell  = txn.type === 'DEBIT'  ? `<span class="text-danger fw-semibold">${txn.amount.toFixed(3)}</span>` : '';
           const creditCell = txn.type === 'CREDIT' ? `<span class="text-success fw-semibold">${txn.amount.toFixed(3)}</span>` : '';
           html += `<tr>
             <td><small>${txn.date}</small></td>
             <td><small class="text-muted">${txn.source}</small></td>
-            <td><small>${txn.description}${invoiceLink}</small></td>
+            <td><small>${txn.description}${invoiceLink}${avoirLink}</small></td>
             <td class="text-end">${debitCell}</td>
             <td class="text-end">${creditCell}</td>
             <td class="text-end ${balClass} fw-semibold">${txn.running_balance.toFixed(3)}</td>

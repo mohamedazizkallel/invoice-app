@@ -282,7 +282,7 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label fw-semibold">Client</label>
-                  <select class="form-select" name="client" required>
+                  <select class="form-select ts-select" name="client" required>
                       <option value="">Sélectionner un client</option>
                       {% for client in clients %}
                       <option value="{{ client.id }}">{{ client.clientname }}</option>
@@ -373,7 +373,7 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label fw-semibold">Client</label>
-                  <select class="form-select" name="client" id="editClient" required>
+                  <select class="form-select ts-select" name="client" id="editClient" required>
                     {% for client in clients %}
                     <option value="{{ client.id }}">{{ client.clientname }}</option>
                     {% endfor %}

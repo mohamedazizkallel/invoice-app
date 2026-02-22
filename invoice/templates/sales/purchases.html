@@ -136,7 +136,7 @@
           <div class="row g-3 mb-4">
             <div class="col-md-6">
               <label class="form-label fw-semibold">Fournisseur</label>
-              <select class="form-select" name="supplier" required>
+              <select class="form-select ts-select" name="supplier" required>
                 <option value="">-- Sélectionner --</option>
                 {% for supplier in suppliers %}
                 <option value="{{ supplier.id }}">{{ supplier.name }}</option>

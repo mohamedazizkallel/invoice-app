@@ -68,11 +68,14 @@ class ClientTransaction(models.Model):
         ('INVOICE_CREATED', 'Facture créée'),
         ('INVOICE_PAID', 'Facture payée'),
         ('INVOICE_DELETED', 'Facture annulée'),
+        ('AVOIR_CREATED', 'Avoir créé'),
+        ('AVOIR_DELETED', 'Avoir annulé'),
         ('MANUAL', 'Saisie manuelle'),
     ]
 
     client = models.ForeignKey('Client', on_delete=models.CASCADE, related_name='transactions')
     invoice = models.ForeignKey('Invoice', on_delete=models.SET_NULL, null=True, blank=True, related_name='ledger_entries')
+    credit_note = models.ForeignKey('CreditNote', on_delete=models.SET_NULL, null=True, blank=True, related_name='ledger_entries')
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
     source = models.CharField(max_length=20, choices=SOURCE_TYPES, default='MANUAL')
     amount = models.DecimalField(max_digits=15, decimal_places=3)
@@ -514,6 +517,49 @@ class Invoice(models.Model):
         # Restore inventory before deleting invoice
         super().delete(*args, **kwargs)
 
+
+
+class CreditNote(models.Model):
+    client = models.ForeignKey('Client', on_delete=models.CASCADE, related_name='credit_notes')
+    invoice = models.ForeignKey('Invoice', on_delete=models.SET_NULL, null=True, blank=True, related_name='credit_notes')
+    uniqueId = models.CharField(max_length=100, blank=True, null=True)
+    slug = models.SlugField(max_length=500, unique=True, blank=True, null=True)
+    description = models.TextField()
+    amount_ht = models.DecimalField(max_digits=15, decimal_places=3)
+    tva = models.DecimalField(max_digits=5, decimal_places=2, default=19.00)
+    date_created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date_created']
+
+    def __str__(self):
+        return f"Avoir {self.uniqueId} - {self.client.clientname}"
+
+    def calculate_tva_amount(self):
+        return self.amount_ht * Decimal(str(self.tva)) / Decimal('100')
+
+    def calculate_total(self):
+        return self.amount_ht + self.calculate_tva_amount()
+
+    def save(self, *args, **kwargs):
+        if not self.uniqueId:
+            year = timezone.now().year
+            last = CreditNote.objects.filter(
+                uniqueId__startswith='AV-',
+                uniqueId__endswith=f'-{year}'
+            ).order_by('-date_created').first()
+            if last and last.uniqueId:
+                try:
+                    num = int(last.uniqueId.split('-')[1]) + 1
+                except (ValueError, IndexError):
+                    num = 1
+            else:
+                num = 1
+            self.uniqueId = f'AV-{num:03d}-{year}'
+        if not self.slug:
+            self.slug = slugify(self.uniqueId)
+        super().save(*args, **kwargs)
 
 
 class Settings(models.Model):

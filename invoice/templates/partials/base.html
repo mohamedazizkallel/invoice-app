@@ -12,13 +12,16 @@
     <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
     <link href="{% static 'assets/css/dashboard.css' %}" rel="stylesheet">
     <link href="{% static 'assets/css/bootstrap-icons.css' %}" rel="stylesheet">
+    <link href="{% static 'assets/css/tom-select.bootstrap5.min.css' %}" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
+    
     {% block css %}{% endblock %}
 
     <style>
+      /* Tom Select — ensure dropdown appears above Bootstrap modal backdrop */
+      .ts-dropdown { z-index: 9999 !important; }
       :root {
         --primary-gradient: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
         --primary-color: #2c3e50;
@@ -558,6 +561,12 @@
                 </a>
               </li>
               <li class="nav-item">
+                <a class="nav-link {% if 'avoirs' in request.path %}active{% endif %}" href="{% url 'avoirs_list' %}">
+                  <i class="bi bi-arrow-return-left"></i>
+                  <span>Avoirs</span>
+                </a>
+              </li>
+              <li class="nav-item">
                 <a class="nav-link {% if 'clients' in request.path %}active{% endif %}" href="{% url 'clients' %}">
                   <i class="bi bi-people"></i>
                   <span>Clients</span>
@@ -698,5 +707,32 @@
   </script>
 
   {% block scripts %}{% endblock %}
+
+  <script src="{% static 'assets/js/tom-select.complete.min.js' %}"></script>
+  <script>
+    function initTomSelects(container) {
+      container.querySelectorAll('select.ts-select').forEach(function (el) {
+        if (!el.tomselect) {
+          new TomSelect(el, { allowEmptyOption: false });
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      // Selects outside modals — initialize immediately
+      document.querySelectorAll('select.ts-select').forEach(function (el) {
+        if (!el.closest('.modal') && !el.tomselect) {
+          new TomSelect(el, { allowEmptyOption: false });
+        }
+      });
+
+      // Selects inside modals — initialize when the modal opens
+      document.querySelectorAll('.modal').forEach(function (modal) {
+        modal.addEventListener('show.bs.modal', function () {
+          initTomSelects(this);
+        });
+      });
+    });
+  </script>
 </body>
 </html>
