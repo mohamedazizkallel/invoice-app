@@ -363,9 +363,26 @@
 
     body { background: white !important; font-size: 9pt; line-height: 1.3; }
 
-    .invoice-actions, .no-print { display: none !important; }
+    /* Hide all base-template chrome */
+    header, nav, footer,
+    .modern-header, .modern-sidebar, .app-footer,
+    #sidebarMenu,
+    .invoice-actions, .no-print,
+    .modal, .modal-backdrop,
+    .toast-container {
+      display: none !important;
+    }
 
-    .main-content { margin-left: 0 !important; padding: 0 !important; }
+    /* Make main content fill the full page */
+    .container-fluid > .row { display: block !important; }
+
+    .col-md-9, .col-lg-10, .main-content {
+      width: 100% !important;
+      max-width: 100% !important;
+      flex: 0 0 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
 
     .invoice-wrapper { max-width: 100%; }
 
