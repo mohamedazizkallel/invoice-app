@@ -598,7 +598,7 @@
           <thead>
             <tr>
               <th>Description</th>
-              <th>FODEC</th>
+              {% if total_fodec > 0 %}<th>FODEC</th>{% endif %}
               <th class="text-end">Prix unitaire HT</th>
               <th class="text-end">Montant HT</th>
             </tr>
@@ -608,13 +608,15 @@
               {% for item in services_with_totals %}
               <tr>
                 <td>{{ item.service.title }}</td>
+                {% if total_fodec > 0 %}
                 <td>
                   {% if item.has_fodec %}
                   <span style="font-size:0.7rem; background:#dbeafe; color:#1e40af; padding:0.15rem 0.4rem; border-radius:4px; font-weight:600;">FODEC 1%</span>
                   {% else %}
-                  <span style="font-size:0.7rem; color:#9ca3af;">-</span>
+                  <span style="font-size:0.7rem; color:#9ca3af;">—</span>
                   {% endif %}
                 </td>
+                {% endif %}
                 <td class="text-end">{{ item.service.currency|default:"TND" }} {{ item.unit_price|floatformat:3 }}</td>
                 <td class="text-end fw-bold">{{ item.service.currency|default:"TND" }} {{ item.line_total|floatformat:3 }}</td>
               </tr>
