@@ -522,15 +522,6 @@
           </div>
           <div class="invoice-number">N° {{ invoice.uniqueId }}</div>
           <div class="invoice-date">{{ invoice.date_created|date:"d/m/Y" }}</div>
-          {% if invoice.status == 'PAID' %}
-            <span class="status-badge status-paid"><i class="bi bi-check-circle-fill"></i> Payée</span>
-          {% elif invoice.status == 'OVERDUE' %}
-            <span class="status-badge status-overdue"><i class="bi bi-exclamation-circle-fill"></i> En retard</span>
-          {% elif invoice.status == 'CURRENT' %}
-            <span class="status-badge status-current"><i class="bi bi-clock-fill"></i> En cours</span>
-          {% else %}
-            <span class="status-badge status-draft"><i class="bi bi-pencil-fill"></i> Brouillon</span>
-          {% endif %}
         </div>
 
         <!-- Right: Company -->
