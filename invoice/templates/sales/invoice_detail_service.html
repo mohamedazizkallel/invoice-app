@@ -680,10 +680,10 @@
     <!-- Invoice Footer -->
     <div class="invoice-footer">
       <div class="footer-row">
-        <div class="footer-contact">
+        {% comment %} <div class="footer-contact">
           <span><i class="bi bi-telephone"></i> {{ p_settings.phone|default:"+216 XX XXX XXX" }}</span>
           <span><i class="bi bi-envelope"></i> {{ p_settings.emailAddress|default:"contact@company.com" }}</span>
-        </div>
+        </div> {% endcomment %}
         {% if p_settings.rib %}
         <div><strong>RIB:</strong> {{ p_settings.rib }}</div>
         {% endif %}
