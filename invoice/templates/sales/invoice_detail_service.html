@@ -509,7 +509,7 @@
         <!-- Left: Logo -->
         <div class="entity-box" style="display:flex; align-items:center; justify-content:center; min-height:120px;">
           {% if p_settings and p_settings.clientLogo %}
-            <img src="{% url 'company_logo' %}" alt="{{ p_settings.clientname }}" style="max-width:100%; max-height:100px; object-fit:contain;">
+            <img src="{% url 'company_logo' %}?v={{ p_settings.last_updated|date:'U' }}" alt="{{ p_settings.clientname }}" style="max-width:100%; max-height:100px; object-fit:contain;">
           {% else %}
             <img src="{% static 'assets/img/logo.png' %}" alt="Logo" style="max-width:100%; max-height:100px; object-fit:contain;">
           {% endif %}

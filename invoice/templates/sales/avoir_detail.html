@@ -126,7 +126,7 @@
 
       <div class="invoice-logo-brand">
         {% if settings_obj and settings_obj.clientLogo %}
-          <img src="{% url 'company_logo' %}" alt="Logo">
+          <img src="{% url 'company_logo' %}?v={{ settings_obj.last_updated|date:'U' }}" alt="Logo">
         {% else %}
           <img src="{% static 'assets/img/logo1.png' %}" alt="Logo">
         {% endif %}
