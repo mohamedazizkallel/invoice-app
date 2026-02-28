@@ -175,8 +175,9 @@
                         data-invoice-id="{{ invoice.id }}"
                         data-invoice-number="INV-{{ invoice.uniqueId|default:invoice.id }}"
                         data-client-name="{{ invoice.client.clientname }}"
-                        data-total-amount="{{ invoice.calculate_total }}"
-                        data-amount-paid="{{ invoice.amount_paid }}">
+                        data-total-amount="{{ invoice.calculate_total|stringformat:'.3f' }}"
+                        data-credit-notes-total="{{ invoice.get_credit_notes_total|stringformat:'.3f' }}"
+                        data-amount-paid="{{ invoice.amount_paid|stringformat:'.3f' }}">
                   <i class="bi bi-cash-coin"></i>
                 </button>
                 {% endif %}
@@ -503,15 +504,19 @@
             <div class="card border-0 bg-light rounded-3 mb-3" id="payment_progress_card">
               <div class="card-body py-2">
                 <div class="row text-center">
-                  <div class="col-4">
+                  <div class="col-3">
                     <small class="text-muted d-block">Déjà payé</small>
                     <span class="fw-semibold text-success" id="payment_already_paid">0.000 D</span>
                   </div>
-                  <div class="col-4">
+                  <div class="col-3" id="payment_credit_notes_row" style="display:none;">
+                    <small class="text-muted d-block">Avoirs déduits</small>
+                    <span class="fw-semibold text-warning" id="payment_credit_notes">0.000 D</span>
+                  </div>
+                  <div class="col-3">
                     <small class="text-muted d-block">Reste à payer</small>
                     <span class="fw-semibold text-danger" id="payment_remaining">0.000 D</span>
                   </div>
-                  <div class="col-4">
+                  <div class="col-3">
                     <small class="text-muted d-block">Après ce paiement</small>
                     <span class="fw-semibold text-primary" id="payment_after">0.000 D</span>
                   </div>
@@ -831,9 +836,10 @@
       const invoiceId   = button.getAttribute('data-invoice-id');
       const invoiceNumber = button.getAttribute('data-invoice-number');
       const clientName  = button.getAttribute('data-client-name');
-      const total       = parseFloat(button.getAttribute('data-total-amount'));
-      const amountPaid  = parseFloat(button.getAttribute('data-amount-paid') || '0');
-      const remaining   = Math.max(0, total - amountPaid);
+      const total        = parseFloat(button.getAttribute('data-total-amount'));
+      const creditNotes  = parseFloat(button.getAttribute('data-credit-notes-total') || '0');
+      const amountPaid   = parseFloat(button.getAttribute('data-amount-paid') || '0');
+      const remaining    = Math.max(0, total - creditNotes - amountPaid);
 
       // Store remaining for live recalculation
       paymentModal.dataset.remaining = remaining;
@@ -844,11 +850,20 @@
       document.getElementById('payment_total_amount').textContent   = total.toFixed(3) + ' D';
       document.getElementById('payment_already_paid').textContent   = amountPaid.toFixed(3) + ' D';
       document.getElementById('payment_remaining').textContent      = remaining.toFixed(3) + ' D';
-      document.getElementById('payment_after').textContent         = remaining.toFixed(3) + ' D';
+      document.getElementById('payment_after').textContent          = remaining.toFixed(3) + ' D';
 
-      // Hide progress card if no prior payments
+      // Show/hide avoirs line
+      const creditNotesRow = document.getElementById('payment_credit_notes_row');
+      if (creditNotes > 0) {
+        creditNotesRow.style.display = '';
+        document.getElementById('payment_credit_notes').textContent = creditNotes.toFixed(3) + ' D';
+      } else {
+        creditNotesRow.style.display = 'none';
+      }
+
+      // Hide progress card if no prior payments and no credit notes
       document.getElementById('payment_progress_card').style.display =
-        amountPaid > 0 ? '' : 'none';
+        (amountPaid > 0 || creditNotes > 0) ? '' : 'none';
 
       // Default amount = full remaining
       amountInput.value = remaining.toFixed(3);

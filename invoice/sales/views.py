@@ -979,7 +979,7 @@ def purchase_download_xml(request, purchase_id):
 @login_required
 def invoices_list(request):
     """Display all invoices with filtering and search"""
-    invoices = Invoice.objects.all().select_related('client').prefetch_related('invoice_services__service')
+    invoices = Invoice.objects.all().select_related('client').prefetch_related('invoice_services__service', 'credit_notes')
 
     # Search filter
     search_query = request.GET.get('search', '')

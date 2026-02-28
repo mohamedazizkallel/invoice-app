@@ -463,6 +463,10 @@ class Invoice(models.Model):
         return self.calculate_total() - self.get_total_retenue()
 
     
+    def get_credit_notes_total(self):
+        """Total of all credit notes linked to this invoice."""
+        return sum(cn.calculate_total() for cn in self.credit_notes.all())
+
     def has_retenue(self):
         """Check if invoice has any retention"""
         return self.retenues.exists()

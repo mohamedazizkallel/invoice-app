@@ -178,7 +178,9 @@ def process_payment(request, invoice_id):
     payment_notes = request.POST.get('payment_notes', '')
 
     total = invoice.calculate_total()
-    remaining = total - invoice.amount_paid
+    credit_notes_total = sum(cn.calculate_total() for cn in invoice.credit_notes.all())
+    effective_total = total - credit_notes_total
+    remaining = effective_total - invoice.amount_paid
 
     # Clamp to what's still owed
     payment_amount = min(payment_amount, remaining)
@@ -188,7 +190,7 @@ def process_payment(request, invoice_id):
         return redirect('invoices_list')
 
     invoice.amount_paid += payment_amount
-    if invoice.amount_paid >= total:
+    if invoice.amount_paid >= effective_total:
         invoice.status = 'PAID'
     invoice.save()
 
@@ -206,7 +208,7 @@ def process_payment(request, invoice_id):
     messages.success(
         request,
         f'Paiement de {payment_amount:.3f} D enregistré pour la facture #{invoice.uniqueId or invoice.id}.'
-        + (' Facture soldée.' if invoice.status == 'PAID' else f' Reste : {(total - invoice.amount_paid):.3f} D.')
+        + (' Facture soldée.' if invoice.status == 'PAID' else f' Reste : {(effective_total - invoice.amount_paid):.3f} D.')
     )
 
     return redirect('invoice_detail', invoice_id=invoice.id)
