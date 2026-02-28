@@ -7,6 +7,7 @@ from django.http import HttpResponse
 from django.core.paginator import Paginator
 from django.db.models import Q,Sum, Count
 from django.db import transaction
+from django.db.models import ProtectedError
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
@@ -495,8 +496,15 @@ def supply_delete(request, supply_id):
     supply = get_object_or_404(Supply, id=supply_id)
     if request.method == 'POST':
         supply_name = supply.name
-        supply.delete()
-        messages.success(request, f'Fourniture "{supply_name}" supprimée avec succès')
+        try:
+            supply.delete()
+            messages.success(request, f'Fourniture "{supply_name}" supprimée avec succès')
+        except ProtectedError:
+            messages.error(
+                request,
+                f'Impossible de supprimer "{supply_name}" car elle est utilisée dans des commandes d\'achat. '
+                'Supprimez d\'abord les lignes d\'achat associées.'
+            )
     return redirect('supplies_list')
 
 
