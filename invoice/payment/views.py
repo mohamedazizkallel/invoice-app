@@ -168,7 +168,7 @@ def payment_detail(request, invoice_id):
 @require_POST
 def process_payment(request, invoice_id):
     """Process full or partial payment for an invoice."""
-    invoice = get_object_or_404(Invoice.objects.prefetch_related('invoice_services'), id=invoice_id)
+    invoice = get_object_or_404(Invoice.objects.prefetch_related('invoice_services', 'credit_notes', 'retenues'), id=invoice_id)
 
     try:
         payment_amount = Decimal(request.POST.get('payment_amount', '0'))
@@ -179,7 +179,8 @@ def process_payment(request, invoice_id):
 
     total = invoice.calculate_total()
     credit_notes_total = sum(cn.calculate_total() for cn in invoice.credit_notes.all())
-    effective_total = total - credit_notes_total
+    auto_retenu = invoice.get_auto_retenu_amount()
+    effective_total = total - credit_notes_total - auto_retenu
     remaining = effective_total - invoice.amount_paid
 
     # Clamp to what's still owed

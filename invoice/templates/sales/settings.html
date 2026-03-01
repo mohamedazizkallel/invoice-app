@@ -142,6 +142,17 @@
           {% endif %}
         </div>
 
+        <!-- Retenu par défaut -->
+        <div class="col-12">
+          <label for="{{ form.default_retenu_rate.id_for_label }}" class="form-label fw-semibold">
+            {{ form.default_retenu_rate.label }}
+          </label>
+          {{ form.default_retenu_rate }}
+          <small class="form-text text-muted">
+            Appliqué automatiquement aux factures clients &gt; 1 000 D — base = total TTC − DT. Laisser vide pour désactiver.
+          </small>
+        </div>
+
         <!-- Company Logo -->
         <div class="col-12">
           <label class="form-label fw-semibold">{{ form.logo_upload.label }}</label>

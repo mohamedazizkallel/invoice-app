@@ -1,0 +1,516 @@
+{% extends 'partials/base.html' %}
+{% load static %}
+
+{% block title %}Bons de Livraison{% endblock %}
+
+{% block css %}
+<style>
+  .modal-body { overflow-y: auto !important; }
+  .modal-dialog-scrollable .modal-body { max-height: 70vh; }
+  .modal-content { border: none; border-radius: 16px; }
+  .line-card { border-left: 3px solid #0d6efd; }
+</style>
+{% endblock %}
+
+{% block main %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Bons de Livraison</h1>
+    <p>Créer et gérer vos bons de livraison</p>
+  </div>
+  <div class="page-header-actions">
+    <button type="button" class="btn btn-modern-primary btn-modern"
+            data-bs-toggle="modal" data-bs-target="#createBLModal">
+      <i class="bi bi-plus-circle me-2"></i>Créer un bon de livraison
+    </button>
+  </div>
+</div>
+
+<!-- Messages -->
+{% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+{% endif %}
+
+<!-- Search -->
+<div class="modern-card mb-3">
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">Rechercher</label>
+      <input type="text" class="form-control" name="search"
+             placeholder="N° BL ou client…" value="{{ search_query }}">
+    </div>
+    <div class="col-md-3">
+      <button type="submit" class="btn btn-modern-primary btn-modern w-100">
+        <i class="bi bi-funnel me-2"></i>Filtrer
+      </button>
+    </div>
+    {% if search_query %}
+    <div class="col-md-2">
+      <a href="{% url 'bons_livraison_list' %}" class="btn btn-light w-100">Effacer</a>
+    </div>
+    {% endif %}
+  </form>
+</div>
+
+{% if bons.object_list %}
+<!-- Table -->
+<div class="modern-card">
+  <div class="table-responsive">
+    <table class="table modern-table mb-0">
+      <thead>
+        <tr>
+          <th>N° BL</th>
+          <th>Client</th>
+          <th>Date</th>
+          <th>Statut</th>
+          <th class="text-end">Total HT</th>
+          <th class="text-end">TVA</th>
+          <th class="text-end">Total TTC</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for bon in bons %}
+        <tr>
+          <td>
+            <a href="{% url 'bon_livraison_detail' bon.id %}"
+               class="text-decoration-none fw-bold text-primary">
+              {{ bon.uniqueId }}
+            </a>
+          </td>
+          <td>{{ bon.client.clientname|default:"—" }}</td>
+          <td>{{ bon.date_created|date:"d/m/Y"|default:"—" }}</td>
+          <td>
+            <span class="badge-modern
+              {% if bon.status == 'DELIVERED' %}badge-success
+              {% elif bon.status == 'SENT' %}badge-info
+              {% else %}badge-secondary{% endif %}">
+              {{ bon.get_status_display }}
+            </span>
+          </td>
+          <td class="text-end">{{ bon.calculate_total_ht|floatformat:3 }} D</td>
+          <td class="text-end">{{ bon.calculate_tva_amount|floatformat:3 }} D</td>
+          <td class="text-end fw-semibold">{{ bon.calculate_total_ttc|floatformat:3 }} D</td>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm">
+              <a href="{% url 'bon_livraison_detail' bon.id %}"
+                 class="btn btn-outline-primary" title="Voir">
+                <i class="bi bi-eye"></i>
+              </a>
+              <button type="button" class="btn btn-outline-secondary edit-bl-btn"
+                      data-modal-url="{% url 'bon_livraison_modal_data' bon.id %}"
+                      data-edit-url="{% url 'bon_livraison_edit' bon.id %}"
+                      title="Modifier">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button type="button" class="btn btn-outline-danger"
+                      data-bs-toggle="modal" data-bs-target="#deleteBLModal"
+                      data-delete-url="{% url 'bon_livraison_delete' bon.id %}"
+                      data-bl-id="{{ bon.uniqueId }}"
+                      title="Supprimer">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if bons.has_other_pages %}
+  <div class="d-flex justify-content-center mt-3">
+    <nav>
+      <ul class="pagination pagination-sm">
+        {% if bons.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ bons.previous_page_number }}&search={{ search_query }}">«</a>
+        </li>
+        {% endif %}
+        {% for num in bons.paginator.page_range %}
+        <li class="page-item {% if bons.number == num %}active{% endif %}">
+          <a class="page-link" href="?page={{ num }}&search={{ search_query }}">{{ num }}</a>
+        </li>
+        {% endfor %}
+        {% if bons.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ bons.next_page_number }}&search={{ search_query }}">»</a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+
+{% else %}
+<div class="modern-card text-center py-5 text-muted">
+  <i class="bi bi-box-seam fs-1 d-block mb-3 opacity-25"></i>
+  <p>Aucun bon de livraison trouvé.</p>
+  <button type="button" class="btn btn-modern-primary btn-modern"
+          data-bs-toggle="modal" data-bs-target="#createBLModal">
+    <i class="bi bi-plus-circle me-1"></i> Créer le premier
+  </button>
+</div>
+{% endif %}
+
+
+<!-- ─── Create Modal ─────────────────────────────────────────────── -->
+<div class="modal fade" id="createBLModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg">
+      <form method="post" action="{% url 'bon_livraison_create' %}">
+        {% csrf_token %}
+
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold">
+            <i class="bi bi-plus-circle me-2 text-primary"></i> Nouveau bon de livraison
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body pt-2">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Client</label>
+              <select class="form-select ts-select" name="client">
+                <option value="">— Sélectionner un client —</option>
+                {% for c in clients %}
+                <option value="{{ c.id }}">{{ c.clientname }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">TVA (%)</label>
+              <input type="number" step="0.01" min="0" max="100" class="form-control"
+                     name="tva" id="create_tva" value="{{ default_tva }}">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Statut</label>
+              <select class="form-select" name="status">
+                <option value="DRAFT">Brouillon</option>
+                <option value="SENT">Envoyé</option>
+                <option value="DELIVERED">Livré</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Remarques</label>
+              <textarea class="form-control" name="notes" rows="2" placeholder="Remarques optionnelles…"></textarea>
+            </div>
+
+            <!-- Lines -->
+            <div class="col-12">
+              <hr class="my-2">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-list-ul me-1"></i> Lignes</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="addCreateLine">
+                  <i class="bi bi-plus-circle me-1"></i> Ajouter une ligne
+                </button>
+              </div>
+              <div id="createLinesContainer"></div>
+            </div>
+
+            <!-- Summary -->
+            <div class="col-12">
+              <div class="card bg-light border-0 rounded-3">
+                <div class="card-body p-3">
+                  <div class="d-flex justify-content-between small">
+                    <span>Total HT</span>
+                    <span id="create_ht">0.000 D</span>
+                  </div>
+                  <div class="d-flex justify-content-between small text-muted">
+                    <span>TVA (<span id="create_tva_label">{{ default_tva }}</span> %)</span>
+                    <span id="create_tva_amt">0.000 D</span>
+                  </div>
+                  <div class="d-flex justify-content-between fw-bold mt-1 border-top pt-2">
+                    <span>Total TTC</span>
+                    <span id="create_ttc">0.000 D</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-check-circle me-1"></i> Créer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ─── Edit Modal (shared, populated via AJAX) ─────────────────── -->
+<div class="modal fade" id="editBLModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg">
+      <form method="post" id="editBLForm" action="">
+        {% csrf_token %}
+
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold">
+            <i class="bi bi-pencil me-2 text-secondary"></i>
+            Modifier <span id="editBLTitle"></span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body pt-2" id="editBLBody">
+          <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status"></div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-check-circle me-1"></i> Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ─── Delete Modal ─────────────────────────────────────────────── -->
+<div class="modal fade" id="deleteBLModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg rounded-4">
+      <form method="post" id="deleteBLForm" action="">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold text-danger">
+            <i class="bi bi-trash me-2"></i> Supprimer le bon de livraison
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body pt-2">
+          <div class="alert alert-danger rounded-3">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Voulez-vous vraiment supprimer le bon <strong id="deleteBLId"></strong> ?
+            Cette action est irréversible.
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger px-4">
+            <i class="bi bi-trash me-1"></i> Supprimer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ─── Line template ────────────────────────────────────────────────
+function buildLineHTML(idx, desc, amount) {
+  return `
+  <div class="card mb-2 line-card" data-idx="${idx}">
+    <div class="card-body p-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-7">
+          <label class="form-label small mb-1">Description</label>
+          <textarea class="form-control form-control-sm line-desc" name="description[]"
+                    rows="2" placeholder="Description de la prestation…">${desc}</textarea>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Montant HT (D)</label>
+          <input type="number" step="0.001" min="0" class="form-control form-control-sm line-amount"
+                 name="amount[]" placeholder="0.000" value="${amount}">
+        </div>
+        <div class="col-md-1">
+          <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-line">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── Recalculate summary ─────────────────────────────────────────
+function recalcSummary(container, tvaInput, htEl, tvaAmtEl, tvaLblEl, ttcEl) {
+  const tva = parseFloat(tvaInput.value) || 0;
+  let ht = 0;
+  container.querySelectorAll('.line-amount').forEach(inp => {
+    ht += parseFloat(inp.value) || 0;
+  });
+  const tvaAmt = ht * tva / 100;
+  htEl.textContent = ht.toFixed(3) + ' D';
+  tvaAmtEl.textContent = tvaAmt.toFixed(3) + ' D';
+  if (tvaLblEl) tvaLblEl.textContent = tva.toFixed(2);
+  ttcEl.textContent = (ht + tvaAmt).toFixed(3) + ' D';
+}
+
+// ─── Add / remove lines (generic) ────────────────────────────────
+function initLineContainer(addBtn, container, tvaInput, htEl, tvaAmtEl, tvaLblEl, ttcEl) {
+  let idx = container.querySelectorAll('.line-card').length;
+
+  addBtn.addEventListener('click', () => {
+    container.insertAdjacentHTML('beforeend', buildLineHTML(idx++, '', ''));
+    bindLine(container.lastElementChild, container, tvaInput, htEl, tvaAmtEl, tvaLblEl, ttcEl);
+  });
+
+  container.querySelectorAll('.line-card').forEach(card => {
+    bindLine(card, container, tvaInput, htEl, tvaAmtEl, tvaLblEl, ttcEl);
+  });
+
+  // Recalc on TVA change
+  tvaInput.addEventListener('input', () => recalcSummary(container, tvaInput, htEl, tvaAmtEl, tvaLblEl, ttcEl));
+  recalcSummary(container, tvaInput, htEl, tvaAmtEl, tvaLblEl, ttcEl);
+}
+
+function bindLine(card, container, tvaInput, htEl, tvaAmtEl, tvaLblEl, ttcEl) {
+  card.querySelector('.remove-line').addEventListener('click', () => {
+    card.remove();
+    recalcSummary(container, tvaInput, htEl, tvaAmtEl, tvaLblEl, ttcEl);
+  });
+  card.querySelector('.line-amount').addEventListener('input', () => {
+    recalcSummary(container, tvaInput, htEl, tvaAmtEl, tvaLblEl, ttcEl);
+  });
+}
+
+// ─── Init Create modal ────────────────────────────────────────────
+const createModal = document.getElementById('createBLModal');
+createModal.addEventListener('show.bs.modal', () => {
+  // Reset lines - add one blank line
+  const container = document.getElementById('createLinesContainer');
+  container.innerHTML = '';
+  container.insertAdjacentHTML('beforeend', buildLineHTML(0, '', ''));
+
+  const tvaInput = document.getElementById('create_tva');
+  const htEl     = document.getElementById('create_ht');
+  const tvaAmtEl = document.getElementById('create_tva_amt');
+  const tvaLblEl = document.getElementById('create_tva_label');
+  const ttcEl    = document.getElementById('create_ttc');
+  const addBtn   = document.getElementById('addCreateLine');
+
+  initLineContainer(addBtn, container, tvaInput, htEl, tvaAmtEl, tvaLblEl, ttcEl);
+});
+
+// ─── Edit modal — load via AJAX ───────────────────────────────────
+document.querySelectorAll('.edit-bl-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const modalUrl = btn.dataset.modalUrl;
+    const editUrl  = btn.dataset.editUrl;
+    const form     = document.getElementById('editBLForm');
+    const body     = document.getElementById('editBLBody');
+    const title    = document.getElementById('editBLTitle');
+
+    form.action = editUrl;
+    body.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>';
+    title.textContent = '…';
+
+    const modal = new bootstrap.Modal(document.getElementById('editBLModal'));
+    modal.show();
+
+    fetch(modalUrl)
+      .then(r => r.json())
+      .then(data => {
+        title.textContent = data.uniqueId;
+
+        // Build body HTML
+        const clientOptions = [
+          '<option value="">— Sélectionner un client —</option>',
+          {% for c in clients %}
+          `<option value="{{ c.id }}" ${data.client_id == {{ c.id }} ? 'selected' : ''}>{{ c.clientname }}</option>`,
+          {% endfor %}
+        ].join('');
+
+        body.innerHTML = `
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Client</label>
+              <select class="form-select" name="client">${clientOptions}</select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">TVA (%)</label>
+              <input type="number" step="0.01" min="0" max="100" class="form-control"
+                     name="tva" id="edit_tva" value="${data.tva}">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Statut</label>
+              <select class="form-select" name="status">
+                <option value="DRAFT"     ${data.status === 'DRAFT'     ? 'selected' : ''}>Brouillon</option>
+                <option value="SENT"      ${data.status === 'SENT'      ? 'selected' : ''}>Envoyé</option>
+                <option value="DELIVERED" ${data.status === 'DELIVERED' ? 'selected' : ''}>Livré</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Remarques</label>
+              <textarea class="form-control" name="notes" rows="2">${data.notes}</textarea>
+            </div>
+            <div class="col-12">
+              <hr class="my-2">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0 fw-semibold"><i class="bi bi-list-ul me-1"></i> Lignes</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="addEditLine">
+                  <i class="bi bi-plus-circle me-1"></i> Ajouter une ligne
+                </button>
+              </div>
+              <div id="editLinesContainer"></div>
+            </div>
+            <div class="col-12">
+              <div class="card bg-light border-0 rounded-3">
+                <div class="card-body p-3">
+                  <div class="d-flex justify-content-between small">
+                    <span>Total HT</span><span id="edit_ht">0.000 D</span>
+                  </div>
+                  <div class="d-flex justify-content-between small text-muted">
+                    <span>TVA (<span id="edit_tva_label">${data.tva}</span> %)</span>
+                    <span id="edit_tva_amt">0.000 D</span>
+                  </div>
+                  <div class="d-flex justify-content-between fw-bold mt-1 border-top pt-2">
+                    <span>Total TTC</span><span id="edit_ttc">0.000 D</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>`;
+
+        // Populate lines
+        const container = document.getElementById('editLinesContainer');
+        (data.lines || []).forEach((l, i) => {
+          container.insertAdjacentHTML('beforeend', buildLineHTML(i, l.description, l.amount));
+        });
+        if (!data.lines || data.lines.length === 0) {
+          container.insertAdjacentHTML('beforeend', buildLineHTML(0, '', ''));
+        }
+
+        const tvaInput = document.getElementById('edit_tva');
+        const htEl     = document.getElementById('edit_ht');
+        const tvaAmtEl = document.getElementById('edit_tva_amt');
+        const tvaLblEl = document.getElementById('edit_tva_label');
+        const ttcEl    = document.getElementById('edit_ttc');
+        const addBtn   = document.getElementById('addEditLine');
+
+        initLineContainer(addBtn, container, tvaInput, htEl, tvaAmtEl, tvaLblEl, ttcEl);
+      })
+      .catch(() => {
+        body.innerHTML = '<div class="alert alert-danger">Erreur de chargement.</div>';
+      });
+  });
+});
+
+// ─── Delete modal ─────────────────────────────────────────────────
+document.getElementById('deleteBLModal').addEventListener('show.bs.modal', event => {
+  const btn = event.relatedTarget;
+  document.getElementById('deleteBLForm').action = btn.dataset.deleteUrl;
+  document.getElementById('deleteBLId').textContent = btn.dataset.blId;
+});
+</script>
+{% endblock %}

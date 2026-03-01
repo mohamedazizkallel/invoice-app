@@ -15,7 +15,9 @@ from .views import (dashboard, delete_supplier, edit_supplier,
                     purchase_download_xml, purchase_detail_modal,
                     company_logo,
                     avoirs_list, avoir_create, avoir_edit, avoir_delete,
-                    avoir_detail, avoir_modal_data, client_all_invoices)
+                    avoir_detail, avoir_modal_data, client_all_invoices,
+                    bons_livraison_list, bon_livraison_create, bon_livraison_edit,
+                    bon_livraison_delete, bon_livraison_detail, bon_livraison_modal_data)
 
 urlpatterns = [
     path('', login_view,name='login'),
@@ -80,4 +82,12 @@ urlpatterns = [
     path('avoirs/<int:avoir_id>/delete/', avoir_delete, name='avoir_delete'),
     path('avoirs/<int:avoir_id>/modal-data/', avoir_modal_data, name='avoir_modal_data'),
     path('clients/<int:client_id>/all-invoices/', client_all_invoices, name='client_all_invoices'),
+
+    # Bons de Livraison
+    path('bons-livraison/', bons_livraison_list, name='bons_livraison_list'),
+    path('bons-livraison/create/', bon_livraison_create, name='bon_livraison_create'),
+    path('bons-livraison/<int:bon_id>/', bon_livraison_detail, name='bon_livraison_detail'),
+    path('bons-livraison/<int:bon_id>/edit/', bon_livraison_edit, name='bon_livraison_edit'),
+    path('bons-livraison/<int:bon_id>/delete/', bon_livraison_delete, name='bon_livraison_delete'),
+    path('bons-livraison/<int:bon_id>/modal-data/', bon_livraison_modal_data, name='bon_livraison_modal_data'),
 ]

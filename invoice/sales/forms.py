@@ -44,7 +44,7 @@ class SettingsForm(forms.ModelForm):
 
     class Meta:
         model = Settings
-        fields = ['clientname', 'adress', 'mf', 'tva', 'dt', 'status', 'rib']
+        fields = ['clientname', 'adress', 'mf', 'tva', 'dt', 'status', 'rib', 'default_retenu_rate']
         labels = {
             'clientname': 'Nom de l\'entreprise',
             'adress': 'Adresse',
@@ -53,6 +53,7 @@ class SettingsForm(forms.ModelForm):
             'dt': 'Droit de Timbre (DT)',
             'rib': 'R.I.B',
             'status': "Classification d'individu ou société",
+            'default_retenu_rate': 'Taux de retenu par défaut (%)',
         }
         widgets = {
             'clientname': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nom de l\'entreprise'}),
@@ -62,6 +63,7 @@ class SettingsForm(forms.ModelForm):
             'tva': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'TVA (%)'}),
             'rib': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'RIB'}),
             'dt': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'DT (D)'}),
+            'default_retenu_rate': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Ex : 1.5', 'step': '0.01', 'min': '0', 'max': '100'}),
         }
 
 

@@ -4,6 +4,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.urls import reverse
 from django.contrib import messages
 from django.http import HttpResponse
+from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db.models import Q,Sum, Count
 from django.db import transaction
@@ -15,7 +16,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.http import JsonResponse
 from .forms import ClientForm, InvoiceForm, SupplierForm, UserLoginForm, SettingsForm, ServiceForm, ClientTransactionForm, SupplierTransactionForm, SupplyForm, PurchaseForm
-from .models import Client,Invoice,Settings,Service,InvoiceService,Supplier,ClientTransaction, SupplierTransaction, Supply, Purchase, PurchaseLine, InvoiceSupplyUsage, CreditNote
+from .models import Client,Invoice,Settings,Service,InvoiceService,Supplier,ClientTransaction, SupplierTransaction, Supply, Purchase, PurchaseLine, InvoiceSupplyUsage, CreditNote, BonLivraison, BonLivraisonLine
 from payment.models import Retenu, PurchaseRetenu
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,logout,login as auth_login
@@ -987,7 +988,7 @@ def purchase_download_xml(request, purchase_id):
 @login_required
 def invoices_list(request):
     """Display all invoices with filtering and search"""
-    invoices = Invoice.objects.all().select_related('client').prefetch_related('invoice_services__service', 'credit_notes')
+    invoices = Invoice.objects.all().select_related('client').prefetch_related('invoice_services__service', 'credit_notes', 'retenues')
 
     # Search filter
     search_query = request.GET.get('search', '')
@@ -2131,3 +2132,133 @@ def client_all_invoices(request, client_id):
         for inv in invoices
     ]
     return JsonResponse(data, safe=False)
+
+
+# ─── Bons de Livraison ───────────────────────────────────────────────────────
+
+@login_required
+def bons_livraison_list(request):
+    bons = BonLivraison.objects.all().select_related('client').prefetch_related('lines').order_by('-date_created')
+
+    search = request.GET.get('search', '').strip()
+    if search:
+        bons = bons.filter(
+            Q(uniqueId__icontains=search) | Q(client__clientname__icontains=search)
+        )
+
+    paginator = Paginator(bons, 20)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    settings_obj = Settings.get_cached()
+    clients = Client.objects.all().order_by('clientname')
+    default_tva = Decimal(str(settings_obj.tva)) if settings_obj and settings_obj.tva else Decimal('19.00')
+
+    return render(request, 'sales/bons_livraison.html', {
+        'bons': page_obj,
+        'clients': clients,
+        'settings_obj': settings_obj,
+        'search_query': search,
+        'count': bons.count(),
+        'default_tva': default_tva,
+    })
+
+
+@login_required
+def bon_livraison_modal_data(request, bon_id):
+    bon = get_object_or_404(BonLivraison, id=bon_id)
+    lines = [
+        {'id': l.id, 'description': l.description, 'amount': str(l.amount)}
+        for l in bon.lines.all()
+    ]
+    return JsonResponse({
+        'id': bon.id,
+        'client_id': bon.client_id or '',
+        'status': bon.status,
+        'tva': str(bon.tva),
+        'notes': bon.notes or '',
+        'uniqueId': bon.uniqueId,
+        'lines': lines,
+    })
+
+
+@login_required
+@require_POST
+def bon_livraison_create(request):
+    client_id = request.POST.get('client', '').strip()
+    tva_raw = request.POST.get('tva', '19.000').strip() or '19.000'
+    notes = request.POST.get('notes', '').strip()
+    status = request.POST.get('status', 'DRAFT')
+    descriptions = request.POST.getlist('description[]')
+    amounts = request.POST.getlist('amount[]')
+
+    client = get_object_or_404(Client, id=client_id) if client_id else None
+
+    try:
+        bon = BonLivraison.objects.create(
+            client=client,
+            tva=Decimal(tva_raw),
+            notes=notes,
+            status=status,
+        )
+        for desc, amt in zip(descriptions, amounts):
+            desc, amt = desc.strip(), amt.strip()
+            if desc and amt:
+                BonLivraisonLine.objects.create(bon=bon, description=desc, amount=Decimal(amt))
+        messages.success(request, f'Bon de livraison {bon.uniqueId} créé avec succès.')
+    except Exception as e:
+        messages.error(request, f'Erreur lors de la création : {e}')
+
+    return redirect('bons_livraison_list')
+
+
+@login_required
+@require_POST
+def bon_livraison_edit(request, bon_id):
+    bon = get_object_or_404(BonLivraison, id=bon_id)
+    client_id = request.POST.get('client', '').strip()
+    tva_raw = request.POST.get('tva', '19.000').strip() or '19.000'
+    notes = request.POST.get('notes', '').strip()
+    status = request.POST.get('status', 'DRAFT')
+    descriptions = request.POST.getlist('description[]')
+    amounts = request.POST.getlist('amount[]')
+
+    try:
+        bon.client = get_object_or_404(Client, id=client_id) if client_id else None
+        bon.tva = Decimal(tva_raw)
+        bon.notes = notes
+        bon.status = status
+        bon.save()
+
+        bon.lines.all().delete()
+        for desc, amt in zip(descriptions, amounts):
+            desc, amt = desc.strip(), amt.strip()
+            if desc and amt:
+                BonLivraisonLine.objects.create(bon=bon, description=desc, amount=Decimal(amt))
+        messages.success(request, f'Bon de livraison {bon.uniqueId} modifié avec succès.')
+    except Exception as e:
+        messages.error(request, f'Erreur lors de la modification : {e}')
+
+    return redirect('bons_livraison_list')
+
+
+@login_required
+@require_POST
+def bon_livraison_delete(request, bon_id):
+    bon = get_object_or_404(BonLivraison, id=bon_id)
+    uid = bon.uniqueId
+    bon.delete()
+    messages.success(request, f'Bon de livraison {uid} supprimé.')
+    return redirect('bons_livraison_list')
+
+
+@login_required
+def bon_livraison_detail(request, bon_id):
+    bon = get_object_or_404(
+        BonLivraison.objects.select_related('client').prefetch_related('lines'),
+        id=bon_id,
+    )
+    settings_obj = Settings.get_cached()
+    return render(request, 'sales/bon_livraison_detail.html', {
+        'bon': bon,
+        'settings_obj': settings_obj,
+    })

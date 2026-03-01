@@ -467,6 +467,25 @@ class Invoice(models.Model):
         """Total of all credit notes linked to this invoice."""
         return sum(cn.calculate_total() for cn in self.credit_notes.all())
 
+    def get_auto_retenu_amount(self):
+        """
+        Auto-compute default retenu for payment if:
+          - Invoice total > 1 000 D
+          - No manual InvoiceRetenu already applied
+          - Settings has a default_retenu_rate set
+        Base = total TTC − timbre fiscal (DT)
+        """
+        if self.get_total_retenue() > Decimal('0'):
+            return Decimal('0')  # manual retenu applied — don't double-count
+        cached = Settings.get_cached()
+        if not cached or not cached.default_retenu_rate:
+            return Decimal('0')
+        total = self.calculate_total()
+        if total <= Decimal('1000'):
+            return Decimal('0')
+        base = total - self.get_timbre_fiscal()
+        return (base * Decimal(str(cached.default_retenu_rate))) / Decimal('100')
+
     def has_retenue(self):
         """Check if invoice has any retention"""
         return self.retenues.exists()
@@ -578,6 +597,10 @@ class Settings(models.Model):
     # dt = Timbre Fiscal (Droit de Timbre)
     dt = models.DecimalField(max_digits=10, decimal_places=3, default=1.000, null=True, blank=True, help_text="Default Timbre Fiscal")
     tva = models.DecimalField(max_digits=5, decimal_places=2, default=19.00, null=True, blank=True, help_text="Default TVA percentage")
+    default_retenu_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        help_text="Taux de retenu à la source (%) appliqué automatiquement aux factures clients > 1 000 D"
+    )
     
     slug = models.SlugField(max_length=500, unique=True, blank=True, null=True)
     date_created = models.DateTimeField(blank=True, null=True)
@@ -685,6 +708,80 @@ class Service(models.Model):
     def get_absolute_url(self):
         from django.urls import reverse
         return reverse('service-detail', kwargs={'slug': self.slug})
+
+class BonLivraison(models.Model):
+    STATUS = [
+        ('DRAFT', 'Brouillon'),
+        ('SENT', 'Envoyé'),
+        ('DELIVERED', 'Livré'),
+    ]
+
+    client = models.ForeignKey('Client', on_delete=models.SET_NULL, null=True, blank=True, related_name='bons_livraison')
+    status = models.CharField(choices=STATUS, default='DRAFT', max_length=20)
+    notes = models.TextField(null=True, blank=True)
+    tva = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('19.00'))
+    uniqueId = models.CharField(max_length=100, blank=True, null=True)
+    slug = models.SlugField(max_length=500, unique=True, blank=True, null=True)
+    date_created = models.DateTimeField(blank=True, null=True)
+    last_updated = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-date_created']
+        verbose_name = "Bon de Livraison"
+        verbose_name_plural = "Bons de Livraison"
+
+    def __str__(self):
+        return f"BL {self.uniqueId}"
+
+    def calculate_total_ht(self):
+        return sum((line.amount for line in self.lines.all()), Decimal('0.000'))
+
+    def calculate_tva_amount(self):
+        return (self.calculate_total_ht() * Decimal(str(self.tva))) / Decimal('100')
+
+    def calculate_total_ttc(self):
+        return self.calculate_total_ht() + self.calculate_tva_amount()
+
+    def save(self, *args, **kwargs):
+        now = timezone.localtime(timezone.now())
+        if not self.date_created:
+            self.date_created = now
+        if not self.uniqueId:
+            year = timezone.now().year
+            last = BonLivraison.objects.filter(
+                uniqueId__startswith='BL-',
+                uniqueId__endswith=f'-{year}'
+            ).order_by('-date_created').first()
+            if last and last.uniqueId:
+                try:
+                    num = int(last.uniqueId.split('-')[1]) + 1
+                except (ValueError, IndexError):
+                    num = 1
+            else:
+                num = 1
+            self.uniqueId = f'BL-{num:03d}-{year}'
+        if not self.slug:
+            base = slugify(self.uniqueId)
+            slug, n = base, 1
+            while BonLivraison.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f'{base}-{n}'
+                n += 1
+            self.slug = slug
+        self.last_updated = now
+        super().save(*args, **kwargs)
+
+
+class BonLivraisonLine(models.Model):
+    bon = models.ForeignKey(BonLivraison, on_delete=models.CASCADE, related_name='lines')
+    description = models.TextField()
+    amount = models.DecimalField(max_digits=15, decimal_places=3)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.description[:50]} – {self.amount} D"
+
 
 class InvoiceService(models.Model):
     invoice = models.ForeignKey('Invoice', on_delete=models.CASCADE, related_name='invoice_services')

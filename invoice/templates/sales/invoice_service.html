@@ -177,6 +177,7 @@
                         data-client-name="{{ invoice.client.clientname }}"
                         data-total-amount="{{ invoice.calculate_total|stringformat:'.3f' }}"
                         data-credit-notes-total="{{ invoice.get_credit_notes_total|stringformat:'.3f' }}"
+                        data-retenu-amount="{{ invoice.get_auto_retenu_amount|stringformat:'.3f' }}"
                         data-amount-paid="{{ invoice.amount_paid|stringformat:'.3f' }}">
                   <i class="bi bi-cash-coin"></i>
                 </button>
@@ -503,20 +504,28 @@
             <!-- Payment progress -->
             <div class="card border-0 bg-light rounded-3 mb-3" id="payment_progress_card">
               <div class="card-body py-2">
-                <div class="row text-center">
-                  <div class="col-3">
-                    <small class="text-muted d-block">Déjà payé</small>
-                    <span class="fw-semibold text-success" id="payment_already_paid">0.000 D</span>
-                  </div>
-                  <div class="col-3" id="payment_credit_notes_row" style="display:none;">
+                <!-- Deductions row: avoirs + retenu — shown only when applicable -->
+                <div id="payment_deductions_row" style="display:none;" class="row justify-content-center text-center mb-2 pb-2 border-bottom">
+                  <div class="col-auto px-4" id="payment_credit_notes_col" style="display:none;">
                     <small class="text-muted d-block">Avoirs déduits</small>
                     <span class="fw-semibold text-warning" id="payment_credit_notes">0.000 D</span>
                   </div>
-                  <div class="col-3">
+                  <div class="col-auto px-4" id="payment_retenu_col" style="display:none;">
+                    <small class="text-muted d-block">Retenu déduite</small>
+                    <span class="fw-semibold text-info" id="payment_retenu">0.000 D</span>
+                  </div>
+                </div>
+                <!-- Main row -->
+                <div class="row text-center">
+                  <div class="col-4">
+                    <small class="text-muted d-block">Déjà payé</small>
+                    <span class="fw-semibold text-success" id="payment_already_paid">0.000 D</span>
+                  </div>
+                  <div class="col-4">
                     <small class="text-muted d-block">Reste à payer</small>
                     <span class="fw-semibold text-danger" id="payment_remaining">0.000 D</span>
                   </div>
-                  <div class="col-3">
+                  <div class="col-4">
                     <small class="text-muted d-block">Après ce paiement</small>
                     <span class="fw-semibold text-primary" id="payment_after">0.000 D</span>
                   </div>
@@ -838,8 +847,9 @@
       const clientName  = button.getAttribute('data-client-name');
       const total        = parseFloat(button.getAttribute('data-total-amount'));
       const creditNotes  = parseFloat(button.getAttribute('data-credit-notes-total') || '0');
+      const retenu       = parseFloat(button.getAttribute('data-retenu-amount') || '0');
       const amountPaid   = parseFloat(button.getAttribute('data-amount-paid') || '0');
-      const remaining    = Math.max(0, total - creditNotes - amountPaid);
+      const remaining    = Math.max(0, total - creditNotes - retenu - amountPaid);
 
       // Store remaining for live recalculation
       paymentModal.dataset.remaining = remaining;
@@ -852,18 +862,28 @@
       document.getElementById('payment_remaining').textContent      = remaining.toFixed(3) + ' D';
       document.getElementById('payment_after').textContent          = remaining.toFixed(3) + ' D';
 
-      // Show/hide avoirs line
-      const creditNotesRow = document.getElementById('payment_credit_notes_row');
+      // Show/hide deductions row (avoirs + retenu)
+      const deductionsRow = document.getElementById('payment_deductions_row');
+      const creditNoteCol = document.getElementById('payment_credit_notes_col');
+      const retenuCol     = document.getElementById('payment_retenu_col');
+
       if (creditNotes > 0) {
-        creditNotesRow.style.display = '';
+        creditNoteCol.style.display = '';
         document.getElementById('payment_credit_notes').textContent = creditNotes.toFixed(3) + ' D';
       } else {
-        creditNotesRow.style.display = 'none';
+        creditNoteCol.style.display = 'none';
       }
+      if (retenu > 0) {
+        retenuCol.style.display = '';
+        document.getElementById('payment_retenu').textContent = retenu.toFixed(3) + ' D';
+      } else {
+        retenuCol.style.display = 'none';
+      }
+      deductionsRow.style.display = (creditNotes > 0 || retenu > 0) ? '' : 'none';
 
-      // Hide progress card if no prior payments and no credit notes
+      // Hide progress card if nothing to show
       document.getElementById('payment_progress_card').style.display =
-        (amountPaid > 0 || creditNotes > 0) ? '' : 'none';
+        (amountPaid > 0 || creditNotes > 0 || retenu > 0) ? '' : 'none';
 
       // Default amount = full remaining
       amountInput.value = remaining.toFixed(3);

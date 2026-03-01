@@ -567,6 +567,12 @@
                 </a>
               </li>
               <li class="nav-item">
+                <a class="nav-link {% if 'bons-livraison' in request.path %}active{% endif %}" href="{% url 'bons_livraison_list' %}">
+                  <i class="bi bi-box-seam"></i>
+                  <span>Bons de Livraison</span>
+                </a>
+              </li>
+              <li class="nav-item">
                 <a class="nav-link {% if 'clients' in request.path %}active{% endif %}" href="{% url 'clients' %}">
                   <i class="bi bi-people"></i>
                   <span>Clients</span>
