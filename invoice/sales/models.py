@@ -616,15 +616,19 @@ class Settings(models.Model):
     def get_absolute_url(self):
         return reversed('settings-detail', kwargs={'slug': self.slug})
 
-    CACHE_KEY = 'company_settings'
+    @staticmethod
+    def _cache_key():
+        from django.db import connection
+        return f'company_settings_{connection.schema_name}'
 
     @classmethod
     def get_cached(cls):
         from django.core.cache import cache
-        obj = cache.get(cls.CACHE_KEY)
+        key = cls._cache_key()
+        obj = cache.get(key)
         if obj is None:
             obj = cls.objects.first()
-            cache.set(cls.CACHE_KEY, obj, timeout=None)  # no expiry — invalidated on save
+            cache.set(key, obj, timeout=None)  # no expiry — invalidated on save
         return obj
 
     def save(self, *args, **kwargs):
@@ -639,7 +643,7 @@ class Settings(models.Model):
             self.slug = f"{base_slug}-{self.uniqueId}"
         self.last_updated = now
         super().save(*args, **kwargs)
-        cache.delete(self.CACHE_KEY)  # invalidate so next read fetches fresh data
+        cache.delete(self._cache_key())  # invalidate so next read fetches fresh data
 
 class Service(models.Model):
     CURRENCY = [

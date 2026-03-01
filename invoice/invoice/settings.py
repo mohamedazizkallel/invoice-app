@@ -13,20 +13,28 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv(
 CSRF_TRUSTED_ORIGINS = config('DJANGO_CSRF_TRUSTED_ORIGINS', default='http://localhost,http://127.0.0.1', cast=Csv())
 
 
-# Application definition
+# Application definition — django-tenants requires specific ordering
 
-INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
+SHARED_APPS = [
+    'django_tenants',
+    'tenants',
     'django.contrib.contenttypes',
+    'django.contrib.auth',
+    'django.contrib.admin',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'sales',
     'crispy_forms',
     'crispy_bootstrap5',
+]
+
+TENANT_APPS = [
+    'django.contrib.contenttypes',
+    'sales',
     'payment',
 ]
+
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -35,6 +43,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'tenants.middleware.SessionTenantMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -44,16 +53,11 @@ if DEBUG:
     MIDDLEWARE = ['debug_toolbar.middleware.DebugToolbarMiddleware'] + MIDDLEWARE
     INTERNAL_IPS = ['127.0.0.1', '::1']
     DEBUG_TOOLBAR_CONFIG = {
-        # Allow /__debug__/ requests through even if XHR (DjDT's own render_panel uses XHR
-        # and its @require_show_toolbar decorator checks this callback — if we block all XHR
-        # the toolbar can never load its own panel data).
-        # The middleware's is_toolbar_request() guard still prevents /__debug__/ from being
-        # stored as debug entries, so it won't pollute the store.
         'SHOW_TOOLBAR_CALLBACK': lambda request: (
             request.META.get('HTTP_X_REQUESTED_WITH') != 'XMLHttpRequest'
             or request.path.startswith('/__debug__/')
         ),
-        'RESULTS_CACHE_SIZE': 100,  # default is 25; bumped so normal navigation doesn't evict entries
+        'RESULTS_CACHE_SIZE': 100,
     }
 
 ROOT_URLCONF = 'invoice.urls'
@@ -78,25 +82,25 @@ WSGI_APPLICATION = 'invoice.wsgi.application'
 
 # Database
 
-if config('DB_HOST', default=None):
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('POSTGRES_DB'),
-            'USER': config('POSTGRES_USER'),
-            'PASSWORD': config('POSTGRES_PASSWORD'),
-            'HOST': config('DB_HOST'),
-            'PORT': config('DB_PORT', default='5432'),
-            'CONN_MAX_AGE': 60,
-        }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django_tenants.postgresql_backend',
+        'NAME': config('POSTGRES_DB', default='invoice'),
+        'USER': config('POSTGRES_USER', default='postgres'),
+        'PASSWORD': config('POSTGRES_PASSWORD', default='postgres'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': 60,
     }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+}
+
+DATABASE_ROUTERS = ['django_tenants.routers.TenantSyncRouter']
+
+
+# django-tenants
+
+TENANT_MODEL = 'tenants.Tenant'
+TENANT_DOMAIN_MODEL = 'tenants.Domain'
 
 
 # Password validation

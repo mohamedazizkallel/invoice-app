@@ -19,10 +19,13 @@ python manage.py makemigrations --noinput || echo "Make migrations failed (possi
 # We loop here because the DB might not be ready immediately.
 # ----------------------------------------------------------------
 echo "Waiting for database..."
-until python manage.py migrate --noinput; do
+until python manage.py migrate_schemas --shared --noinput; do
   echo "Database not ready yet. Retrying in 3 seconds..."
   sleep 3
 done
+
+echo "Running tenant migrations..."
+python manage.py migrate_schemas --noinput
 
 # ----------------------------------------------------------------
 # Collect Static Files
