@@ -1309,13 +1309,18 @@ def invoice_edit(request, invoice_id):
 @login_required
 def invoice_detail(request, invoice_id=None, slug=None):
     """View invoice details with inventory-tracked services"""
+    qs = Invoice.objects.prefetch_related(
+        'invoice_services__service',
+        'credit_notes',
+        'retenues',
+    ).select_related('client')
     if slug:
-        invoice = get_object_or_404(Invoice, slug=slug)
+        invoice = get_object_or_404(qs, slug=slug)
     else:
-        invoice = get_object_or_404(Invoice, id=invoice_id)
-    
-    # Get invoice services with their quantities
-    invoice_services = invoice.invoice_services.select_related('service').all()
+        invoice = get_object_or_404(qs, id=invoice_id)
+
+    # Uses the prefetch cache — no extra query
+    invoice_services = invoice.invoice_services.all()
     
     # Calculate amounts
     subtotal = invoice.calculate_service_subtotal()

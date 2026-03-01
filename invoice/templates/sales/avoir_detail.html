@@ -5,221 +5,276 @@
 
 {% block css %}
 <style>
-  body { font-family: 'Inter', sans-serif !important; background: #f5f6f7; }
+  .modern-header { position: relative !important; }
 
-  .wrapper-invoice { display: flex; justify-content: center; padding: 40px 15px; }
+  .invoice-wrapper { max-width: 900px; margin: 0 auto; }
 
-  .invoice {
-    background: #fff;
-    max-width: 900px;
-    width: 100%;
-    box-shadow: 0px 10px 40px rgba(0,0,0,0.08);
-    border-radius: 12px;
-    padding: 40px;
-    animation: fadeIn 0.4s ease;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .invoice-information p { margin: 0; line-height: 1.6; font-size: 15px; }
-
-  .invoice-logo-brand {
-    position: absolute; top: 0; right: 0; margin: 0;
-  }
-  .invoice-logo-brand img { width: 130px; filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.2)); }
-
-  .invoice-header-wrapper { position: relative; min-height: 120px; }
-
-  .invoice-head {
+  .invoice-actions {
     display: flex;
     justify-content: space-between;
-    margin-top: 35px;
-    gap: 20px;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
   }
 
-  .invoice-head p { margin: 0; line-height: 1.6; font-size: 15px; }
+  .invoice-paper {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
 
-  .avoir-badge {
-    display: inline-block;
-    background: #e9ecef;
-    color: #495057;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    padding: 3px 10px;
-    border-radius: 20px;
+  .invoice-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 2px solid #f97316;
+    background: #fff7ed;
+  }
+
+  .header-content {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .entity-box {
+    background: white;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+  }
+
+  .entity-label {
+    font-size: 0.65rem;
+    font-weight: 600;
     text-transform: uppercase;
-    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+    color: #9ca3af;
+    margin-bottom: 0.5rem;
   }
 
-  .invoice-body { margin-top: 35px; }
+  .entity-name { font-size: 0.95rem; font-weight: 700; color: #111827; margin-bottom: 0.25rem; }
+  .entity-details { font-size: 0.7rem; color: #6b7280; line-height: 1.4; }
+  .entity-details p { margin: 0.1rem 0; }
 
-  .table { width: 100%; border-collapse: collapse; }
-  .table th, .table td { padding: 12px 10px; font-size: 15px; border-bottom: 1px solid #eee; }
-  .table thead { background: #fafafa; border-bottom: 2px solid #eee; }
+  .invoice-center {
+    text-align: center;
+    padding: 0 1rem;
+    border-left: 1px dashed #d1d5db;
+    border-right: 1px dashed #d1d5db;
+  }
 
-  .totals-table { width: 300px; margin-left: auto; border-collapse: collapse; }
-  .totals-table td { padding: 8px; font-size: 15px; }
+  .invoice-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #f97316;
+    color: white;
+    padding: 0.3rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.75rem;
+  }
 
-  .btn-custom { padding: 10px 22px; border-radius: 8px; font-weight: 600; }
-  .btn-back { border: 1px solid #adb5bd; color: #495057; background: white; }
-  .btn-back:hover { background: #f8f9fa; }
-  .btn-print { background: #12b886; color: white; border: none; }
-  .btn-print:hover { background: #0ca678; color: white; }
-  .btn-edit { background: #4c6ef5; color: white; border: none; }
-  .btn-edit:hover { background: #3b5bdb; color: white; }
+  .invoice-number { font-size: 1.1rem; font-weight: 700; color: #111827; margin-bottom: 0.25rem; }
+  .invoice-date   { font-size: 0.75rem; color: #6b7280; margin-bottom: 0.5rem; }
+  .invoice-ref    { font-size: 0.72rem; color: #6b7280; }
+
+  .invoice-body { padding: 1.5rem 2rem; }
+
+  .services-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+  .services-table th {
+    background: #f8f9fa;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: #6b7280;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .services-table td {
+    padding: 0.75rem;
+    font-size: 0.85rem;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: top;
+  }
+  .services-table .desc-cell { color: #374151; white-space: pre-wrap; }
+  .services-table .amount-cell { text-align: right; font-weight: 600; white-space: nowrap; }
+
+  .totals-section { display: flex; justify-content: flex-end; margin-bottom: 1.5rem; }
+  .totals-table { width: 280px; border-collapse: collapse; }
+  .totals-table td { padding: 0.4rem 0.75rem; font-size: 0.85rem; }
+  .totals-table .label-col { color: #6b7280; }
+  .totals-table .value-col { text-align: right; font-weight: 500; }
+  .totals-table .total-row td {
+    border-top: 2px solid #e5e7eb;
+    font-size: 1rem;
+    font-weight: 700;
+    padding-top: 0.6rem;
+    color: #111827;
+  }
 
   .invoice-footer {
-    margin-top: 40px; text-align: center; font-size: 15px;
-    color: #888; border-top: 1px solid #eee; padding-top: 25px;
+    padding: 1rem 2rem;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+    font-size: 0.7rem;
+    color: #9ca3af;
+    text-align: center;
   }
 
-  .modal-content { animation: modalFade 0.25s ease-out; border: none; }
-  @keyframes modalFade {
-    from { opacity: 0; transform: translateY(-10px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
   .modal-body { overflow-y: auto !important; }
   .modal-dialog-scrollable .modal-body { max-height: 70vh; }
-
-  @media (max-width: 700px) {
-    .invoice-head { flex-direction: column; }
-    .head.client-data { text-align: left !important; }
-  }
+  .modal-content { border: none; border-radius: 16px; }
 
   @media print {
-    @page { size: A4; margin: 0 !important; }
-    html, body { height: 100vh !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
-    .btn, .btn-custom, .navbar, .sidebar, .modal, .modal-backdrop, .invoice-footer, .mt-4, nav, header, footer { display: none !important; }
-    .wrapper-invoice { padding: 0 !important; margin: 0 !important; height: 100vh !important; width: 100vw !important; display: block !important; }
-    .invoice {
-      height: 100vh !important; width: 100% !important; padding: 40px !important;
-      box-sizing: border-box !important;
-      display: flex !important; flex-direction: column !important; justify-content: space-between !important;
-      border: none !important; box-shadow: none !important;
-    }
-    .invoice-body { flex-grow: 1 !important; }
-    .table { width: 100% !important; }
-    .table thead { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .invoice-actions, .modern-header, .sidebar, nav, .no-print { display: none !important; }
+    .main-content { margin: 0 !important; padding: 0 !important; }
+    .invoice-wrapper { max-width: 100%; }
+    .invoice-paper { box-shadow: none; border-radius: 0; }
+    body { background: white !important; }
   }
 </style>
 {% endblock %}
 
 {% block main %}
-<section class="wrapper-invoice">
-  <div class="invoice" id="avoirArea">
+<div class="invoice-wrapper">
+
+  <!-- Action Bar -->
+  <div class="invoice-actions no-print">
+    <a href="{% url 'avoirs_list' %}" class="btn btn-light">
+      <i class="bi bi-arrow-left me-1"></i> Retour
+    </a>
+    <div class="d-flex gap-2">
+      <button onclick="window.print()" class="btn btn-outline-secondary">
+        <i class="bi bi-printer me-1"></i> Imprimer
+      </button>
+      <button class="btn btn-outline-primary"
+              data-bs-toggle="modal" data-bs-target="#editAvoirDetailModal">
+        <i class="bi bi-pencil me-1"></i> Modifier
+      </button>
+    </div>
+  </div>
+
+  <!-- Document -->
+  <div class="invoice-paper">
 
     <!-- Header -->
-    <div class="invoice-header-wrapper">
-      <div class="invoice-information">
-        <span class="avoir-badge">Facture d'Avoir</span>
-        <p><b>Avoir n°</b> : {{ avoir.uniqueId }}</p>
-        <p><b>Date</b> : {{ avoir.date_created|date:"d/m/Y" }}</p>
-        {% if avoir.invoice %}
-        <p><b>Réf. facture</b> : #{{ avoir.invoice.uniqueId }}</p>
-        {% endif %}
-      </div>
+    <div class="invoice-header">
+      <div class="header-content">
 
-      <div class="invoice-logo-brand">
-        {% if settings_obj and settings_obj.clientLogo %}
-          <img src="{% url 'company_logo' %}?v={{ settings_obj.last_updated|date:'U' }}" alt="Logo">
-        {% else %}
-          <img src="{% static 'assets/img/logo1.png' %}" alt="Logo">
-        {% endif %}
-      </div>
-    </div>
+        <!-- Emetteur -->
+        <div class="entity-box">
+          <div class="entity-label">Expéditeur</div>
+          {% if settings_obj %}
+          <div class="entity-name">{{ settings_obj.clientname|default:"—" }}</div>
+          <div class="entity-details">
+            {% if settings_obj.adress %}<p>{{ settings_obj.adress }}</p>{% endif %}
+            {% if settings_obj.mf %}<p>MF : {{ settings_obj.mf }}</p>{% endif %}
+            {% if settings_obj.rib %}<p>RIB : {{ settings_obj.rib }}</p>{% endif %}
+          </div>
+          {% else %}
+          <div class="entity-name">—</div>
+          {% endif %}
+        </div>
 
-    <!-- From / To -->
-    <div class="invoice-head">
-      <div class="head client-info">
-        <p><strong>De :</strong></p>
-        <p><strong>{{ settings_obj.clientname|default:"Votre Entreprise" }}</strong></p>
-        <p>{{ settings_obj.adress|default:"" }}</p>
-        {% if settings_obj.mf %}<p>MF : {{ settings_obj.mf }}</p>{% endif %}
-        {% if settings_obj.rib %}<p>R.I.B : {{ settings_obj.rib }}</p>{% endif %}
-      </div>
+        <!-- Centre -->
+        <div class="invoice-center">
+          <div>
+            <div class="invoice-type">
+              <i class="bi bi-arrow-return-left"></i> Facture d'Avoir
+            </div>
+          </div>
+          <div class="invoice-number">{{ avoir.uniqueId }}</div>
+          <div class="invoice-date">
+            <i class="bi bi-calendar3 me-1"></i>
+            {{ avoir.date_created|date:"d/m/Y"|default:"—" }}
+          </div>
+          {% if avoir.invoice %}
+          <div class="invoice-ref">
+            <i class="bi bi-link-45deg me-1"></i>Réf. : #{{ avoir.invoice.uniqueId }}
+          </div>
+          {% endif %}
+        </div>
 
-      <div class="head client-data" style="text-align:right;">
-        <p><strong>Client :</strong></p>
-        <p><strong>{{ avoir.client.clientname }}</strong></p>
-        <p>{{ avoir.client.adress|default:"" }}</p>
-        {% if avoir.client.emailAddress %}<p>{{ avoir.client.emailAddress }}</p>{% endif %}
-        {% if avoir.client.mf %}<p>MF : {{ avoir.client.mf }}</p>{% endif %}
+        <!-- Destinataire -->
+        <div class="entity-box" style="text-align:right;">
+          <div class="entity-label">Client</div>
+          <div class="entity-name">{{ avoir.client.clientname }}</div>
+          <div class="entity-details">
+            {% if avoir.client.adress %}<p>{{ avoir.client.adress }}</p>{% endif %}
+            {% if avoir.client.emailAddress %}<p>{{ avoir.client.emailAddress }}</p>{% endif %}
+            {% if avoir.client.mf %}<p>MF : {{ avoir.client.mf }}</p>{% endif %}
+          </div>
+        </div>
+
       </div>
     </div>
 
     <!-- Body -->
     <div class="invoice-body">
 
-      <!-- Description block -->
-      <table class="table">
+      <!-- Description table -->
+      <table class="services-table">
         <thead>
           <tr>
-            <th>Description</th>
-            <th style="text-align:right;">Montant HT</th>
+            <th style="width:80%">Description</th>
+            <th style="text-align:right">Montant HT (D)</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style="white-space: pre-wrap;">{{ avoir.description }}</td>
-            <td style="text-align:right;">TND {{ avoir.amount_ht|floatformat:3 }}</td>
+            <td class="desc-cell">{{ avoir.description }}</td>
+            <td class="amount-cell">{{ avoir.amount_ht|floatformat:3 }}</td>
           </tr>
         </tbody>
       </table>
 
       <!-- Totals -->
-      <div style="margin-top:25px; text-align:right;">
+      <div class="totals-section">
         <table class="totals-table">
-          <tr>
-            <td style="border-top: 1px solid #eee;"><strong>Montant HT :</strong></td>
-            <td style="text-align:right; border-top: 1px solid #eee;">TND {{ avoir.amount_ht|floatformat:3 }}</td>
-          </tr>
-          <tr>
-            <td><strong>TVA ({{ avoir.tva }}%) :</strong></td>
-            <td style="text-align:right;">TND {{ avoir.calculate_tva_amount|floatformat:3 }}</td>
-          </tr>
-          <tr style="border-top: 2px solid #2f2f2f;">
-            <td style="padding-top:12px;"><strong style="font-size:18px;">Total TTC :</strong></td>
-            <td style="text-align:right; padding-top:12px; font-size:18px; font-weight:700;">TND {{ avoir.calculate_total|floatformat:3 }}</td>
-          </tr>
+          <tbody>
+            <tr>
+              <td class="label-col">Total HT</td>
+              <td class="value-col">{{ avoir.amount_ht|floatformat:3 }} D</td>
+            </tr>
+            <tr>
+              <td class="label-col">TVA ({{ avoir.tva }} %)</td>
+              <td class="value-col">{{ avoir.calculate_tva_amount|floatformat:3 }} D</td>
+            </tr>
+            <tr class="total-row">
+              <td class="label-col">Total TTC</td>
+              <td class="value-col">{{ avoir.calculate_total|floatformat:3 }} D</td>
+            </tr>
+          </tbody>
         </table>
       </div>
 
     </div>
 
+    <!-- Footer -->
     <div class="invoice-footer">
-      <p>Facture d'avoir — {{ avoir.uniqueId }}</p>
+      {% if settings_obj %}
+      {{ settings_obj.clientname }}
+      {% if settings_obj.adress %} — {{ settings_obj.adress }}{% endif %}
+      {% if settings_obj.mf %} — MF : {{ settings_obj.mf }}{% endif %}
+      {% endif %}
     </div>
 
-    <!-- Actions -->
-    <div class="mt-4 d-flex gap-2 justify-content-between flex-wrap">
-      <a href="{% url 'avoirs_list' %}" class="btn btn-back btn-custom">
-        <i class="bi bi-arrow-left me-1"></i>Retour aux avoirs
-      </a>
-      <div class="d-flex gap-2">
-        <button class="btn btn-print btn-custom" onclick="window.print()">
-          <i class="bi bi-printer me-1"></i>Imprimer
-        </button>
-        <button class="btn btn-edit btn-custom"
-                data-bs-toggle="modal" data-bs-target="#editAvoirDetailModal">
-          <i class="bi bi-pencil me-1"></i>Modifier
-        </button>
-      </div>
-    </div>
-
-  </div>
-</section>
+  </div><!-- /.invoice-paper -->
+</div><!-- /.invoice-wrapper -->
 
 
-<!-- Edit Modal (inline on detail page) -->
-<div class="modal fade" id="editAvoirDetailModal" tabindex="-1">
-  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content shadow-lg rounded-4">
-      <form action="{% url 'avoir_edit' avoir.id %}" method="post" id="editAvoirDetailForm">
+<!-- Edit Modal -->
+<div class="modal fade no-print" id="editAvoirDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg">
+      <form action="{% url 'avoir_edit' avoir.id %}" method="post">
         {% csrf_token %}
         <input type="hidden" name="next" value="detail">
         <div class="modal-header border-0 pb-0">
@@ -231,7 +286,6 @@
         <div class="modal-body pt-3">
           <div class="row g-3">
 
-            <!-- Linked invoice -->
             <div class="col-md-6">
               <label class="form-label fw-semibold">Facture liée <span class="text-muted small">(optionnel)</span></label>
               <select class="form-select" name="invoice_id" id="detailEditInvoiceSelect">
@@ -240,40 +294,38 @@
             </div>
             <div class="col-md-6"></div>
 
-            <!-- Description -->
             <div class="col-12">
               <label class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
               <textarea class="form-control" name="description" rows="4" required>{{ avoir.description }}</textarea>
             </div>
 
-            <!-- Amount HT -->
             <div class="col-md-4">
               <label class="form-label fw-semibold">Montant HT <span class="text-danger">*</span></label>
               <div class="input-group">
                 <input type="number" class="form-control" name="amount_ht" id="detailEditAmountHt"
                        step="0.001" min="0.001" value="{{ avoir.amount_ht }}" required>
-                <span class="input-group-text">TND</span>
+                <span class="input-group-text">D</span>
               </div>
             </div>
 
-            <!-- TVA -->
             <div class="col-md-4">
               <label class="form-label fw-semibold">TVA %</label>
               <input type="number" class="form-control" name="tva" id="detailEditTva"
                      step="0.01" min="0" value="{{ avoir.tva }}">
             </div>
 
-            <!-- Preview -->
             <div class="col-md-4">
               <label class="form-label fw-semibold text-muted">Aperçu</label>
-              <div class="p-2 rounded bg-light small">
-                <div class="d-flex justify-content-between">
-                  <span>Montant TVA :</span>
-                  <span id="detailEditTvaAmount" class="text-muted">0.000 TND</span>
-                </div>
-                <div class="d-flex justify-content-between mt-1">
-                  <span class="fw-bold">Total TTC :</span>
-                  <span id="detailEditTotal" class="fw-bold text-primary">0.000 TND</span>
+              <div class="card bg-light border-0 rounded-3">
+                <div class="card-body p-3 small">
+                  <div class="d-flex justify-content-between">
+                    <span>TVA :</span>
+                    <span id="detailEditTvaAmount" class="text-muted">0.000 D</span>
+                  </div>
+                  <div class="d-flex justify-content-between mt-1 fw-bold border-top pt-2">
+                    <span>Total TTC :</span>
+                    <span id="detailEditTotal" class="text-primary">0.000 D</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -281,9 +333,9 @@
           </div>
         </div>
         <div class="modal-footer border-0">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
-          <button type="submit" class="btn btn-primary">
-            <i class="bi bi-check-circle me-1"></i>Enregistrer
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-check-circle me-1"></i> Enregistrer
           </button>
         </div>
       </form>
@@ -293,7 +345,7 @@
 
 
 <script>
-// Pre-load invoices for the edit modal
+// Load linked invoices for the edit modal
 (function () {
   const clientId = {{ avoir.client_id }};
   const currentInvoiceId = "{{ avoir.invoice_id|default:'' }}";
@@ -317,11 +369,11 @@ function updateDetailPreview() {
   const ht  = parseFloat(document.getElementById('detailEditAmountHt').value) || 0;
   const tva = parseFloat(document.getElementById('detailEditTva').value) || 0;
   const tvaAmt = ht * tva / 100;
-  document.getElementById('detailEditTvaAmount').textContent = tvaAmt.toFixed(3) + ' TND';
-  document.getElementById('detailEditTotal').textContent = (ht + tvaAmt).toFixed(3) + ' TND';
+  document.getElementById('detailEditTvaAmount').textContent = tvaAmt.toFixed(3) + ' D';
+  document.getElementById('detailEditTotal').textContent = (ht + tvaAmt).toFixed(3) + ' D';
 }
 document.getElementById('detailEditAmountHt').addEventListener('input', updateDetailPreview);
 document.getElementById('detailEditTva').addEventListener('input', updateDetailPreview);
-updateDetailPreview(); // run once on load with existing values
+updateDetailPreview();
 </script>
 {% endblock %}
