@@ -128,9 +128,13 @@
     text-align: center;
   }
 
+  .modal-content { animation: fadeSlide 0.25s ease-out; border: none; border-radius: 16px; }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   .modal-body { overflow-y: auto !important; }
   .modal-dialog-scrollable .modal-body { max-height: 70vh; }
-  .modal-content { border: none; border-radius: 16px; }
 
   @media print {
     .invoice-actions, .modern-header, .sidebar, nav, .no-print { display: none !important; }
@@ -272,8 +276,8 @@
 
 <!-- Edit Modal -->
 <div class="modal fade no-print" id="editAvoirDetailModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content shadow-lg">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg rounded-4">
       <form action="{% url 'avoir_edit' avoir.id %}" method="post">
         {% csrf_token %}
         <input type="hidden" name="next" value="detail">
@@ -283,34 +287,34 @@
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body pt-3">
-          <div class="row g-3">
+        <div class="modal-body pt-2">
+          <div class="row g-2">
 
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Facture liée <span class="text-muted small">(optionnel)</span></label>
-              <select class="form-select" name="invoice_id" id="detailEditInvoiceSelect">
+              <label class="form-label fw-semibold mb-1">Facture liée <span class="text-muted small">(optionnel)</span></label>
+              <select class="form-select form-select-sm" name="invoice_id" id="detailEditInvoiceSelect">
                 <option value="">— Aucune —</option>
               </select>
             </div>
             <div class="col-md-6"></div>
 
             <div class="col-12">
-              <label class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
-              <textarea class="form-control" name="description" rows="4" required>{{ avoir.description }}</textarea>
+              <label class="form-label fw-semibold mb-1">Description <span class="text-danger">*</span></label>
+              <textarea class="form-control form-control-sm" name="description" rows="4" required>{{ avoir.description }}</textarea>
             </div>
 
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Montant HT <span class="text-danger">*</span></label>
-              <div class="input-group">
-                <input type="number" class="form-control" name="amount_ht" id="detailEditAmountHt"
+              <label class="form-label fw-semibold mb-1">Montant HT <span class="text-danger">*</span></label>
+              <div class="input-group input-group-sm">
+                <input type="number" class="form-control form-control-sm" name="amount_ht" id="detailEditAmountHt"
                        step="0.001" min="0.001" value="{{ avoir.amount_ht }}" required>
                 <span class="input-group-text">D</span>
               </div>
             </div>
 
             <div class="col-md-4">
-              <label class="form-label fw-semibold">TVA %</label>
-              <input type="number" class="form-control" name="tva" id="detailEditTva"
+              <label class="form-label fw-semibold mb-1">TVA %</label>
+              <input type="number" class="form-control form-control-sm" name="tva" id="detailEditTva"
                      step="0.01" min="0" value="{{ avoir.tva }}">
             </div>
 

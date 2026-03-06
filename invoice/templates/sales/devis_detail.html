@@ -1,6 +1,22 @@
 {% extends 'partials/base.html' %}
 {% load static %}
 {% block title %}Devis #{{ devis.uniqueId }}{% endblock %}
+
+{% block css %}
+<style>
+  .modal-content { animation: fadeSlide 0.25s ease-out; border: none; border-radius: 16px; }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .modal-body { overflow-y: auto !important; }
+  .modal-dialog-scrollable .modal-body { max-height: 70vh; }
+  #editSvcRows .devis-service-row {
+    border-left: 3px solid #0d6efd;
+  }
+</style>
+{% endblock %}
+
 {% block main %}
 
 <div style="max-width:900px;margin:0 auto;">
@@ -127,90 +143,108 @@
 </div>
 
 <!-- Edit Modal -->
-<div class="modal fade" id="editDevisModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Modifier {{ devis.uniqueId }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
+<div class="modal fade" id="editDevisModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg rounded-4">
       <form method="POST" action="{% url 'devis_update' devis.id %}">
         {% csrf_token %}
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Client</label>
-            <select name="client" class="form-select">
-              {% for c in clients %}
-              <option value="{{ c.id }}" {% if c.id == devis.client_id %}selected{% endif %}>{{ c.clientname }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Titre</label>
-            <input type="text" name="title" class="form-control" value="{{ devis.title|default:'' }}">
-          </div>
-          <div class="row g-3 mb-3">
-            <div class="col-md-4">
-              <label class="form-label">TVA (%)</label>
-              <input type="number" name="tva" class="form-control" step="0.01" value="{{ devis.tva }}">
+
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold">
+            <i class="bi bi-pencil-square me-2 text-primary"></i> Modifier {{ devis.uniqueId }}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body pt-2">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold mb-1">Client</label>
+              <select name="client" class="form-select form-select-sm">
+                {% for c in clients %}
+                <option value="{{ c.id }}" {% if c.id == devis.client_id %}selected{% endif %}>{{ c.clientname }}</option>
+                {% endfor %}
+              </select>
             </div>
-            <div class="col-md-4">
-              <label class="form-label">Timbre fiscal</label>
-              <input type="number" name="timbre_fiscal" class="form-control" step="0.001" value="{{ devis.timbre_fiscal }}">
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold mb-1">Titre</label>
+              <input type="text" name="title" class="form-control form-control-sm" value="{{ devis.title|default:'' }}">
             </div>
-            <div class="col-md-4">
-              <label class="form-label">Remise (%)</label>
-              <input type="number" name="discount" class="form-control" step="0.01" value="{{ devis.discount|default:'0' }}">
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold mb-1">TVA (%)</label>
+              <input type="number" name="tva" class="form-control form-control-sm" step="0.01" value="{{ devis.tva }}">
             </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Notes</label>
-            <textarea name="notes" class="form-control" rows="2">{{ devis.notes|default:'' }}</textarea>
-          </div>
-          <hr>
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong>Services</strong>
-            <button type="button" class="btn btn-sm btn-outline-primary" id="addEditSvcBtn">
-              <i class="bi bi-plus"></i> Ajouter
-            </button>
-          </div>
-          <div id="editSvcRows">
-            {% for ds in devis.devis_services.all %}
-            <div class="devis-service-row border rounded p-2 mb-2">
-              <div class="row g-2 align-items-end">
-                <div class="col-md-4">
-                  <select name="service_id[]" class="form-select form-select-sm" required>
-                    {% for s in services %}
-                    <option value="{{ s.id }}" data-price="{{ s.price }}" data-billing="{{ s.billing_type }}"
-                            {% if s.id == ds.service_id %}selected{% endif %}>{{ s.title }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-                <div class="col-md-2">
-                  <input type="number" name="unit_price[]" class="form-control form-control-sm" step="0.001" value="{{ ds.unit_price }}" required>
-                </div>
-                <div class="col-md-2">
-                  <input type="number" name="hours_used[]" class="form-control form-control-sm {% if ds.service.billing_type != 'hour' %}d-none{% endif %}" value="{{ ds.hours_used|default:'' }}" min="1">
-                  <input type="number" name="days_used[]"  class="form-control form-control-sm {% if ds.service.billing_type != 'day'  %}d-none{% endif %}" value="{{ ds.days_used|default:'' }}"  min="1">
-                  <input type="number" name="units_used[]" class="form-control form-control-sm {% if ds.service.billing_type != 'unit' %}d-none{% endif %}" value="{{ ds.units_used|default:'' }}" min="1">
-                </div>
-                <div class="col-md-2">
-                  <div class="form-check mt-3">
-                    <input type="checkbox" name="has_fodec[]" value="1" class="form-check-input" {% if ds.has_fodec %}checked{% endif %}>
-                    <label class="form-check-label small">FODEC</label>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold mb-1">Timbre Fiscal</label>
+              <input type="number" name="timbre_fiscal" class="form-control form-control-sm" step="0.001" value="{{ devis.timbre_fiscal }}">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold mb-1">Réduction (%)</label>
+              <input type="number" name="discount" class="form-control form-control-sm" step="0.01" value="{{ devis.discount|default:'0' }}">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold mb-1">Remarques</label>
+              <textarea name="notes" class="form-control form-control-sm" rows="1">{{ devis.notes|default:'' }}</textarea>
+            </div>
+
+            <div class="col-12">
+              <hr class="my-1">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-semibold mb-0"><i class="bi bi-briefcase me-2"></i>Services</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="addEditSvcBtn">
+                  <i class="bi bi-plus-circle me-1"></i>Ajouter un service
+                </button>
+              </div>
+              <div id="editSvcRows">
+                {% for ds in devis.devis_services.all %}
+                <div class="devis-service-row card shadow-sm p-2 mb-2">
+                  <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold mb-1 small">Service</label>
+                      <select name="service_id[]" class="form-select form-select-sm" required>
+                        {% for s in services %}
+                        <option value="{{ s.id }}" data-price="{{ s.price }}" data-billing="{{ s.billing_type }}"
+                                {% if s.id == ds.service_id %}selected{% endif %}>{{ s.title }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label fw-semibold mb-1 small">Prix unit.</label>
+                      <input type="number" name="unit_price[]" class="form-control form-control-sm" step="0.001" value="{{ ds.unit_price }}" required>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label fw-semibold mb-1 small">Qté/Hrs/Jrs</label>
+                      <input type="number" name="hours_used[]" class="form-control form-control-sm {% if ds.service.billing_type != 'hour' %}d-none{% endif %}" value="{{ ds.hours_used|default:'' }}" min="1">
+                      <input type="number" name="days_used[]"  class="form-control form-control-sm {% if ds.service.billing_type != 'day'  %}d-none{% endif %}" value="{{ ds.days_used|default:'' }}"  min="1">
+                      <input type="number" name="units_used[]" class="form-control form-control-sm {% if ds.service.billing_type != 'unit' %}d-none{% endif %}" value="{{ ds.units_used|default:'' }}" min="1">
+                    </div>
+                    <div class="col-md-2">
+                      <div class="form-check mt-3">
+                        <input type="checkbox" name="has_fodec[]" value="1" class="form-check-input" {% if ds.has_fodec %}checked{% endif %}>
+                        <label class="form-check-label small">FODEC</label>
+                      </div>
+                    </div>
+                    <div class="col-md-2">
+                      <button type="button" class="btn btn-sm btn-outline-danger remove-row-btn"><i class="bi bi-x"></i></button>
+                    </div>
                   </div>
                 </div>
-                <div class="col-md-2">
-                  <button type="button" class="btn btn-sm btn-outline-danger remove-row-btn"><i class="bi bi-x"></i></button>
-                </div>
+                {% endfor %}
               </div>
             </div>
-            {% endfor %}
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-          <button type="submit" class="btn btn-primary">Enregistrer</button>
+
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-check-circle me-1"></i> Enregistrer
+          </button>
         </div>
       </form>
     </div>
