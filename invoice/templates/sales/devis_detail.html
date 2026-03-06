@@ -1,0 +1,230 @@
+{% extends 'partials/base.html' %}
+{% load static %}
+{% block title %}Devis #{{ devis.uniqueId }}{% endblock %}
+{% block main %}
+
+<div style="max-width:900px;margin:0 auto;">
+  <!-- Action bar -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <a href="{% url 'devis_list' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Retour
+    </a>
+    <div class="d-flex gap-2 flex-wrap">
+      {% if devis.status == 'PENDING' %}
+        <button data-bs-toggle="modal" data-bs-target="#editDevisModal" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-pencil me-1"></i>Modifier
+        </button>
+        <form method="POST" action="{% url 'devis_convert' devis.id %}" class="d-inline"
+              onsubmit="return confirm('Convertir ce devis en facture ?')">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-success">
+            <i class="bi bi-arrow-right-circle me-1"></i>Convertir en facture
+          </button>
+        </form>
+        <form method="POST" action="{% url 'devis_update' devis.id %}" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="status" value="REJECTED">
+          <button type="submit" class="btn btn-sm btn-outline-danger"
+                  onclick="return confirm('Marquer comme rejeté ?')">
+            <i class="bi bi-x-circle me-1"></i>Rejeter
+          </button>
+        </form>
+      {% elif devis.status == 'ACCEPTED' %}
+        <a href="{% url 'invoice_detail' devis.converted_invoice.id %}" class="btn btn-sm btn-success">
+          <i class="bi bi-file-earmark-check me-1"></i>Voir facture {{ devis.converted_invoice.uniqueId }}
+        </a>
+      {% elif devis.status == 'REJECTED' %}
+        <button data-bs-toggle="modal" data-bs-target="#editDevisModal" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-pencil me-1"></i>Modifier
+        </button>
+      {% endif %}
+      <button onclick="window.print()" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-printer me-1"></i>Imprimer
+      </button>
+      <a href="{% url 'devis_delete' devis.id %}" class="btn btn-sm btn-outline-danger">
+        <i class="bi bi-trash me-1"></i>Supprimer
+      </a>
+    </div>
+  </div>
+
+  <!-- Document -->
+  <div class="bg-white rounded shadow-sm overflow-hidden">
+    <div class="p-4 border-bottom" style="background:#eff6ff;">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          {% if settings.clientLogo %}<img src="{{ settings.clientLogo }}" alt="Logo" style="max-height:60px;" class="mb-2">{% endif %}
+          <div class="fw-bold">{{ settings.clientname|default:"" }}</div>
+          <div class="text-muted small">{{ settings.address|default:"" }}</div>
+          <div class="text-muted small">MF: {{ settings.mf|default:"" }}</div>
+        </div>
+        <div class="text-end">
+          <h2 class="text-primary fw-bold mb-1">DEVIS</h2>
+          <div class="fs-5 fw-semibold">#{{ devis.uniqueId }}</div>
+          <div class="text-muted small">{{ devis.date_created|date:"d/m/Y" }}</div>
+          <div class="mt-1">
+            {% if devis.status == 'ACCEPTED' %}<span class="badge bg-success">Accepté</span>
+            {% elif devis.status == 'REJECTED' %}<span class="badge bg-danger">Rejeté</span>
+            {% else %}<span class="badge bg-warning text-dark">En attente</span>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-4 border-bottom">
+      <div class="text-muted small text-uppercase mb-1">Client</div>
+      <div class="fw-bold">{{ devis.client.clientname|default:"—" }}</div>
+      <div class="text-muted small">{{ devis.client.address|default:"" }}</div>
+      <div class="text-muted small">MF: {{ devis.client.mf|default:"" }}</div>
+    </div>
+
+    <div class="p-4">
+      <table class="table table-sm">
+        <thead class="table-light">
+          <tr>
+            <th>Service</th><th class="text-end">Prix unit.</th><th class="text-end">Qté</th>
+            <th class="text-end">FODEC</th><th class="text-end">Montant HT</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ds in devis.devis_services.all %}
+          <tr>
+            <td>{{ ds.service.title }}</td>
+            <td class="text-end">{{ ds.unit_price }}</td>
+            <td class="text-end">
+              {% if ds.service.billing_type == 'hour' %}{{ ds.hours_used|default:1 }} h
+              {% elif ds.service.billing_type == 'day' %}{{ ds.days_used|default:1 }} j
+              {% elif ds.service.billing_type == 'unit' %}{{ ds.units_used|default:1 }}
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-end">{% if ds.has_fodec %}✓{% else %}—{% endif %}</td>
+            <td class="text-end">{{ ds.get_line_ht }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="row justify-content-end mt-3">
+        <div class="col-md-5">
+          <table class="table table-sm table-borderless">
+            <tr><td>Sous-total HT</td><td class="text-end">{{ devis.calculate_service_subtotal }}</td></tr>
+            {% if devis.calculate_total_fodec %}<tr><td>FODEC (1%)</td><td class="text-end">{{ devis.calculate_total_fodec }}</td></tr>{% endif %}
+            {% if devis.discount %}<tr><td>Remise ({{ devis.discount }}%)</td><td class="text-end">-{{ devis.calculate_discount_amount }}</td></tr>{% endif %}
+            <tr><td>TVA ({{ devis.get_tva }}%)</td><td class="text-end">{{ devis.calculate_tva_amount }}</td></tr>
+            <tr><td>Timbre fiscal</td><td class="text-end">{{ devis.get_timbre_fiscal }}</td></tr>
+            <tr class="fw-bold border-top"><td>TOTAL TTC</td><td class="text-end">{{ devis.calculate_total }} TND</td></tr>
+          </table>
+        </div>
+      </div>
+
+      {% if devis.notes %}
+      <div class="mt-3 p-3 bg-light rounded">
+        <div class="text-muted small text-uppercase mb-1">Notes</div>
+        <div>{{ devis.notes }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editDevisModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Modifier {{ devis.uniqueId }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{% url 'devis_update' devis.id %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Client</label>
+            <select name="client" class="form-select">
+              {% for c in clients %}
+              <option value="{{ c.id }}" {% if c.id == devis.client_id %}selected{% endif %}>{{ c.clientname }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Titre</label>
+            <input type="text" name="title" class="form-control" value="{{ devis.title|default:'' }}">
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label">TVA (%)</label>
+              <input type="number" name="tva" class="form-control" step="0.01" value="{{ devis.tva }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Timbre fiscal</label>
+              <input type="number" name="timbre_fiscal" class="form-control" step="0.001" value="{{ devis.timbre_fiscal }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Remise (%)</label>
+              <input type="number" name="discount" class="form-control" step="0.01" value="{{ devis.discount|default:'0' }}">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2">{{ devis.notes|default:'' }}</textarea>
+          </div>
+          <hr>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong>Services</strong>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="addEditSvcBtn">
+              <i class="bi bi-plus"></i> Ajouter
+            </button>
+          </div>
+          <div id="editSvcRows">
+            {% for ds in devis.devis_services.all %}
+            <div class="devis-service-row border rounded p-2 mb-2">
+              <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                  <select name="service_id[]" class="form-select form-select-sm" required>
+                    {% for s in services %}
+                    <option value="{{ s.id }}" data-price="{{ s.price }}" data-billing="{{ s.billing_type }}"
+                            {% if s.id == ds.service_id %}selected{% endif %}>{{ s.title }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <input type="number" name="unit_price[]" class="form-control form-control-sm" step="0.001" value="{{ ds.unit_price }}" required>
+                </div>
+                <div class="col-md-2">
+                  <input type="number" name="hours_used[]" class="form-control form-control-sm {% if ds.service.billing_type != 'hour' %}d-none{% endif %}" value="{{ ds.hours_used|default:'' }}" min="1">
+                  <input type="number" name="days_used[]"  class="form-control form-control-sm {% if ds.service.billing_type != 'day'  %}d-none{% endif %}" value="{{ ds.days_used|default:'' }}"  min="1">
+                  <input type="number" name="units_used[]" class="form-control form-control-sm {% if ds.service.billing_type != 'unit' %}d-none{% endif %}" value="{{ ds.units_used|default:'' }}" min="1">
+                </div>
+                <div class="col-md-2">
+                  <div class="form-check mt-3">
+                    <input type="checkbox" name="has_fodec[]" value="1" class="form-check-input" {% if ds.has_fodec %}checked{% endif %}>
+                    <label class="form-check-label small">FODEC</label>
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <button type="button" class="btn btn-sm btn-outline-danger remove-row-btn"><i class="bi bi-x"></i></button>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+document.querySelectorAll('.remove-row-btn').forEach(b => b.onclick = () => b.closest('.devis-service-row').remove());
+document.getElementById('addEditSvcBtn').addEventListener('click', function() {
+  const tpl = document.getElementById('devisServiceRowTpl');
+  if (!tpl) return;
+  const clone = tpl.content.cloneNode(true);
+  document.getElementById('editSvcRows').appendChild(clone);
+  const row = document.getElementById('editSvcRows').lastElementChild;
+  row.querySelector('.remove-row-btn').onclick = () => row.remove();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,200 @@
+{% extends 'partials/base.html' %}
+{% load static %}
+{% block title %}Devis{% endblock %}
+{% block main %}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Devis</h1>
+    <p>Gérer vos devis et estimations</p>
+  </div>
+  <div class="page-header-actions">
+    <button type="button" class="btn btn-modern-primary btn-modern"
+            data-bs-toggle="modal" data-bs-target="#createDevisModal">
+      <i class="bi bi-plus-circle me-2"></i>Créer un devis
+    </button>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="modern-card text-center py-3">
+      <div class="fs-4 fw-bold text-primary">{{ count }}</div>
+      <div class="text-muted small">Total</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="modern-card text-center py-3">
+      <div class="fs-4 fw-bold text-warning">{{ pending_count }}</div>
+      <div class="text-muted small">En attente</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="modern-card text-center py-3">
+      <div class="fs-4 fw-bold text-success">{{ accepted_count }}</div>
+      <div class="text-muted small">Acceptés</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="modern-card text-center py-3">
+      <div class="fs-4 fw-bold text-danger">{{ rejected_count }}</div>
+      <div class="text-muted small">Rejetés</div>
+    </div>
+  </div>
+</div>
+
+<div class="modern-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Numéro</th>
+          <th>Client</th>
+          <th>Statut</th>
+          <th>Date</th>
+          <th>Facture liée</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in devis_list %}
+        <tr>
+          <td><strong>{{ d.uniqueId }}</strong></td>
+          <td>{{ d.client.clientname|default:"—" }}</td>
+          <td>
+            {% if d.status == 'ACCEPTED' %}<span class="badge bg-success">Accepté</span>
+            {% elif d.status == 'REJECTED' %}<span class="badge bg-danger">Rejeté</span>
+            {% else %}<span class="badge bg-warning text-dark">En attente</span>{% endif %}
+          </td>
+          <td>{{ d.date_created|date:"d/m/Y" }}</td>
+          <td>
+            {% if d.converted_invoice %}
+              <a href="{% url 'invoice_detail' d.converted_invoice.id %}">{{ d.converted_invoice.uniqueId }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-end">
+            <a href="{% url 'devis_detail' d.id %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+            <a href="{% url 'devis_delete' d.id %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-4">Aucun devis trouvé.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Create Modal -->
+<div class="modal fade" id="createDevisModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Créer un devis</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{% url 'devis_create' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Client *</label>
+            <select name="client" class="form-select" required>
+              <option value="">— Sélectionner —</option>
+              {% for c in clients %}<option value="{{ c.id }}">{{ c.clientname }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Titre</label>
+            <input type="text" name="title" class="form-control">
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <label class="form-label">TVA (%)</label>
+              <input type="number" name="tva" class="form-control" step="0.01" value="{{ settings.tva|default:'19.00' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Timbre fiscal</label>
+              <input type="number" name="timbre_fiscal" class="form-control" step="0.001" value="{{ settings.dt|default:'1.000' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Remise (%)</label>
+              <input type="number" name="discount" class="form-control" step="0.01" value="0">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2"></textarea>
+          </div>
+          <hr>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong>Services</strong>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="addDevisServiceBtn">
+              <i class="bi bi-plus"></i> Ajouter
+            </button>
+          </div>
+          <div id="devisServiceRows"></div>
+          <template id="devisServiceRowTpl">
+            <div class="devis-service-row border rounded p-2 mb-2">
+              <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label small">Service</label>
+                  <select name="service_id[]" class="form-select form-select-sm svc-select" required>
+                    <option value="">— Choisir —</option>
+                    {% for s in services %}
+                    <option value="{{ s.id }}" data-price="{{ s.price }}" data-billing="{{ s.billing_type }}" data-fodec="{{ s.apply_fodec|yesno:'1,0' }}">{{ s.title }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small">Prix unit.</label>
+                  <input type="number" name="unit_price[]" class="form-control form-control-sm" step="0.001" required>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label small">Qté/Hrs/Jrs</label>
+                  <input type="number" name="hours_used[]" class="form-control form-control-sm hours-f" min="1">
+                  <input type="number" name="days_used[]"  class="form-control form-control-sm days-f d-none" min="1">
+                  <input type="number" name="units_used[]" class="form-control form-control-sm units-f d-none" min="1">
+                </div>
+                <div class="col-md-2">
+                  <div class="form-check mt-3">
+                    <input type="checkbox" name="has_fodec[]" value="1" class="form-check-input">
+                    <label class="form-check-label small">FODEC</label>
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <button type="button" class="btn btn-sm btn-outline-danger remove-row-btn"><i class="bi bi-x"></i></button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer le devis</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function wireRow(row) {
+  row.querySelector('.remove-row-btn').onclick = () => row.remove();
+  row.querySelector('.svc-select').onchange = function() {
+    const opt = this.options[this.selectedIndex];
+    row.querySelector('[name="unit_price[]"]').value = opt.dataset.price || '';
+    const b = opt.dataset.billing;
+    row.querySelector('.hours-f').classList.toggle('d-none', b !== 'hour');
+    row.querySelector('.days-f').classList.toggle('d-none', b !== 'day');
+    row.querySelector('.units-f').classList.toggle('d-none', b !== 'unit');
+    if (opt.dataset.fodec === '1') row.querySelector('[name="has_fodec[]"]').checked = true;
+  };
+}
+document.getElementById('addDevisServiceBtn').addEventListener('click', function() {
+  const clone = document.getElementById('devisServiceRowTpl').content.cloneNode(true);
+  const row = clone.querySelector('.devis-service-row');
+  document.getElementById('devisServiceRows').appendChild(clone);
+  wireRow(document.getElementById('devisServiceRows').lastElementChild);
+});
+</script>
+{% endblock %}

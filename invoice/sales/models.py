@@ -788,7 +788,14 @@ class BonLivraisonLine(models.Model):
 
 
 class InvoiceService(models.Model):
-    invoice = models.ForeignKey('Invoice', on_delete=models.CASCADE, related_name='invoice_services')
+    invoice = models.ForeignKey(
+        'Invoice', null=True, blank=True,
+        on_delete=models.CASCADE, related_name='invoice_services'
+    )
+    devis = models.ForeignKey(
+        'Devis', null=True, blank=True,
+        on_delete=models.CASCADE, related_name='devis_services'
+    )
     service = models.ForeignKey('Service', on_delete=models.PROTECT)
 
     # Your existing explicit usage fields
@@ -820,3 +827,144 @@ class InvoiceService(models.Model):
     def get_vat_base(self):
         """The crucial part: VAT is calculated on (HT + FODEC)"""
         return self.get_line_ht() + self.get_fodec_amount()
+
+
+class Devis(models.Model):
+    STATUS = [
+        ('PENDING', 'PENDING'),
+        ('ACCEPTED', 'ACCEPTED'),
+        ('REJECTED', 'REJECTED'),
+    ]
+
+    client = models.ForeignKey('Client', blank=True, null=True, on_delete=models.SET_NULL)
+    title = models.CharField(null=True, blank=True, max_length=200)
+    notes = models.TextField(null=True, blank=True)
+    status = models.CharField(choices=STATUS, default='PENDING', max_length=100)
+
+    tva = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    timbre_fiscal = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, null=True, blank=True)
+
+    converted_invoice = models.OneToOneField(
+        'Invoice', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='source_devis'
+    )
+
+    uniqueId = models.CharField(null=True, blank=True, max_length=100)
+    slug = models.SlugField(max_length=500, unique=True, null=True, blank=True)
+    date_created = models.DateTimeField(blank=True, null=True)
+    last_updated = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-date_created']
+        verbose_name_plural = 'Devis'
+
+    def __str__(self):
+        return f"Devis {self.uniqueId} - {self.client}"
+
+    def get_tva(self):
+        if self.tva is not None:
+            return Decimal(str(self.tva))
+        return Decimal('19.00')
+
+    def get_timbre_fiscal(self):
+        if self.timbre_fiscal is not None:
+            return Decimal(str(self.timbre_fiscal))
+        return Decimal('1.000')
+
+    def calculate_service_subtotal(self):
+        return sum(s.get_line_ht() for s in self.devis_services.all())
+
+    def calculate_total_fodec(self):
+        return sum(s.get_fodec_amount() for s in self.devis_services.all())
+
+    def calculate_discount_amount(self):
+        subtotal = self.calculate_service_subtotal()
+        fodec = self.calculate_total_fodec()
+        if self.discount:
+            return (subtotal + fodec) * Decimal(str(self.discount)) / Decimal('100')
+        return Decimal('0')
+
+    def calculate_tva_amount(self):
+        subtotal = self.calculate_service_subtotal()
+        fodec = self.calculate_total_fodec()
+        discount = self.calculate_discount_amount()
+        tva_base = subtotal + fodec - discount
+        return tva_base * self.get_tva() / Decimal('100')
+
+    def calculate_total(self):
+        subtotal = self.calculate_service_subtotal()
+        fodec = self.calculate_total_fodec()
+        discount = self.calculate_discount_amount()
+        tva = self.calculate_tva_amount()
+        timbre = self.get_timbre_fiscal()
+        return subtotal + fodec - discount + tva + timbre
+
+    def convert_to_invoice(self):
+        """
+        Creates an Invoice from this devis.
+        Copies each InvoiceService row to the new invoice — the devis keeps
+        its own rows as a frozen historical record.
+        Marks self as ACCEPTED and stores the link.
+        """
+        if self.converted_invoice:
+            return self.converted_invoice
+
+        invoice = Invoice.objects.create(
+            client=self.client,
+            title=self.title or '',
+            notes=self.notes or '',
+            tva=self.tva,
+            timbre_fiscal=self.timbre_fiscal,
+            discount=self.discount or 0,
+        )
+
+        for ds in self.devis_services.all():
+            InvoiceService.objects.create(
+                invoice=invoice,
+                service=ds.service,
+                hours_used=ds.hours_used,
+                days_used=ds.days_used,
+                units_used=ds.units_used,
+                unit_price=ds.unit_price,
+                has_fodec=ds.has_fodec,
+            )
+
+        self.converted_invoice = invoice
+        self.status = 'ACCEPTED'
+        self.save()
+        return invoice
+
+    def save(self, *args, **kwargs):
+        now = timezone.localtime(timezone.now())
+        if not self.date_created:
+            self.date_created = now
+            settings = Settings.get_cached()
+            if settings:
+                if self.tva is None and settings.tva is not None:
+                    self.tva = Decimal(str(settings.tva))
+                if self.timbre_fiscal is None and settings.dt is not None:
+                    self.timbre_fiscal = Decimal(str(settings.dt))
+
+        if not self.uniqueId:
+            year = str(now.year)
+            existing = Devis.objects.filter(
+                uniqueId__startswith='DV-',
+                uniqueId__endswith=f'-{year}'
+            ).order_by('-date_created')
+            if existing.exists():
+                last_id = existing.first().uniqueId
+                try:
+                    last_number = int(last_id.split('-')[1])
+                except (ValueError, IndexError):
+                    last_number = 0
+                next_number = last_number + 1
+            else:
+                next_number = 1
+            self.uniqueId = f"DV-{str(next_number).zfill(3)}-{year}"
+
+        if not self.slug:
+            base_slug = slugify(self.title or "devis")
+            self.slug = f"{base_slug}-{self.uniqueId}"
+        self.last_updated = now
+        super().save(*args, **kwargs)

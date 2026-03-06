@@ -17,7 +17,8 @@ from .views import (dashboard, delete_supplier, edit_supplier,
                     avoirs_list, avoir_create, avoir_edit, avoir_delete,
                     avoir_detail, avoir_modal_data, client_all_invoices,
                     bons_livraison_list, bon_livraison_create, bon_livraison_edit,
-                    bon_livraison_delete, bon_livraison_detail, bon_livraison_modal_data)
+                    bon_livraison_delete, bon_livraison_detail, bon_livraison_modal_data,
+                    devis_list, devis_create, devis_detail, devis_update, devis_delete, devis_convert)
 
 urlpatterns = [
     path('', login_view,name='login'),
@@ -90,4 +91,12 @@ urlpatterns = [
     path('bons-livraison/<int:bon_id>/edit/', bon_livraison_edit, name='bon_livraison_edit'),
     path('bons-livraison/<int:bon_id>/delete/', bon_livraison_delete, name='bon_livraison_delete'),
     path('bons-livraison/<int:bon_id>/modal-data/', bon_livraison_modal_data, name='bon_livraison_modal_data'),
+
+    # Devis (Quotes)
+    path('devis/', devis_list, name='devis_list'),
+    path('devis/create/', devis_create, name='devis_create'),
+    path('devis/<int:devis_id>/', devis_detail, name='devis_detail'),
+    path('devis/<int:devis_id>/update/', devis_update, name='devis_update'),
+    path('devis/<int:devis_id>/delete/', devis_delete, name='devis_delete'),
+    path('devis/<int:devis_id>/convert/', devis_convert, name='devis_convert'),
 ]

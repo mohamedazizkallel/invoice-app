@@ -16,7 +16,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.http import JsonResponse
 from .forms import ClientForm, InvoiceForm, SupplierForm, UserLoginForm, SettingsForm, ServiceForm, ClientTransactionForm, SupplierTransactionForm, SupplyForm, PurchaseForm
-from .models import Client,Invoice,Settings,Service,InvoiceService,Supplier,ClientTransaction, SupplierTransaction, Supply, Purchase, PurchaseLine, InvoiceSupplyUsage, CreditNote, BonLivraison, BonLivraisonLine
+from .models import Client,Invoice,Settings,Service,InvoiceService,Supplier,ClientTransaction, SupplierTransaction, Supply, Purchase, PurchaseLine, InvoiceSupplyUsage, CreditNote, BonLivraison, BonLivraisonLine, Devis
 from payment.models import Retenu, PurchaseRetenu
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate,logout,login as auth_login
@@ -2267,3 +2267,210 @@ def bon_livraison_detail(request, bon_id):
         'bon': bon,
         'settings_obj': settings_obj,
     })
+
+
+# ─────────────────────────────────────────────
+# DEVIS (Quotes / Approximation Invoices)
+# ─────────────────────────────────────────────
+
+@login_required
+def devis_list(request):
+    devis_qs = Devis.objects.select_related('client', 'converted_invoice').all()
+    return render(request, 'sales/devis_list.html', {
+        'devis_list': devis_qs,
+        'count': devis_qs.count(),
+        'accepted_count': devis_qs.filter(status='ACCEPTED').count(),
+        'pending_count': devis_qs.filter(status='PENDING').count(),
+        'rejected_count': devis_qs.filter(status='REJECTED').count(),
+        'clients': Client.objects.all(),
+        'services': Service.objects.all(),
+        'settings': Settings.get_cached(),
+    })
+
+
+@login_required
+def devis_create(request):
+    if request.method != 'POST':
+        return redirect('devis_list')
+
+    try:
+        with transaction.atomic():
+            client_id = request.POST.get('client')
+            if not client_id:
+                messages.error(request, 'Client requis.')
+                return redirect('devis_list')
+
+            client = get_object_or_404(Client, id=client_id)
+            title = request.POST.get('title', '').strip()
+            notes = request.POST.get('notes', '').strip()
+            settings = Settings.get_cached()
+
+            tva_input = request.POST.get('tva', '').strip()
+            tva = Decimal(tva_input) if tva_input else (
+                Decimal(str(settings.tva)) if settings and settings.tva else Decimal('19.00')
+            )
+
+            timbre_input = request.POST.get('timbre_fiscal', '').strip()
+            timbre_fiscal = Decimal(timbre_input) if timbre_input else (
+                Decimal(str(settings.dt)) if settings and settings.dt else Decimal('1.000')
+            )
+
+            discount = Decimal(request.POST.get('discount', '0') or '0')
+
+            service_ids = request.POST.getlist('service_id[]')
+            if not service_ids:
+                messages.error(request, 'Vous devez ajouter au moins un service.')
+                return redirect('devis_list')
+
+            devis = Devis.objects.create(
+                client=client,
+                title=title,
+                notes=notes,
+                tva=tva,
+                timbre_fiscal=timbre_fiscal,
+                discount=discount,
+            )
+
+            fodec_flags = request.POST.getlist('has_fodec[]')
+            unit_prices = request.POST.getlist('unit_price[]')
+            hours_list = request.POST.getlist('hours_used[]')
+            days_list = request.POST.getlist('days_used[]')
+            units_list = request.POST.getlist('units_used[]')
+
+            for i, service_id in enumerate(service_ids):
+                if not service_id:
+                    continue
+                service = get_object_or_404(Service, id=service_id)
+                has_fodec = fodec_flags[i] == '1' if i < len(fodec_flags) else False
+                price = Decimal(str(unit_prices[i])) if i < len(unit_prices) and unit_prices[i] else service.price
+
+                InvoiceService.objects.create(
+                    devis=devis,
+                    service=service,
+                    unit_price=price,
+                    has_fodec=has_fodec,
+                    hours_used=int(hours_list[i]) if i < len(hours_list) and hours_list[i] else None,
+                    days_used=int(days_list[i]) if i < len(days_list) and days_list[i] else None,
+                    units_used=int(units_list[i]) if i < len(units_list) and units_list[i] else None,
+                )
+
+            messages.success(request, f'Devis {devis.uniqueId} créé avec succès.')
+            return redirect('devis_detail', devis.id)
+
+    except Exception as e:
+        messages.error(request, f'Erreur: {str(e)}')
+    return redirect('devis_list')
+
+
+@login_required
+def devis_detail(request, devis_id):
+    devis = get_object_or_404(
+        Devis.objects.select_related('client', 'converted_invoice')
+                     .prefetch_related('devis_services__service'),
+        id=devis_id
+    )
+    return render(request, 'sales/devis_detail.html', {
+        'devis': devis,
+        'settings': Settings.get_cached(),
+        'clients': Client.objects.all(),
+        'services': Service.objects.all(),
+    })
+
+
+@login_required
+def devis_update(request, devis_id):
+    devis = get_object_or_404(Devis, id=devis_id)
+
+    if request.method != 'POST':
+        return redirect('devis_detail', devis_id)
+
+    try:
+        with transaction.atomic():
+            client_id = request.POST.get('client')
+            if client_id:
+                devis.client = get_object_or_404(Client, id=client_id)
+
+            devis.title = request.POST.get('title', '').strip()
+            devis.notes = request.POST.get('notes', '').strip()
+
+            tva_input = request.POST.get('tva', '').strip()
+            if tva_input:
+                devis.tva = Decimal(tva_input)
+
+            timbre_input = request.POST.get('timbre_fiscal', '').strip()
+            if timbre_input:
+                devis.timbre_fiscal = Decimal(timbre_input)
+
+            devis.discount = Decimal(request.POST.get('discount', '0') or '0')
+
+            status = request.POST.get('status', '').strip()
+            if status in ('PENDING', 'REJECTED'):
+                devis.status = status
+
+            devis.save()
+
+            service_ids = request.POST.getlist('service_id[]')
+            if service_ids:
+                devis.devis_services.all().delete()
+                fodec_flags = request.POST.getlist('has_fodec[]')
+                unit_prices = request.POST.getlist('unit_price[]')
+                hours_list = request.POST.getlist('hours_used[]')
+                days_list = request.POST.getlist('days_used[]')
+                units_list = request.POST.getlist('units_used[]')
+
+                for i, service_id in enumerate(service_ids):
+                    if not service_id:
+                        continue
+                    service = get_object_or_404(Service, id=service_id)
+                    has_fodec = fodec_flags[i] == '1' if i < len(fodec_flags) else False
+                    price = Decimal(str(unit_prices[i])) if i < len(unit_prices) and unit_prices[i] else service.price
+
+                    InvoiceService.objects.create(
+                        devis=devis,
+                        service=service,
+                        unit_price=price,
+                        has_fodec=has_fodec,
+                        hours_used=int(hours_list[i]) if i < len(hours_list) and hours_list[i] else None,
+                        days_used=int(days_list[i]) if i < len(days_list) and days_list[i] else None,
+                        units_used=int(units_list[i]) if i < len(units_list) and units_list[i] else None,
+                    )
+
+            messages.success(request, f'Devis {devis.uniqueId} mis à jour.')
+            return redirect('devis_detail', devis.id)
+
+    except Exception as e:
+        messages.error(request, f'Erreur: {str(e)}')
+    return redirect('devis_detail', devis_id)
+
+
+@login_required
+def devis_delete(request, devis_id):
+    devis = get_object_or_404(Devis, id=devis_id)
+    if request.method == 'POST':
+        uid = devis.uniqueId
+        devis.delete()
+        messages.success(request, f'Devis {uid} supprimé.')
+        return redirect('devis_list')
+    return render(request, 'sales/devis_delete.html', {'devis': devis})
+
+
+@login_required
+def devis_convert(request, devis_id):
+    """Convert a PENDING devis to an Invoice. POST only."""
+    devis = get_object_or_404(Devis, id=devis_id)
+
+    if request.method != 'POST':
+        return redirect('devis_detail', devis_id)
+
+    if devis.converted_invoice:
+        messages.info(request, f'Ce devis a déjà été converti en {devis.converted_invoice.uniqueId}.')
+        return redirect('invoice_detail', devis.converted_invoice.id)
+
+    try:
+        with transaction.atomic():
+            invoice = devis.convert_to_invoice()
+            messages.success(request, f'Devis {devis.uniqueId} converti en facture {invoice.uniqueId}.')
+            return redirect('invoice_detail', invoice.id)
+    except Exception as e:
+        messages.error(request, f'Erreur lors de la conversion: {str(e)}')
+        return redirect('devis_detail', devis_id)
