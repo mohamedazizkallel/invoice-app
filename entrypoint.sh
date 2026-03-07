@@ -73,6 +73,7 @@ SALES_MIGRATIONS = [
 def fix_schema(schema_name):
     cursor = connection.cursor()
     cursor.execute(f'SET search_path TO \"{schema_name}\"')
+    # Ensure migration history records exist for 0001-0022
     for mig in SALES_MIGRATIONS:
         cursor.execute(
             \"\"\"INSERT INTO django_migrations (app, name, applied)
@@ -82,6 +83,9 @@ def fix_schema(schema_name):
                )\"\"\",
             [mig, mig]
         )
+    # Ensure devis_id column exists (0023 may be recorded but column missing)
+    cursor.execute('CREATE TABLE IF NOT EXISTS sales_devis (id BIGSERIAL PRIMARY KEY, title VARCHAR(200) NULL, notes TEXT NULL, status VARCHAR(100) NOT NULL DEFAULT %s, tva NUMERIC(5,2) NULL, timbre_fiscal NUMERIC(10,3) NULL, discount NUMERIC(10,2) NULL DEFAULT 0.00, \"uniqueId\" VARCHAR(100) NULL, slug VARCHAR(500) NULL, date_created TIMESTAMP WITH TIME ZONE NULL, last_updated TIMESTAMP WITH TIME ZONE NULL, client_id BIGINT NULL, converted_invoice_id BIGINT NULL)', ['PENDING'])
+    cursor.execute('ALTER TABLE sales_invoiceservice ADD COLUMN IF NOT EXISTS devis_id BIGINT NULL')
 
 # Fix public schema
 fix_schema('public')
