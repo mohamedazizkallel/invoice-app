@@ -358,6 +358,15 @@
     color: #9ca3af;
   }
 
+  /* QR Code placeholder */
+  .qr-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+    min-height: 100px;
+  }
+
   /* Footer */
   .invoice-footer {
     padding: 1rem 2rem;
@@ -724,6 +733,10 @@
         </div>
       </div>
 
+      <!-- QR Code placeholder -->
+      <div class="qr-placeholder" id="invoice-qrcode">
+      </div>
+
     </div>
 
     <!-- Invoice Footer -->
@@ -732,7 +745,6 @@
         <div>
           {% if p_settings.rib %}<div><strong>RIB:</strong> {{ p_settings.rib }}</div>{% endif %}
         </div>
-        <div id="invoice-qrcode" style="width:80px; height:80px;"></div>
       </div>
       <div class="footer-legal">
         {{ p_settings.clientname|default:"Votre Société" }} | {{ p_settings.adress|default:"Adresse" }} |
@@ -1030,30 +1042,6 @@ document.addEventListener('DOMContentLoaded', function() {
       alert('Veuillez sélectionner au moins un service.');
     }
   });
-});
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const qrContainer = document.getElementById('invoice-qrcode');
-  if (qrContainer) {
-    const qrData = [
-      'Facture: {{ invoice.uniqueId }}',
-      'Date: {{ invoice.date_created|date:"d/m/Y" }}',
-      'Client: {{ invoice.client.clientname }}',
-      'Total TTC: {{ total|floatformat:3 }} DT',
-      'MF: {{ p_settings.mf|default:"" }}'
-    ].join('\n');
-    new QRCode(qrContainer, {
-      text: qrData,
-      width: 80,
-      height: 80,
-      colorDark: '#374151',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.M
-    });
-  }
 });
 </script>
 

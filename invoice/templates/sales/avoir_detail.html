@@ -273,6 +273,15 @@
     color: #9ca3af;
   }
 
+  /* QR Code placeholder */
+  .qr-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+    min-height: 100px;
+  }
+
   /* Footer */
   .invoice-footer {
     padding: 1rem 2rem;
@@ -580,6 +589,10 @@
         </div>
       </div>
 
+      <!-- QR Code placeholder -->
+      <div class="qr-placeholder" id="avoir-qrcode">
+      </div>
+
     </div>
 
     <!-- Footer -->
@@ -588,7 +601,6 @@
         <div>
           {% if settings_obj and settings_obj.rib %}<div><strong>RIB:</strong> {{ settings_obj.rib }}</div>{% endif %}
         </div>
-        <div id="avoir-qrcode" style="width:80px; height:80px;"></div>
       </div>
       <div class="footer-legal">
         {{ settings_obj.clientname|default:"Votre Societe" }} | {{ settings_obj.adress|default:"Adresse" }} |
@@ -705,27 +717,4 @@ document.getElementById('detailEditTva').addEventListener('input', updateDetailP
 updateDetailPreview();
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const qrContainer = document.getElementById('avoir-qrcode');
-  if (qrContainer) {
-    const qrData = [
-      'Avoir: {{ avoir.uniqueId }}',
-      'Date: {{ avoir.date_created|date:"d/m/Y" }}',
-      'Client: {{ avoir.client.clientname }}',
-      'Total TTC: {{ avoir.calculate_total|floatformat:3 }} DT',
-      'MF: {{ settings_obj.mf|default:"" }}'
-    ].join('\n');
-    new QRCode(qrContainer, {
-      text: qrData,
-      width: 80,
-      height: 80,
-      colorDark: '#374151',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.M
-    });
-  }
-});
-</script>
 {% endblock %}
