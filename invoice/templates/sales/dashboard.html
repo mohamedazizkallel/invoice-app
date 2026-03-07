@@ -11,31 +11,108 @@
     <p>Bienvenue ! Voici un aperçu de votre activité.</p>
   </div>
   <div class="page-header-actions">
-    <button class="btn btn-outline-secondary btn-modern">
-      <i class="bi bi-download me-2"></i>Exporter
-    </button>
     <a href="{% url 'invoices_list' %}" class="btn btn-modern-primary btn-modern">
       <i class="bi bi-plus-circle me-2"></i>Nouvelle facture
     </a>
   </div>
 </div>
 
-<!-- Statistics Cards -->
-<div class="stats-grid">
-  <div class="stat-card">
-    <i class="stat-icon bi bi-receipt"></i>
-    <p>Nombre total de factures</p>
-    <h3>{{ total_invoices }}</h3>
+<!-- Main Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card">
+      <i class="stat-icon bi bi-receipt"></i>
+      <p>Factures</p>
+      <h3>{{ total_invoices }}</h3>
+    </div>
   </div>
-  <div class="stat-card" style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);">
-    <i class="stat-icon bi bi-clock-history"></i>
-    <p>En attente</p>
-    <h3>{{ outstanding_amount|floatformat:3 }} {{ currency }}</h3>
+  <div class="col-md-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);">
+      <i class="stat-icon bi bi-clock-history"></i>
+      <p>En attente</p>
+      <h3>{{ outstanding_amount|floatformat:3 }} {{ currency }}</h3>
+    </div>
   </div>
-  <div class="stat-card" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);">
-    <i class="stat-icon bi bi-check-circle"></i>
-    <p>Payé ce mois-ci</p>
-    <h3>{{ paid_this_month_amount|floatformat:3 }} {{ currency }}</h3>
+  <div class="col-md-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);">
+      <i class="stat-icon bi bi-check-circle"></i>
+      <p>Payé ce mois</p>
+      <h3>{{ paid_this_month_amount|floatformat:3 }} {{ currency }}</h3>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+      <i class="stat-icon bi bi-exclamation-triangle"></i>
+      <p>En retard</p>
+      <h3>{{ overdue_count }}</h3>
+    </div>
+  </div>
+</div>
+
+<!-- Secondary Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="modern-card py-3">
+      <div class="d-flex align-items-center px-3">
+        <div class="rounded-circle bg-primary bg-opacity-10 p-2 me-3">
+          <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+        </div>
+        <div>
+          <div class="text-muted small">Devis</div>
+          <div class="fw-bold fs-5">{{ devis_total }}</div>
+        </div>
+        <div class="ms-auto text-end small">
+          <span class="text-warning">{{ devis_pending }} en attente</span><br>
+          <span class="text-success">{{ devis_accepted }} acceptés</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="modern-card py-3">
+      <div class="d-flex align-items-center px-3">
+        <div class="rounded-circle bg-danger bg-opacity-10 p-2 me-3">
+          <i class="bi bi-arrow-return-left text-danger fs-5"></i>
+        </div>
+        <div>
+          <div class="text-muted small">Avoirs</div>
+          <div class="fw-bold fs-5">{{ avoirs_count }}</div>
+        </div>
+        <div class="ms-auto text-end small">
+          <span class="text-muted">{{ avoirs_total_ttc|floatformat:3 }} {{ currency }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="modern-card py-3">
+      <div class="d-flex align-items-center px-3">
+        <div class="rounded-circle bg-info bg-opacity-10 p-2 me-3">
+          <i class="bi bi-truck text-info fs-5"></i>
+        </div>
+        <div>
+          <div class="text-muted small">Bons de livraison</div>
+          <div class="fw-bold fs-5">{{ bl_total }}</div>
+        </div>
+        <div class="ms-auto text-end small">
+          <span class="text-success">{{ bl_delivered }} livrés</span><br>
+          <span class="text-muted">{{ bl_draft }} brouillons</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="modern-card py-3">
+      <div class="d-flex align-items-center px-3">
+        <div class="rounded-circle bg-secondary bg-opacity-10 p-2 me-3">
+          <i class="bi bi-people text-secondary fs-5"></i>
+        </div>
+        <div>
+          <div class="text-muted small">Clients</div>
+          <div class="fw-bold fs-5">{{ clients_count }}</div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -64,7 +141,7 @@
         <tr>
           <td><strong>#{{ invoice.uniqueId }}</strong></td>
           <td>{{ invoice.client.clientname|default:"Aucun client" }}</td>
-          <td>{{ invoice.date_created|date:"M d, Y"|default:"N/A" }}</td>
+          <td>{{ invoice.date_created|date:"d/m/Y"|default:"N/A" }}</td>
           <td>
             <span class="badge-modern {% if invoice.status == 'PAID' %}badge-success{% elif invoice.status == 'OVERDUE' %}badge-danger{% else %}badge-info{% endif %}">
               {{ invoice.status }}

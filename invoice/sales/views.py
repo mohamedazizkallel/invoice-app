@@ -75,39 +75,95 @@ def logout_view(request):
 
 @login_required
 def dashboard(request):
-    # Get recent invoices
-    invoices = Invoice.objects.all().select_related('client').prefetch_related('invoice_services__service').order_by('-date_created')[:10]
+    now = datetime.now()
 
-    # Calculate statistics
-    total_invoices = Invoice.objects.count()
+    # Recent invoices (single query with joins)
+    invoices = (
+        Invoice.objects
+        .select_related('client')
+        .prefetch_related('invoice_services__service')
+        .order_by('-date_created')[:10]
+    )
 
-    # Outstanding amount (CURRENT + OVERDUE invoices)
-    outstanding_invoices = Invoice.objects.filter(
-        status__in=['CURRENT', 'OVERDUE']
-    ).prefetch_related('invoice_services__service')
-    outstanding_amount = sum(invoice.calculate_total() for invoice in outstanding_invoices)
+    # Counts via single aggregated query
+    invoice_stats = Invoice.objects.aggregate(
+        total=Count('id'),
+        outstanding_count=Count('id', filter=Q(status__in=['CURRENT', 'OVERDUE'])),
+        paid_month_count=Count('id', filter=Q(
+            status='PAID',
+            date_created__month=now.month,
+            date_created__year=now.year,
+        )),
+        overdue_count=Count('id', filter=Q(status='OVERDUE')),
+    )
+
+    # Outstanding amount — need Python-side calc but single prefetched query
+    outstanding_invoices = list(
+        Invoice.objects
+        .filter(status__in=['CURRENT', 'OVERDUE'])
+        .prefetch_related('invoice_services__service')
+    )
+    outstanding_amount = sum(inv.calculate_total() for inv in outstanding_invoices)
 
     # Paid this month
-    current_month = datetime.now().month
-    current_year = datetime.now().year
-    paid_this_month_invoices = Invoice.objects.filter(
-        status='PAID',
-        date_created__month=current_month,
-        date_created__year=current_year
-    ).prefetch_related('invoice_services__service')
-    paid_this_month_amount = sum(invoice.calculate_total() for invoice in paid_this_month_invoices)
+    paid_this_month_invoices = list(
+        Invoice.objects
+        .filter(status='PAID', date_created__month=now.month, date_created__year=now.year)
+        .prefetch_related('invoice_services__service')
+    )
+    paid_this_month_amount = sum(inv.calculate_total() for inv in paid_this_month_invoices)
 
-    # Currency (default to TND)
-    currency = 'TND'
+    # Devis stats (single query)
+    devis_stats = Devis.objects.aggregate(
+        total=Count('id'),
+        pending=Count('id', filter=Q(status='PENDING')),
+        accepted=Count('id', filter=Q(status='ACCEPTED')),
+        rejected=Count('id', filter=Q(status='REJECTED')),
+    )
+
+    # Avoir stats (single query + Python sum for TTC)
+    avoirs_count = CreditNote.objects.count()
+    avoirs_total_ttc = sum(
+        a.calculate_total()
+        for a in CreditNote.objects.only('amount_ht', 'tva')
+    )
+
+    # BL stats (single query)
+    bl_stats = BonLivraison.objects.aggregate(
+        total=Count('id'),
+        draft=Count('id', filter=Q(status='DRAFT')),
+        sent=Count('id', filter=Q(status='SENT')),
+        delivered=Count('id', filter=Q(status='DELIVERED')),
+    )
+
+    # Client count
+    clients_count = Client.objects.count()
 
     context = {
         'invoices': invoices,
-        'total_invoices': total_invoices,
+        'total_invoices': invoice_stats['total'],
         'outstanding_amount': outstanding_amount,
+        'outstanding_count': invoice_stats['outstanding_count'],
         'paid_this_month_amount': paid_this_month_amount,
-        'currency': currency,
+        'overdue_count': invoice_stats['overdue_count'],
+        'currency': 'TND',
+        # Devis
+        'devis_total': devis_stats['total'],
+        'devis_pending': devis_stats['pending'],
+        'devis_accepted': devis_stats['accepted'],
+        'devis_rejected': devis_stats['rejected'],
+        # Avoirs
+        'avoirs_count': avoirs_count,
+        'avoirs_total_ttc': avoirs_total_ttc,
+        # BL
+        'bl_total': bl_stats['total'],
+        'bl_draft': bl_stats['draft'],
+        'bl_sent': bl_stats['sent'],
+        'bl_delivered': bl_stats['delivered'],
+        # Clients
+        'clients_count': clients_count,
     }
-    return render(request,"sales/dashboard.html", context)
+    return render(request, "sales/dashboard.html", context)
 
 
 @login_required
@@ -1917,16 +1973,12 @@ def avoirs_list(request):
     if client_id:
         avoirs = avoirs.filter(client_id=client_id)
 
-    total_ttc = sum(a.calculate_total() for a in avoirs)
-
     paginator = Paginator(avoirs, 10)
     page_obj = paginator.get_page(request.GET.get('page'))
 
     return render(request, 'sales/avoirs.html', {
         'avoirs': page_obj,
         'clients': clients,
-        'total_ttc': total_ttc,
-        'count': avoirs.count(),
         'settings_obj': settings_obj,
         'search_query': search,
         'selected_client': client_id,
@@ -2319,10 +2371,6 @@ def devis_list(request):
 
     return render(request, 'sales/devis_list.html', {
         'devis_list': page_obj,
-        'count': devis_qs.count(),
-        'accepted_count': devis_qs.filter(status='ACCEPTED').count(),
-        'pending_count': devis_qs.filter(status='PENDING').count(),
-        'rejected_count': devis_qs.filter(status='REJECTED').count(),
         'clients': Client.objects.all(),
         'services': Service.objects.all(),
         'settings': Settings.get_cached(),
