@@ -15,9 +15,26 @@ echo "Checking for model changes..."
 python manage.py makemigrations --noinput || echo "Make migrations failed (possibly permission error), skipping..."
 
 # ----------------------------------------------------------------
+# Wait for Database to be ready
+# ----------------------------------------------------------------
+echo "Waiting for database..."
+until python -c "
+import django, os
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'invoice.settings')
+django.setup()
+from django.db import connection
+connection.ensure_connection()
+print('Database is ready.')
+" 2>/dev/null; do
+  echo "Database not ready yet. Retrying in 3 seconds..."
+  sleep 3
+done
+
+# ----------------------------------------------------------------
 # Fix migration history: ensure all sales migrations are recorded
 # so that cross-app dependencies (payment, gov) are satisfied.
 # This is safe to run repeatedly — it only inserts missing records.
+# Remove this block once all environments are stable.
 # ----------------------------------------------------------------
 echo "Fixing migration history..."
 python -c "
@@ -53,8 +70,9 @@ SALES_MIGRATIONS = [
     '0022_bon_livraison',
 ]
 
-def fix_schema():
+def fix_schema(schema_name):
     cursor = connection.cursor()
+    cursor.execute(f'SET search_path TO \"{schema_name}\"')
     for mig in SALES_MIGRATIONS:
         cursor.execute(
             \"\"\"INSERT INTO django_migrations (app, name, applied)
@@ -66,27 +84,23 @@ def fix_schema():
         )
 
 # Fix public schema
-fix_schema()
+fix_schema('public')
 
 # Fix each tenant schema
 for tenant in get_tenant_model().objects.exclude(schema_name='public'):
-    cursor = connection.cursor()
-    cursor.execute(f'SET search_path TO \"{tenant.schema_name}\"')
-    fix_schema()
-    cursor.execute('SET search_path TO public')
+    fix_schema(tenant.schema_name)
+
+# Reset search_path
+connection.cursor().execute('SET search_path TO public')
 
 print('Migration history fixed.')
-" || echo "Migration history fix failed, continuing..."
+"
 
 # ----------------------------------------------------------------
-# Wait for Database and Migrate
-# We loop here because the DB might not be ready immediately.
+# Run Migrations
 # ----------------------------------------------------------------
-echo "Waiting for database..."
-until python manage.py migrate_schemas --shared --noinput; do
-  echo "Database not ready yet. Retrying in 3 seconds..."
-  sleep 3
-done
+echo "Running shared migrations..."
+python manage.py migrate_schemas --shared --noinput
 
 echo "Running tenant migrations..."
 python manage.py migrate_schemas --noinput
