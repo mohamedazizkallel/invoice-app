@@ -124,6 +124,8 @@ class InvoiceForm(forms.ModelForm):
 
 class ClientForm(forms.ModelForm):
     """Form for client management"""
+    emailAddress = forms.EmailField(required=False, widget=forms.EmailInput(attrs={'class': 'form-control'}))
+
     class Meta:
         model = Client
         fields = ['clientname', 'emailAddress', 'adress', 'mf','status']

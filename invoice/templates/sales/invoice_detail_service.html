@@ -330,6 +330,34 @@
 
   .grand-total .value { font-size: 1.25rem; font-weight: 700; }
 
+  /* Signatures */
+  .signatures-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+  }
+
+  .signature-box { text-align: center; }
+
+  .signature-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4rem;
+  }
+
+  .signature-line {
+    border-top: 1px solid #374151;
+    margin: 0 1.5rem;
+    padding-top: 0.5rem;
+    font-size: 0.65rem;
+    color: #9ca3af;
+  }
+
   /* Footer */
   .invoice-footer {
     padding: 1rem 2rem;
@@ -458,11 +486,15 @@
     .grand-total .label { font-size: 0.6rem; }
     .grand-total .value { font-size: 1rem; }
 
+    .signatures-section { margin-top: 1.5rem; padding-top: 1rem; }
+    .signature-label { margin-bottom: 3rem; color: #000; }
+    .signature-line { border-top: 1px solid #000; }
+
     .invoice-footer { background: white !important; border-top: 1px solid #000; padding: 0.6rem 1rem; font-size: 0.6rem; }
     .footer-contact i { color: #000 !important; }
     .footer-legal { font-size: 0.55rem; border-top: 1px dashed #000; padding-top: 0.5rem; margin-top: 0.5rem; }
 
-    .invoice-header, .summary-section, .invoice-footer { page-break-inside: avoid; }
+    .invoice-header, .summary-section, .signatures-section, .invoice-footer { page-break-inside: avoid; }
     .items-table { page-break-inside: auto; }
     .items-table tr { page-break-inside: avoid; }
   }
@@ -475,6 +507,7 @@
     .invoice-center { border-left: none; border-right: none; border-top: 1px dashed #d1d5db; border-bottom: 1px dashed #d1d5db; padding: 1rem 0; }
     .info-row { grid-template-columns: 1fr; }
     .summary-section { grid-template-columns: 1fr; }
+    .signatures-section { grid-template-columns: 1fr; gap: 2rem; }
     .invoice-header { padding: 1rem; }
     .invoice-body { padding: 1rem; }
     .invoice-footer { padding: 0.75rem 1rem; }
@@ -676,6 +709,18 @@
             <span class="label">Total TTC</span>
             <span class="value">{{ total|floatformat:3 }} DT</span>
           </div>
+        </div>
+      </div>
+
+      <!-- Signatures -->
+      <div class="signatures-section">
+        <div class="signature-box">
+          <div class="signature-label">Signature de l'emetteur</div>
+          <div class="signature-line">Nom et cachet</div>
+        </div>
+        <div class="signature-box">
+          <div class="signature-label">Signature du client</div>
+          <div class="signature-line">Nom et cachet</div>
         </div>
       </div>
 
