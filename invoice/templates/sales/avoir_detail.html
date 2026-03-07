@@ -442,11 +442,11 @@
       <div class="header-content">
 
         <!-- Left: Logo -->
-        <div class="entity-box" style="display:flex; align-items:center; justify-content:center; min-height:120px;">
+        <div class="entity-box" style="display:flex; align-items:center; justify-content:center; min-height:120px; padding:0; overflow:hidden;">
           {% if settings_obj and settings_obj.clientLogo %}
-            <img src="{% url 'company_logo' %}?v={{ settings_obj.last_updated|date:'U' }}" alt="{{ settings_obj.clientname }}" style="max-width:100%; max-height:100px; object-fit:contain;">
+            <img src="{% url 'company_logo' %}?v={{ settings_obj.last_updated|date:'U' }}" alt="{{ settings_obj.clientname }}" style="width:100%; height:120px; object-fit:cover;">
           {% else %}
-            <img src="{% static 'assets/img/logo.png' %}" alt="Logo" style="max-width:100%; max-height:100px; object-fit:contain;">
+            <img src="{% static 'assets/img/logo.png' %}" alt="Logo" style="width:100%; height:120px; object-fit:cover;">
           {% endif %}
         </div>
 
@@ -585,9 +585,10 @@
     <!-- Footer -->
     <div class="invoice-footer">
       <div class="footer-row">
-        {% if settings_obj and settings_obj.rib %}
-        <div><strong>RIB:</strong> {{ settings_obj.rib }}</div>
-        {% endif %}
+        <div>
+          {% if settings_obj and settings_obj.rib %}<div><strong>RIB:</strong> {{ settings_obj.rib }}</div>{% endif %}
+        </div>
+        <div id="avoir-qrcode" style="width:80px; height:80px;"></div>
       </div>
       <div class="footer-legal">
         {{ settings_obj.clientname|default:"Votre Societe" }} | {{ settings_obj.adress|default:"Adresse" }} |
@@ -702,5 +703,29 @@ function updateDetailPreview() {
 document.getElementById('detailEditAmountHt').addEventListener('input', updateDetailPreview);
 document.getElementById('detailEditTva').addEventListener('input', updateDetailPreview);
 updateDetailPreview();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const qrContainer = document.getElementById('avoir-qrcode');
+  if (qrContainer) {
+    const qrData = [
+      'Avoir: {{ avoir.uniqueId }}',
+      'Date: {{ avoir.date_created|date:"d/m/Y" }}',
+      'Client: {{ avoir.client.clientname }}',
+      'Total TTC: {{ avoir.calculate_total|floatformat:3 }} DT',
+      'MF: {{ settings_obj.mf|default:"" }}'
+    ].join('\n');
+    new QRCode(qrContainer, {
+      text: qrData,
+      width: 80,
+      height: 80,
+      colorDark: '#374151',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+});
 </script>
 {% endblock %}
