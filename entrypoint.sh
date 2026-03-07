@@ -15,6 +15,70 @@ echo "Checking for model changes..."
 python manage.py makemigrations --noinput || echo "Make migrations failed (possibly permission error), skipping..."
 
 # ----------------------------------------------------------------
+# Fix migration history: ensure all sales migrations are recorded
+# so that cross-app dependencies (payment, gov) are satisfied.
+# This is safe to run repeatedly — it only inserts missing records.
+# ----------------------------------------------------------------
+echo "Fixing migration history..."
+python -c "
+import django, os
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'invoice.settings')
+django.setup()
+
+from django.db import connection
+from django_tenants.utils import get_tenant_model
+
+SALES_MIGRATIONS = [
+    '0001_initial',
+    '0002_alter_settings_options_alter_invoice_timbre_fiscal_and_more',
+    '0003_invoice_is_locked',
+    '0004_client_status_settings_status',
+    '0005_supplier',
+    '0006_settings_rib',
+    '0007_rename_service_invoiceservice_item_and_more',
+    '0008_rename_item_invoiceservice_services',
+    '0009_rename_services_invoiceservice_invoice_services',
+    '0010_rename_invoice_services_invoiceservice_services_and_more',
+    '0011_rename_item_type_service_service_type',
+    '0012_rename_services_invoiceservice_service',
+    '0013_clienttransaction',
+    '0014_purchase_suppliertransaction_supply_purchaseline_and_more',
+    '0015_purchaseline_has_fodec_supply_apply_fodec',
+    '0016_invoice_amount_paid',
+    '0017_alter_settings_clientlogo',
+    '0018_settings_emailaddress_settings_phone',
+    '0019_alter_clienttransaction_source_creditnote',
+    '0020_clienttransaction_credit_note',
+    '0021_settings_default_retenu_rate',
+    '0022_bon_livraison',
+]
+
+def fix_schema():
+    cursor = connection.cursor()
+    for mig in SALES_MIGRATIONS:
+        cursor.execute(
+            \"\"\"INSERT INTO django_migrations (app, name, applied)
+               SELECT 'sales', %s, NOW()
+               WHERE NOT EXISTS (
+                   SELECT 1 FROM django_migrations WHERE app='sales' AND name=%s
+               )\"\"\",
+            [mig, mig]
+        )
+
+# Fix public schema
+fix_schema()
+
+# Fix each tenant schema
+for tenant in get_tenant_model().objects.exclude(schema_name='public'):
+    cursor = connection.cursor()
+    cursor.execute(f'SET search_path TO \"{tenant.schema_name}\"')
+    fix_schema()
+    cursor.execute('SET search_path TO public')
+
+print('Migration history fixed.')
+" || echo "Migration history fix failed, continuing..."
+
+# ----------------------------------------------------------------
 # Wait for Database and Migrate
 # We loop here because the DB might not be ready immediately.
 # ----------------------------------------------------------------
