@@ -4,6 +4,61 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
+def add_devis_id_if_missing(apps, schema_editor):
+    """Add devis_id column to sales_invoiceservice if it doesn't exist."""
+    connection = schema_editor.connection
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = 'sales_invoiceservice'
+              AND column_name = 'devis_id'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("""
+                ALTER TABLE sales_invoiceservice
+                ADD COLUMN devis_id BIGINT NULL
+                    REFERENCES sales_devis(id)
+                    ON DELETE CASCADE
+                    DEFERRABLE INITIALLY DEFERRED
+            """)
+            cursor.execute("""
+                CREATE INDEX sales_invoiceservice_devis_id_idx
+                ON sales_invoiceservice(devis_id)
+            """)
+
+
+def create_devis_table_if_missing(apps, schema_editor):
+    """Create sales_devis table if it doesn't exist."""
+    connection = schema_editor.connection
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = current_schema()
+              AND table_name = 'sales_devis'
+        """)
+        if not cursor.fetchone():
+            cursor.execute("""
+                CREATE TABLE sales_devis (
+                    id BIGSERIAL PRIMARY KEY,
+                    title VARCHAR(200) NULL,
+                    notes TEXT NULL,
+                    status VARCHAR(100) NOT NULL DEFAULT 'PENDING',
+                    tva NUMERIC(5, 2) NULL,
+                    timbre_fiscal NUMERIC(10, 3) NULL,
+                    discount NUMERIC(10, 2) NULL DEFAULT 0.00,
+                    "uniqueId" VARCHAR(100) NULL,
+                    slug VARCHAR(500) NULL UNIQUE,
+                    date_created TIMESTAMP WITH TIME ZONE NULL,
+                    last_updated TIMESTAMP WITH TIME ZONE NULL,
+                    client_id BIGINT NULL REFERENCES sales_client(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
+                    converted_invoice_id BIGINT NULL UNIQUE REFERENCES sales_invoice(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED
+                )
+            """)
+            cursor.execute("CREATE INDEX sales_devis_client_id_idx ON sales_devis(client_id)")
+            cursor.execute("CREATE INDEX sales_devis_slug_idx ON sales_devis(slug)")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -11,36 +66,59 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # 1. Make invoice FK nullable (idempotent — ALTER COLUMN is safe to re-run)
         migrations.AlterField(
             model_name='invoiceservice',
             name='invoice',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='invoice_services', to='sales.invoice'),
         ),
-        migrations.CreateModel(
-            name='Devis',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(blank=True, max_length=200, null=True)),
-                ('notes', models.TextField(blank=True, null=True)),
-                ('status', models.CharField(choices=[('PENDING', 'PENDING'), ('ACCEPTED', 'ACCEPTED'), ('REJECTED', 'REJECTED')], default='PENDING', max_length=100)),
-                ('tva', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('timbre_fiscal', models.DecimalField(blank=True, decimal_places=3, max_digits=10, null=True)),
-                ('discount', models.DecimalField(blank=True, decimal_places=2, default=0.0, max_digits=10, null=True)),
-                ('uniqueId', models.CharField(blank=True, max_length=100, null=True)),
-                ('slug', models.SlugField(blank=True, max_length=500, null=True, unique=True)),
-                ('date_created', models.DateTimeField(blank=True, null=True)),
-                ('last_updated', models.DateTimeField(blank=True, null=True)),
-                ('client', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='sales.client')),
-                ('converted_invoice', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='source_devis', to='sales.invoice')),
-            ],
-            options={
-                'verbose_name_plural': 'Devis',
-                'ordering': ['-date_created'],
-            },
+        # 2. Create Devis table only if missing
+        migrations.RunPython(
+            create_devis_table_if_missing,
+            migrations.RunPython.noop,
         ),
-        migrations.AddField(
-            model_name='invoiceservice',
-            name='devis',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='devis_services', to='sales.devis'),
+        # Tell Django about the Devis model state without running SQL
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.CreateModel(
+                    name='Devis',
+                    fields=[
+                        ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                        ('title', models.CharField(blank=True, max_length=200, null=True)),
+                        ('notes', models.TextField(blank=True, null=True)),
+                        ('status', models.CharField(choices=[('PENDING', 'PENDING'), ('ACCEPTED', 'ACCEPTED'), ('REJECTED', 'REJECTED')], default='PENDING', max_length=100)),
+                        ('tva', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
+                        ('timbre_fiscal', models.DecimalField(blank=True, decimal_places=3, max_digits=10, null=True)),
+                        ('discount', models.DecimalField(blank=True, decimal_places=2, default=0.0, max_digits=10, null=True)),
+                        ('uniqueId', models.CharField(blank=True, max_length=100, null=True)),
+                        ('slug', models.SlugField(blank=True, max_length=500, null=True, unique=True)),
+                        ('date_created', models.DateTimeField(blank=True, null=True)),
+                        ('last_updated', models.DateTimeField(blank=True, null=True)),
+                        ('client', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='sales.client')),
+                        ('converted_invoice', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='source_devis', to='sales.invoice')),
+                    ],
+                    options={
+                        'verbose_name_plural': 'Devis',
+                        'ordering': ['-date_created'],
+                    },
+                ),
+            ],
+            database_operations=[],
+        ),
+        # 3. Add devis FK to InvoiceService only if missing
+        migrations.RunPython(
+            add_devis_id_if_missing,
+            migrations.RunPython.noop,
+        ),
+        # Tell Django about the field state without running SQL
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name='invoiceservice',
+                    name='devis',
+                    field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='devis_services', to='sales.devis'),
+                ),
+            ],
+            database_operations=[],
         ),
     ]
