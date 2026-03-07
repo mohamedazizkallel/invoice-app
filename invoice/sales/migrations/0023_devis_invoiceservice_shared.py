@@ -4,59 +4,74 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
-def add_devis_id_if_missing(apps, schema_editor):
-    """Add devis_id column to sales_invoiceservice if it doesn't exist."""
-    connection = schema_editor.connection
-    with connection.cursor() as cursor:
-        cursor.execute("""
-            SELECT column_name FROM information_schema.columns
-            WHERE table_schema = current_schema()
-              AND table_name = 'sales_invoiceservice'
-              AND column_name = 'devis_id'
-        """)
-        if not cursor.fetchone():
-            cursor.execute("""
+def fix_partial_state(apps, schema_editor):
+    """Idempotently ensure both the Devis table and devis_id column exist."""
+    cursor = schema_editor.connection.cursor()
+
+    # Create Devis table if missing
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sales_devis (
+            id BIGSERIAL PRIMARY KEY,
+            title VARCHAR(200) NULL,
+            notes TEXT NULL,
+            status VARCHAR(100) NOT NULL DEFAULT 'PENDING',
+            tva NUMERIC(5, 2) NULL,
+            timbre_fiscal NUMERIC(10, 3) NULL,
+            discount NUMERIC(10, 2) NULL DEFAULT 0.00,
+            "uniqueId" VARCHAR(100) NULL,
+            slug VARCHAR(500) NULL,
+            date_created TIMESTAMP WITH TIME ZONE NULL,
+            last_updated TIMESTAMP WITH TIME ZONE NULL,
+            client_id BIGINT NULL REFERENCES sales_client(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
+            converted_invoice_id BIGINT NULL REFERENCES sales_invoice(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED
+        )
+    """)
+
+    # Create indexes if missing
+    cursor.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='sales_devis' AND indexname='sales_devis_client_id_idx') THEN
+                CREATE INDEX sales_devis_client_id_idx ON sales_devis(client_id);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='sales_devis' AND indexname='sales_devis_slug_idx') THEN
+                CREATE UNIQUE INDEX sales_devis_slug_idx ON sales_devis(slug);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='sales_devis' AND indexname='sales_devis_converted_invoice_id_idx') THEN
+                CREATE UNIQUE INDEX sales_devis_converted_invoice_id_idx ON sales_devis(converted_invoice_id);
+            END IF;
+        END $$;
+    """)
+
+    # Add devis_id column if missing
+    cursor.execute("""
+        ALTER TABLE sales_invoiceservice
+        ADD COLUMN IF NOT EXISTS devis_id BIGINT NULL
+    """)
+
+    # Add FK constraint if missing
+    cursor.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.table_constraints
+                WHERE constraint_name = 'sales_invoiceservice_devis_id_fk'
+                  AND table_name = 'sales_invoiceservice'
+            ) THEN
                 ALTER TABLE sales_invoiceservice
-                ADD COLUMN devis_id BIGINT NULL
-                    REFERENCES sales_devis(id)
-                    ON DELETE CASCADE
-                    DEFERRABLE INITIALLY DEFERRED
-            """)
-            cursor.execute("""
-                CREATE INDEX sales_invoiceservice_devis_id_idx
-                ON sales_invoiceservice(devis_id)
-            """)
+                ADD CONSTRAINT sales_invoiceservice_devis_id_fk
+                FOREIGN KEY (devis_id) REFERENCES sales_devis(id)
+                ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
+            END IF;
+        END $$;
+    """)
 
-
-def create_devis_table_if_missing(apps, schema_editor):
-    """Create sales_devis table if it doesn't exist."""
-    connection = schema_editor.connection
-    with connection.cursor() as cursor:
-        cursor.execute("""
-            SELECT 1 FROM information_schema.tables
-            WHERE table_schema = current_schema()
-              AND table_name = 'sales_devis'
-        """)
-        if not cursor.fetchone():
-            cursor.execute("""
-                CREATE TABLE sales_devis (
-                    id BIGSERIAL PRIMARY KEY,
-                    title VARCHAR(200) NULL,
-                    notes TEXT NULL,
-                    status VARCHAR(100) NOT NULL DEFAULT 'PENDING',
-                    tva NUMERIC(5, 2) NULL,
-                    timbre_fiscal NUMERIC(10, 3) NULL,
-                    discount NUMERIC(10, 2) NULL DEFAULT 0.00,
-                    "uniqueId" VARCHAR(100) NULL,
-                    slug VARCHAR(500) NULL UNIQUE,
-                    date_created TIMESTAMP WITH TIME ZONE NULL,
-                    last_updated TIMESTAMP WITH TIME ZONE NULL,
-                    client_id BIGINT NULL REFERENCES sales_client(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
-                    converted_invoice_id BIGINT NULL UNIQUE REFERENCES sales_invoice(id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED
-                )
-            """)
-            cursor.execute("CREATE INDEX sales_devis_client_id_idx ON sales_devis(client_id)")
-            cursor.execute("CREATE INDEX sales_devis_slug_idx ON sales_devis(slug)")
+    # Add index if missing
+    cursor.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='sales_invoiceservice' AND indexname='sales_invoiceservice_devis_id_idx') THEN
+                CREATE INDEX sales_invoiceservice_devis_id_idx ON sales_invoiceservice(devis_id);
+            END IF;
+        END $$;
+    """)
 
 
 class Migration(migrations.Migration):
@@ -66,18 +81,15 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # 1. Make invoice FK nullable (idempotent — ALTER COLUMN is safe to re-run)
+        # Make invoice FK nullable
         migrations.AlterField(
             model_name='invoiceservice',
             name='invoice',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='invoice_services', to='sales.invoice'),
         ),
-        # 2. Create Devis table only if missing
-        migrations.RunPython(
-            create_devis_table_if_missing,
-            migrations.RunPython.noop,
-        ),
-        # Tell Django about the Devis model state without running SQL
+        # Idempotent SQL to fix any partial state
+        migrations.RunPython(fix_partial_state, migrations.RunPython.noop),
+        # Register model + field in Django state (no SQL)
         migrations.SeparateDatabaseAndState(
             state_operations=[
                 migrations.CreateModel(
@@ -102,17 +114,6 @@ class Migration(migrations.Migration):
                         'ordering': ['-date_created'],
                     },
                 ),
-            ],
-            database_operations=[],
-        ),
-        # 3. Add devis FK to InvoiceService only if missing
-        migrations.RunPython(
-            add_devis_id_if_missing,
-            migrations.RunPython.noop,
-        ),
-        # Tell Django about the field state without running SQL
-        migrations.SeparateDatabaseAndState(
-            state_operations=[
                 migrations.AddField(
                     model_name='invoiceservice',
                     name='devis',
