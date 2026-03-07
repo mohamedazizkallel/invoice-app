@@ -1902,16 +1902,25 @@ def company_logo(request):
 
 @login_required
 def avoirs_list(request):
-    """List all credit notes with pagination."""
+    """List all credit notes with pagination and filters."""
     avoirs = CreditNote.objects.all().select_related('client', 'invoice').order_by('-date_created')
     clients = Client.objects.all().order_by('clientname')
     settings_obj = Settings.get_cached()
 
-    paginator = Paginator(avoirs, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    search = request.GET.get('search', '').strip()
+    client_id = request.GET.get('client', '').strip()
+
+    if search:
+        avoirs = avoirs.filter(
+            Q(uniqueId__icontains=search) | Q(client__clientname__icontains=search) | Q(description__icontains=search)
+        )
+    if client_id:
+        avoirs = avoirs.filter(client_id=client_id)
 
     total_ttc = sum(a.calculate_total() for a in avoirs)
+
+    paginator = Paginator(avoirs, 10)
+    page_obj = paginator.get_page(request.GET.get('page'))
 
     return render(request, 'sales/avoirs.html', {
         'avoirs': page_obj,
@@ -1919,6 +1928,8 @@ def avoirs_list(request):
         'total_ttc': total_ttc,
         'count': avoirs.count(),
         'settings_obj': settings_obj,
+        'search_query': search,
+        'selected_client': client_id,
     })
 
 
@@ -2148,10 +2159,17 @@ def bons_livraison_list(request):
     bons = BonLivraison.objects.all().select_related('client').prefetch_related('lines').order_by('-date_created')
 
     search = request.GET.get('search', '').strip()
+    client_id = request.GET.get('client', '').strip()
+    status = request.GET.get('status', '').strip()
+
     if search:
         bons = bons.filter(
             Q(uniqueId__icontains=search) | Q(client__clientname__icontains=search)
         )
+    if client_id:
+        bons = bons.filter(client_id=client_id)
+    if status:
+        bons = bons.filter(status=status)
 
     paginator = Paginator(bons, 20)
     page_obj = paginator.get_page(request.GET.get('page'))
@@ -2165,6 +2183,8 @@ def bons_livraison_list(request):
         'clients': clients,
         'settings_obj': settings_obj,
         'search_query': search,
+        'selected_client': client_id,
+        'selected_status': status,
         'count': bons.count(),
         'default_tva': default_tva,
     })
@@ -2279,9 +2299,26 @@ def bon_livraison_detail(request, bon_id):
 
 @login_required
 def devis_list(request):
-    devis_qs = Devis.objects.select_related('client', 'converted_invoice').all()
+    devis_qs = Devis.objects.select_related('client', 'converted_invoice').all().order_by('-date_created')
+
+    search = request.GET.get('search', '').strip()
+    client_id = request.GET.get('client', '').strip()
+    status = request.GET.get('status', '').strip()
+
+    if search:
+        devis_qs = devis_qs.filter(
+            Q(uniqueId__icontains=search) | Q(client__clientname__icontains=search) | Q(title__icontains=search)
+        )
+    if client_id:
+        devis_qs = devis_qs.filter(client_id=client_id)
+    if status:
+        devis_qs = devis_qs.filter(status=status)
+
+    paginator = Paginator(devis_qs, 10)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
     return render(request, 'sales/devis_list.html', {
-        'devis_list': devis_qs,
+        'devis_list': page_obj,
         'count': devis_qs.count(),
         'accepted_count': devis_qs.filter(status='ACCEPTED').count(),
         'pending_count': devis_qs.filter(status='PENDING').count(),
@@ -2289,6 +2326,9 @@ def devis_list(request):
         'clients': Client.objects.all(),
         'services': Service.objects.all(),
         'settings': Settings.get_cached(),
+        'search_query': search,
+        'selected_client': client_id,
+        'selected_status': status,
     })
 
 

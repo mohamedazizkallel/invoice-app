@@ -37,20 +37,36 @@
   {% endfor %}
 {% endif %}
 
-<!-- Search -->
+<!-- Filters -->
 <div class="modern-card mb-3">
   <form method="get" class="row g-3 align-items-end">
-    <div class="col-md-4">
+    <div class="col-md-3">
       <label class="form-label fw-semibold">Rechercher</label>
       <input type="text" class="form-control" name="search"
              placeholder="N° BL ou client…" value="{{ search_query }}">
     </div>
     <div class="col-md-3">
+      <label class="form-label fw-semibold">Client</label>
+      <select class="form-select" name="client">
+        <option value="">Tous les clients</option>
+        {% for c in clients %}<option value="{{ c.id }}" {% if selected_client == c.id|stringformat:"d" %}selected{% endif %}>{{ c.clientname }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label fw-semibold">Statut</label>
+      <select class="form-select" name="status">
+        <option value="">Tous</option>
+        <option value="DRAFT" {% if selected_status == "DRAFT" %}selected{% endif %}>Brouillon</option>
+        <option value="SENT" {% if selected_status == "SENT" %}selected{% endif %}>Envoyé</option>
+        <option value="DELIVERED" {% if selected_status == "DELIVERED" %}selected{% endif %}>Livré</option>
+      </select>
+    </div>
+    <div class="col-md-2">
       <button type="submit" class="btn btn-modern-primary btn-modern w-100">
         <i class="bi bi-funnel me-2"></i>Filtrer
       </button>
     </div>
-    {% if search_query %}
+    {% if search_query or selected_client or selected_status %}
     <div class="col-md-2">
       <a href="{% url 'bons_livraison_list' %}" class="btn btn-light w-100">Effacer</a>
     </div>
@@ -131,17 +147,17 @@
       <ul class="pagination pagination-sm">
         {% if bons.has_previous %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ bons.previous_page_number }}&search={{ search_query }}">«</a>
+          <a class="page-link" href="?page={{ bons.previous_page_number }}&search={{ search_query }}&client={{ selected_client }}&status={{ selected_status }}">«</a>
         </li>
         {% endif %}
         {% for num in bons.paginator.page_range %}
         <li class="page-item {% if bons.number == num %}active{% endif %}">
-          <a class="page-link" href="?page={{ num }}&search={{ search_query }}">{{ num }}</a>
+          <a class="page-link" href="?page={{ num }}&search={{ search_query }}&client={{ selected_client }}&status={{ selected_status }}">{{ num }}</a>
         </li>
         {% endfor %}
         {% if bons.has_next %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ bons.next_page_number }}&search={{ search_query }}">»</a>
+          <a class="page-link" href="?page={{ bons.next_page_number }}&search={{ search_query }}&client={{ selected_client }}&status={{ selected_status }}">»</a>
         </li>
         {% endif %}
       </ul>
