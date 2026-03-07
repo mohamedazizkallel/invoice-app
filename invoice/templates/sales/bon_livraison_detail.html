@@ -555,7 +555,7 @@
         <div class="notes-section">
           <h4><i class="bi bi-sticky"></i> Arrete</h4>
           <div class="notes-content">
-            Arrete le present bon de livraison a la somme de {{ bon.calculate_total_ttc|floatformat:3 }} DT TTC.
+            Arrete le present bon de livraison a la somme de {{ total_in_words }}.
           </div>
           {% if bon.notes %}
           <h4 class="mt-3"><i class="bi bi-chat-left-text"></i> Remarques</h4>

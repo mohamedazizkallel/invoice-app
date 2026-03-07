@@ -2100,9 +2100,11 @@ def avoir_detail(request, avoir_id):
     """Display a printable credit note detail page."""
     credit_note = get_object_or_404(CreditNote, id=avoir_id)
     settings_obj = Settings.get_cached()
+    total_in_words = num2words_tnd_fr(Decimal(str(credit_note.calculate_total())))
     return render(request, 'sales/avoir_detail.html', {
         'avoir': credit_note,
         'settings_obj': settings_obj,
+        'total_in_words': total_in_words,
     })
 
 
@@ -2263,9 +2265,11 @@ def bon_livraison_detail(request, bon_id):
         id=bon_id,
     )
     settings_obj = Settings.get_cached()
+    total_in_words = num2words_tnd_fr(Decimal(str(bon.calculate_total_ttc())))
     return render(request, 'sales/bon_livraison_detail.html', {
         'bon': bon,
         'settings_obj': settings_obj,
+        'total_in_words': total_in_words,
     })
 
 
@@ -2369,11 +2373,13 @@ def devis_detail(request, devis_id):
                      .prefetch_related('devis_services__service'),
         id=devis_id
     )
+    total_in_words = num2words_tnd_fr(Decimal(str(devis.calculate_total())))
     return render(request, 'sales/devis_detail.html', {
         'devis': devis,
         'settings': Settings.get_cached(),
         'clients': Client.objects.all(),
         'services': Service.objects.all(),
+        'total_in_words': total_in_words,
     })
 
 
