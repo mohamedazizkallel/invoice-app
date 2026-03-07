@@ -3,6 +3,46 @@
 
 {% block title %}Tableau de bord{% endblock %}
 
+{% block css %}
+<style>
+  .dash-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    transition: box-shadow .2s;
+    height: 100%;
+  }
+  .dash-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+
+  .dash-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+
+  .dash-value { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
+  .dash-label { font-size: .82rem; color: #6c757d; margin: 0; }
+  .dash-sub { font-size: .78rem; color: #6c757d; }
+
+  .dash-highlight {
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,.15);
+  }
+  .dash-highlight .dash-label,
+  .dash-highlight .dash-sub { color: rgba(255,255,255,.8); }
+  .dash-highlight .dash-value { color: #fff; }
+  .dash-highlight .dash-icon { background: rgba(255,255,255,.2) !important; color: #fff !important; }
+
+  .bg-grad-blue    { background: linear-gradient(135deg, #3498db, #2980b9); }
+  .bg-grad-orange  { background: linear-gradient(135deg, #e67e22, #d35400); }
+  .bg-grad-green   { background: linear-gradient(135deg, #27ae60, #229954); }
+  .bg-grad-red     { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+</style>
+{% endblock %}
+
 {% block main %}
 <!-- Page Header -->
 <div class="page-header d-flex justify-content-between align-items-center">
@@ -17,99 +57,134 @@
   </div>
 </div>
 
-<!-- Main Stats -->
+<!-- Primary KPIs -->
 <div class="row g-3 mb-4">
-  <div class="col-md-3">
-    <div class="stat-card">
-      <i class="stat-icon bi bi-receipt"></i>
-      <p>Factures</p>
-      <h3>{{ total_invoices }}</h3>
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card dash-highlight bg-grad-blue">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:rgba(255,255,255,.2);">
+          <i class="bi bi-receipt text-white"></i>
+        </div>
+        <div>
+          <p class="dash-label">Factures</p>
+          <div class="dash-value">{{ total_invoices }}</div>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="col-md-3">
-    <div class="stat-card" style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);">
-      <i class="stat-icon bi bi-clock-history"></i>
-      <p>En attente</p>
-      <h3>{{ outstanding_amount|floatformat:3 }} {{ currency }}</h3>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card dash-highlight bg-grad-orange">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:rgba(255,255,255,.2);">
+          <i class="bi bi-clock-history text-white"></i>
+        </div>
+        <div>
+          <p class="dash-label">Montant en attente</p>
+          <div class="dash-value">{{ outstanding_amount|floatformat:3 }}</div>
+          <span class="dash-sub">{{ currency }} &middot; {{ outstanding_count }} facture{{ outstanding_count|pluralize:"s" }}</span>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="col-md-3">
-    <div class="stat-card" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%);">
-      <i class="stat-icon bi bi-check-circle"></i>
-      <p>Payé ce mois</p>
-      <h3>{{ paid_this_month_amount|floatformat:3 }} {{ currency }}</h3>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card dash-highlight bg-grad-green">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:rgba(255,255,255,.2);">
+          <i class="bi bi-check-circle text-white"></i>
+        </div>
+        <div>
+          <p class="dash-label">Payé ce mois</p>
+          <div class="dash-value">{{ paid_this_month_amount|floatformat:3 }}</div>
+          <span class="dash-sub">{{ currency }}</span>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="col-md-3">
-    <div class="stat-card" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
-      <i class="stat-icon bi bi-exclamation-triangle"></i>
-      <p>En retard</p>
-      <h3>{{ overdue_count }}</h3>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card dash-highlight bg-grad-red">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:rgba(255,255,255,.2);">
+          <i class="bi bi-exclamation-triangle text-white"></i>
+        </div>
+        <div>
+          <p class="dash-label">En retard</p>
+          <div class="dash-value">{{ overdue_count }}</div>
+          <span class="dash-sub">facture{{ overdue_count|pluralize:"s" }}</span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
 <!-- Secondary Stats -->
 <div class="row g-3 mb-4">
-  <div class="col-md-3">
-    <div class="modern-card py-3">
-      <div class="d-flex align-items-center px-3">
-        <div class="rounded-circle bg-primary bg-opacity-10 p-2 me-3">
-          <i class="bi bi-file-earmark-text text-primary fs-5"></i>
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:#eef2ff; color:#4f46e5;">
+          <i class="bi bi-file-earmark-text"></i>
         </div>
-        <div>
-          <div class="text-muted small">Devis</div>
-          <div class="fw-bold fs-5">{{ devis_total }}</div>
+        <div class="flex-grow-1">
+          <p class="dash-label">Devis</p>
+          <div class="dash-value text-dark">{{ devis_total }}</div>
         </div>
-        <div class="ms-auto text-end small">
-          <span class="text-warning">{{ devis_pending }} en attente</span><br>
-          <span class="text-success">{{ devis_accepted }} acceptés</span>
-        </div>
+      </div>
+      <div class="d-flex gap-3 mt-2 pt-2 border-top">
+        <span class="dash-sub"><span class="text-warning fw-semibold">{{ devis_pending }}</span> en attente</span>
+        <span class="dash-sub"><span class="text-success fw-semibold">{{ devis_accepted }}</span> acceptés</span>
+        <span class="dash-sub"><span class="text-danger fw-semibold">{{ devis_rejected }}</span> rejetés</span>
       </div>
     </div>
   </div>
-  <div class="col-md-3">
-    <div class="modern-card py-3">
-      <div class="d-flex align-items-center px-3">
-        <div class="rounded-circle bg-danger bg-opacity-10 p-2 me-3">
-          <i class="bi bi-arrow-return-left text-danger fs-5"></i>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:#fef2f2; color:#dc2626;">
+          <i class="bi bi-arrow-return-left"></i>
         </div>
-        <div>
-          <div class="text-muted small">Avoirs</div>
-          <div class="fw-bold fs-5">{{ avoirs_count }}</div>
+        <div class="flex-grow-1">
+          <p class="dash-label">Avoirs</p>
+          <div class="dash-value text-dark">{{ avoirs_count }}</div>
         </div>
-        <div class="ms-auto text-end small">
-          <span class="text-muted">{{ avoirs_total_ttc|floatformat:3 }} {{ currency }}</span>
-        </div>
+      </div>
+      <div class="mt-2 pt-2 border-top">
+        <span class="dash-sub">Total TTC : <span class="fw-semibold text-dark">{{ avoirs_total_ttc|floatformat:3 }} {{ currency }}</span></span>
       </div>
     </div>
   </div>
-  <div class="col-md-3">
-    <div class="modern-card py-3">
-      <div class="d-flex align-items-center px-3">
-        <div class="rounded-circle bg-info bg-opacity-10 p-2 me-3">
-          <i class="bi bi-truck text-info fs-5"></i>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:#ecfdf5; color:#059669;">
+          <i class="bi bi-truck"></i>
         </div>
-        <div>
-          <div class="text-muted small">Bons de livraison</div>
-          <div class="fw-bold fs-5">{{ bl_total }}</div>
+        <div class="flex-grow-1">
+          <p class="dash-label">Bons de livraison</p>
+          <div class="dash-value text-dark">{{ bl_total }}</div>
         </div>
-        <div class="ms-auto text-end small">
-          <span class="text-success">{{ bl_delivered }} livrés</span><br>
-          <span class="text-muted">{{ bl_draft }} brouillons</span>
-        </div>
+      </div>
+      <div class="d-flex gap-3 mt-2 pt-2 border-top">
+        <span class="dash-sub"><span class="text-success fw-semibold">{{ bl_delivered }}</span> livrés</span>
+        <span class="dash-sub"><span class="text-info fw-semibold">{{ bl_sent }}</span> envoyés</span>
+        <span class="dash-sub"><span class="text-secondary fw-semibold">{{ bl_draft }}</span> brouillons</span>
       </div>
     </div>
   </div>
-  <div class="col-md-3">
-    <div class="modern-card py-3">
-      <div class="d-flex align-items-center px-3">
-        <div class="rounded-circle bg-secondary bg-opacity-10 p-2 me-3">
-          <i class="bi bi-people text-secondary fs-5"></i>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:#f3f4f6; color:#4b5563;">
+          <i class="bi bi-people"></i>
         </div>
-        <div>
-          <div class="text-muted small">Clients</div>
-          <div class="fw-bold fs-5">{{ clients_count }}</div>
+        <div class="flex-grow-1">
+          <p class="dash-label">Clients</p>
+          <div class="dash-value text-dark">{{ clients_count }}</div>
         </div>
       </div>
     </div>
@@ -120,7 +195,7 @@
 <div class="modern-card">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="mb-0">Factures récentes</h2>
-    <a href="{% url 'invoices_list' %}" class="btn btn-sm btn-link">
+    <a href="{% url 'invoices_list' %}" class="btn btn-sm btn-link text-decoration-none">
       Voir tout <i class="bi bi-arrow-right ms-1"></i>
     </a>
   </div>
