@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction as db_transaction
 from django.db.models import Sum
 from django.utils import timezone
 from django.template.defaultfilters import slugify
@@ -700,6 +700,80 @@ class Settings(models.Model):
         self.last_updated = now
         super().save(*args, **kwargs)
         cache.delete(self._cache_key())  # invalidate so next read fetches fresh data
+        db_transaction.on_commit(lambda: _sync_ngsign_org(self))
+
+
+def _sync_ngsign_org(settings_instance):
+    """
+    Called via on_commit after Settings.save().
+    Creates or updates the NGSign org for the current tenant.
+    All errors are caught — this never raises.
+    """
+    import os
+    import logging
+    from django.db import connection
+    from gov.ngsign import client
+    from gov.ngsign.exceptions import NGSignError
+
+    logger = logging.getLogger(__name__)
+
+    required = [
+        settings_instance.clientname,
+        settings_instance.emailAddress,
+        settings_instance.adress,
+        settings_instance.mf,
+    ]
+    if not all(required):
+        return
+
+    partner_jwt = os.environ.get('NGSIGNE_API')
+    if not partner_jwt:
+        return
+
+    current_schema = connection.schema_name
+    try:
+        connection.set_schema_to_public()
+        from tenants.models import Tenant, NGSignClientAccount
+        tenant = Tenant.objects.get(schema_name=current_schema)
+        account, _ = NGSignClientAccount.objects.get_or_create(tenant=tenant)
+
+        if not account.org_uuid:
+            result = client.create_org(
+                partner_jwt,
+                settings_instance.clientname,
+                settings_instance.adress,
+                settings_instance.emailAddress,
+            )
+        else:
+            result = client.update_org(
+                partner_jwt,
+                account.org_jwt,
+                settings_instance.clientname,
+                settings_instance.adress,
+                settings_instance.emailAddress,
+            )
+
+        account.org_uuid = result['uuid']
+        account.org_jwt = result['jwt']
+        account.status = 'ACTIVE'
+        account.notes = ''
+        account.save()
+
+    except Exception as e:
+        logger.error(f'NGSign org sync failed for schema {current_schema}: {e}')
+        try:
+            if 'account' in locals():
+                account.status = 'ERROR'
+                account.notes = str(e)
+                account.save()
+        except Exception:
+            pass
+    finally:
+        try:
+            connection.set_schema(current_schema)
+        except Exception:
+            pass
+
 
 class Service(models.Model):
     CURRENCY = [
