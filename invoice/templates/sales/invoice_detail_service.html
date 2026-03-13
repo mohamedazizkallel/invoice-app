@@ -542,6 +542,19 @@
       <button onclick="window.print()" class="btn btn-primary">
         <i class="bi bi-printer me-1"></i> Imprimer
       </button>
+      {% if gov_invoice and gov_invoice.ngsign_status %}
+      <span class="badge {% if gov_invoice.ngsign_status == 'SIGNED' or gov_invoice.ngsign_status == 'TTN_ACCEPTED' %}bg-success{% elif gov_invoice.ngsign_status == 'ERROR' or gov_invoice.ngsign_status == 'TTN_REJECTED' %}bg-danger{% else %}bg-warning text-dark{% endif %}" id="ngsign-status-badge">
+        NGSign: {{ gov_invoice.ngsign_status }}
+      </span>
+      {% endif %}
+      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ngsignSubmitModal">
+        <i class="bi bi-pen me-1"></i> Soumettre à NGSign
+      </button>
+      {% if gov_invoice and gov_invoice.ngsign_invoice_uuid %}
+      <button type="button" class="btn btn-outline-info" id="btn-ngsign-check" data-invoice-id="{{ invoice.id }}">
+        <i class="bi bi-arrow-repeat me-1"></i> Vérifier statut TTN
+      </button>
+      {% endif %}
     </div>
   </div>
 
@@ -1043,6 +1056,111 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+</script>
+
+<!-- NGSign Submit Confirmation Modal -->
+<div class="modal fade" id="ngsignSubmitModal" tabindex="-1" aria-labelledby="ngsignSubmitModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ngsignSubmitModalLabel">Soumettre à NGSign</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if gov_invoice and gov_invoice.ngsign_status %}
+        <div class="alert alert-warning">
+          Cette facture a déjà été soumise à NGSign (statut : <strong>{{ gov_invoice.ngsign_status }}</strong>).
+          Voulez-vous la soumettre à nouveau ?
+        </div>
+        {% endif %}
+        <p><strong>Numéro :</strong> {{ invoice.title|default:invoice.uniqueId }}</p>
+        <p><strong>Client :</strong> {{ invoice.client.name|default:"—" }}</p>
+        <p><strong>Montant TTC :</strong> {{ total }} TND</p>
+        <p><strong>Date :</strong> {{ invoice.date_created|date:"d/m/Y" }}</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btn-ngsign-confirm">
+          {% if gov_invoice and gov_invoice.ngsign_status %}Soumettre quand même{% else %}Soumettre{% endif %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const confirmBtn = document.getElementById('btn-ngsign-confirm');
+  if (!confirmBtn) return;
+
+  confirmBtn.addEventListener('click', function () {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Envoi en cours...';
+
+    const csrfToken = document.cookie.split(';')
+      .map(c => c.trim())
+      .find(c => c.startsWith('csrftoken='));
+    const token = csrfToken ? csrfToken.split('=')[1] : '';
+
+    fetch('{% url "invoice-ngsign-submit" invoice.id %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': token },
+    })
+      .then(r => r.json())
+      .then(data => {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('ngsignSubmitModal'));
+        if (modal) modal.hide();
+        if (data.success) {
+          const badge = document.getElementById('ngsign-status-badge');
+          if (badge) {
+            badge.textContent = 'NGSign: ' + data.ngsign_status;
+            badge.className = 'badge bg-success';
+          }
+          alert('✓ ' + data.message);
+          location.reload();
+        } else {
+          alert('Erreur : ' + data.error);
+        }
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Soumettre';
+      })
+      .catch(err => {
+        alert('Erreur réseau : ' + err);
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Soumettre';
+      });
+  });
+
+  // TTN status check
+  const checkBtn = document.getElementById('btn-ngsign-check');
+  if (checkBtn) {
+    checkBtn.addEventListener('click', function () {
+      const invoiceId = checkBtn.dataset.invoiceId;
+      checkBtn.disabled = true;
+
+      const csrfToken = document.cookie.split(';')
+        .map(c => c.trim())
+        .find(c => c.startsWith('csrftoken='));
+      const token = csrfToken ? csrfToken.split('=')[1] : '';
+
+      fetch(`/invoices/${invoiceId}/ngsign/check/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': token },
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            const badge = document.getElementById('ngsign-status-badge');
+            if (badge) badge.textContent = 'NGSign: ' + data.ngsign_status;
+            alert('Statut TTN : ' + data.ngsign_status + (data.ttn_reference ? ' — Réf: ' + data.ttn_reference : ''));
+          } else {
+            alert('Erreur : ' + data.error);
+          }
+          checkBtn.disabled = false;
+        });
+    });
+  }
+})();
 </script>
 
 {% endblock %}
