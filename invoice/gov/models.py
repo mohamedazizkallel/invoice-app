@@ -26,10 +26,14 @@ class GovInvoice(models.Model):
         blank=True,
         choices=[
             ('CREATED', 'CREATED'),
+            ('CONFIGURED', 'CONFIGURED'),
             ('SIGNED', 'SIGNED'),
-            ('TTN_ACCEPTED', 'TTN_ACCEPTED'),
-            ('TTN_REJECTED', 'TTN_REJECTED'),
             ('CANCELLED', 'CANCELLED'),
+            ('TTN_TRANSFERED', 'TTN_TRANSFERED'),
+            ('TTN_NOTTRANSFERED', 'TTN_NOTTRANSFERED'),
+            ('TTN_REJECTED', 'TTN_REJECTED'),
+            ('TTN_SIGNED', 'TTN_SIGNED'),
+            ('MIXED', 'MIXED'),
             ('ERROR', 'ERROR'),
         ]
     )
