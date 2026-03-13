@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.db import connection
 from django_tenants.utils import get_public_schema_name
 
-from tenants.models import Tenant, Domain, TenantUser
+from tenants.models import Tenant, Domain, TenantUser, NGSignClientAccount
 
 
 @admin.register(Tenant)
@@ -30,3 +30,31 @@ class DomainAdmin(admin.ModelAdmin):
 class TenantUserAdmin(admin.ModelAdmin):
     list_display = ('user', 'tenant')
     list_filter = ('tenant',)
+
+
+@admin.register(NGSignClientAccount)
+class NGSignClientAccountAdmin(admin.ModelAdmin):
+    list_display = ('tenant', 'status', 'org_uuid', 'last_verified_at')
+    readonly_fields = ('org_uuid', 'created_at', 'last_verified_at', 'status', 'notes')
+    actions = ['verify_connectivity']
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if 'org_jwt' in form.base_fields:
+            form.base_fields['org_jwt'].widget.attrs['placeholder'] = '********'
+            if obj and obj.pk:
+                form.base_fields['org_jwt'].required = False
+                form.base_fields['org_jwt'].help_text = 'Laisser vide pour conserver le token existant.'
+        return form
+
+    def save_model(self, request, obj, form, change):
+        connection.set_schema_to_public()
+        if change and not form.cleaned_data.get('org_jwt'):
+            obj.org_jwt = NGSignClientAccount.objects.get(pk=obj.pk).org_jwt
+        super().save_model(request, obj, form, change)
+
+    @admin.action(description='Vérifier la connectivité NGSign')
+    def verify_connectivity(self, request, queryset):
+        # Placeholder — will be wired to service.verify_account() later
+        for account in queryset:
+            self.message_user(request, f"{account.tenant.name}: vérification à implémenter")
