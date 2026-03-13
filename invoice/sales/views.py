@@ -1401,6 +1401,7 @@ def invoice_edit(request, invoice_id):
 @login_required
 def invoice_detail(request, invoice_id=None, slug=None):
     """View invoice details with inventory-tracked services"""
+    from gov.models import GovInvoice
     qs = Invoice.objects.prefetch_related(
         'invoice_services__service',
         'credit_notes',
@@ -1465,6 +1466,7 @@ def invoice_detail(request, invoice_id=None, slug=None):
         'clients': clients,
         'all_services': all_services,
         'p_settings': p_settings,
+        'gov_invoice': GovInvoice.objects.filter(invoice=invoice).first() if True else None,
     }
     
     return render(request, 'sales/invoice_detail_service.html', context)
@@ -2583,3 +2585,66 @@ def devis_convert(request, devis_id):
     except Exception as e:
         messages.error(request, f'Erreur lors de la conversion: {str(e)}')
         return redirect('devis_detail', devis_id)
+
+
+@login_required
+@require_POST
+def invoice_ngsign_submit(request, invoice_id):
+    """Submit an invoice to NGSign for Seal signing."""
+    from gov.models import GovInvoice
+    from gov.ngsign.service import submit_invoice
+    from gov.ngsign.exceptions import NGSignNotConfiguredError, NGSignSubmissionError
+
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    gov_invoice = GovInvoice.objects.filter(invoice=invoice).first()
+    if not gov_invoice or not gov_invoice.unsigned_xml:
+        return JsonResponse({
+            'success': False,
+            'error': "XML non signable introuvable. Générez d'abord le XML de la facture."
+        }, status=400)
+
+    try:
+        submit_invoice(gov_invoice)
+        return JsonResponse({
+            'success': True,
+            'ngsign_status': gov_invoice.ngsign_status,
+            'message': 'Facture soumise et signée avec succès.'
+        })
+    except NGSignNotConfiguredError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    except NGSignSubmissionError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'Erreur inattendue: {e}'}, status=500)
+
+
+@login_required
+@require_POST
+def invoice_ngsign_check(request, invoice_id):
+    """Force TTN status check for an invoice."""
+    from gov.models import GovInvoice
+    from gov.ngsign import client
+    from gov.ngsign.service import _get_account
+    from gov.ngsign.exceptions import NGSignAPIError
+
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    gov_invoice = GovInvoice.objects.filter(invoice=invoice).first()
+
+    if not gov_invoice or not gov_invoice.ngsign_invoice_uuid:
+        return JsonResponse({
+            'success': False,
+            'error': "Cette facture n'a pas encore été soumise à NGSign."
+        }, status=400)
+
+    try:
+        account = _get_account()
+        result = client.check_ttn_status(account.org_jwt, gov_invoice.ngsign_invoice_uuid)
+        gov_invoice.ngsign_status = result['status']
+        gov_invoice.save()
+        return JsonResponse({
+            'success': True,
+            'ngsign_status': gov_invoice.ngsign_status,
+            'ttn_reference': result.get('ttnReference', ''),
+        })
+    except NGSignAPIError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

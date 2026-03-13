@@ -18,7 +18,8 @@ from .views import (dashboard, delete_supplier, edit_supplier,
                     avoir_detail, avoir_modal_data, client_all_invoices,
                     bons_livraison_list, bon_livraison_create, bon_livraison_edit,
                     bon_livraison_delete, bon_livraison_detail, bon_livraison_modal_data,
-                    devis_list, devis_create, devis_detail, devis_update, devis_delete, devis_convert)
+                    devis_list, devis_create, devis_detail, devis_update, devis_delete, devis_convert,
+                    invoice_ngsign_submit, invoice_ngsign_check)
 
 urlpatterns = [
     path('', login_view,name='login'),
@@ -48,6 +49,8 @@ urlpatterns = [
     path('invoices/<int:invoice_id>/edit/', invoice_edit, name='invoice_edit'),
     path('invoices/<int:invoice_id>/modal-data/', invoice_modal_data, name='invoice_modal_data'),
     path('invoices/<int:invoice_id>/delete/', invoice_delete, name='invoice_delete'),
+    path('invoices/<int:invoice_id>/ngsign/submit/', invoice_ngsign_submit, name='invoice-ngsign-submit'),
+    path('invoices/<int:invoice_id>/ngsign/check/', invoice_ngsign_check, name='invoice-ngsign-check'),
     path('invoices/export/', export_invoices, name='export_invoices'),
     path('invoices/import/', import_invoices, name='import_invoices'),
     path('invoices/template/', download_invoice_template, name='download_invoice_template'),
