@@ -18,4 +18,20 @@ class GovInvoice(models.Model):
         ]
     )
 
+    ngsign_transaction_uuid = models.CharField(max_length=100, null=True, blank=True)
+    ngsign_invoice_uuid = models.CharField(max_length=100, null=True, blank=True)
+    ngsign_status = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        choices=[
+            ('CREATED', 'CREATED'),
+            ('SIGNED', 'SIGNED'),
+            ('TTN_ACCEPTED', 'TTN_ACCEPTED'),
+            ('TTN_REJECTED', 'TTN_REJECTED'),
+            ('CANCELLED', 'CANCELLED'),
+            ('ERROR', 'ERROR'),
+        ]
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
