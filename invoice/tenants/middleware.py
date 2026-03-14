@@ -8,9 +8,7 @@ from tenants.models import Tenant
 class SessionTenantMiddleware:
     """
     Sets the tenant schema based on the logged-in user's TenantUser record.
-
-    Superusers can override the schema via session key '_admin_schema'
-    (set by the tenant-switcher view) to browse any tenant's data in the admin.
+    Unauthenticated requests (login page, etc.) use the public schema.
     """
 
     def __init__(self, get_response):
@@ -23,23 +21,12 @@ class SessionTenantMiddleware:
             ).first()
             if tenant:
                 connection.set_tenant(tenant)
-        elif request.user.is_superuser and '_admin_schema' in request.session:
-            # Superuser with a schema override — use the selected tenant
-            schema = request.session['_admin_schema']
-            tenant = Tenant.objects.filter(schema_name=schema).first()
-            if tenant:
-                connection.set_tenant(tenant)
-            else:
-                # Invalid schema in session — fall back to public
-                del request.session['_admin_schema']
-                connection.set_schema_to_public()
         else:
             try:
                 tenant = request.user.tenant_user.tenant
                 connection.set_tenant(tenant)
             except Exception:
                 if request.user.is_superuser:
-                    # Superuser without a TenantUser — use public schema
                     connection.set_schema_to_public()
                 else:
                     return HttpResponseForbidden("No tenant assigned to this user.")
