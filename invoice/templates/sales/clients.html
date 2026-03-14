@@ -305,11 +305,12 @@
                   <th class="text-end">Débit</th>
                   <th class="text-end">Crédit</th>
                   <th class="text-end">Solde</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody id="ledgerTableBody">
                 <tr id="ledgerLoading">
-                  <td colspan="6" class="text-center py-4">
+                  <td colspan="7" class="text-center py-4">
                     <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                     Chargement...
                   </td>
@@ -404,6 +405,22 @@ document.getElementById('deleteClientModal')?.addEventListener('show.bs.modal', 
   document.getElementById('deleteClientForm').action = btn.getAttribute('data-delete-url');
 });
 
+function deleteTransaction(txnId, clientId) {
+  if (!confirm('Supprimer cette entrée du grand livre ?')) return;
+  fetch(`/transactions/${txnId}/delete/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) openLedgerModal(clientId);
+  })
+  .catch(err => console.error('Delete error:', err));
+}
+
 function openLedgerModal(clientId) {
   const modal = new bootstrap.Modal(document.getElementById('ledgerModal'));
   const tableBody = document.getElementById('ledgerTableBody');
@@ -426,7 +443,7 @@ function openLedgerModal(clientId) {
   invoiceInfo.textContent = '';
   invoiceRow.style.display = txTypeSelect.value === 'CREDIT' ? '' : 'none';
 
-  tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4">
+  tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">
     <div class="spinner-border spinner-border-sm text-primary" role="status"></div> Chargement...
   </td></tr>`;
   empty.classList.add('d-none');
@@ -490,13 +507,19 @@ function openLedgerModal(clientId) {
             <td class="text-end">${debitCell}</td>
             <td class="text-end">${creditCell}</td>
             <td class="text-end ${balClass} fw-semibold">${txn.running_balance.toFixed(3)}</td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-outline-danger py-0 px-1" title="Supprimer"
+                      onclick="deleteTransaction(${txn.id}, ${clientId})">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
           </tr>`;
         });
         tableBody.innerHTML = html;
       }
     })
     .catch(err => {
-      tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Erreur de chargement</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Erreur de chargement</td></tr>`;
       console.error('Ledger fetch error:', err);
     });
 

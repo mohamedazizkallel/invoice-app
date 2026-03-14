@@ -35,17 +35,6 @@ services:
       - dokploy-network
       - default
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@swifttechcorp.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-    depends_on:
-      - db
-    restart: unless-stopped
-    networks:
-      - dokploy-network
-      - default
 
 networks:
   dokploy-network:

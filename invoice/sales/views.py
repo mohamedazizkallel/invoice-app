@@ -310,6 +310,16 @@ def client_add_transaction(request, client_id):
 
 
 @login_required
+def client_delete_transaction(request, transaction_id):
+    """Delete a single ledger entry."""
+    txn = get_object_or_404(ClientTransaction, id=transaction_id)
+    if request.method == 'POST':
+        txn.delete()
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False}, status=405)
+
+
+@login_required
 def client_unpaid_invoices(request, client_id):
     """AJAX: return list of unpaid/partially-paid invoices for a client with remaining balance."""
     client = get_object_or_404(Client, id=client_id)
