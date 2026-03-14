@@ -625,11 +625,13 @@ class Settings(models.Model):
     def get_cached(cls):
         from django.core.cache import cache
         key = cls._cache_key()
-        obj = cache.get(key)
-        if obj is None:
+        pk = cache.get(key)
+        if pk is None:
             obj = cls.objects.first()
-            cache.set(key, obj, timeout=None)  # no expiry — invalidated on save
-        return obj
+            if obj is not None:
+                cache.set(key, obj.pk, timeout=None)
+            return obj
+        return cls.objects.filter(pk=pk).first()
 
     def save(self, *args, **kwargs):
         from django.core.cache import cache

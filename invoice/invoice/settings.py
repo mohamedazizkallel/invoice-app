@@ -49,17 +49,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-if DEBUG:
-    INSTALLED_APPS += ['debug_toolbar']
-    MIDDLEWARE = ['debug_toolbar.middleware.DebugToolbarMiddleware'] + MIDDLEWARE
-    INTERNAL_IPS = ['127.0.0.1', '::1']
-    DEBUG_TOOLBAR_CONFIG = {
-        'SHOW_TOOLBAR_CALLBACK': lambda request: (
-            request.META.get('HTTP_X_REQUESTED_WITH') != 'XMLHttpRequest'
-            or request.path.startswith('/__debug__/')
-        ),
-        'RESULTS_CACHE_SIZE': 100,
-    }
 
 ROOT_URLCONF = 'invoice.urls'
 

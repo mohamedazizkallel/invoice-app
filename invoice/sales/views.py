@@ -1948,7 +1948,7 @@ def company_logo(request):
     content_type = match.group(1)
     image_data = _b64.b64decode(match.group(2))
     response = HttpResponse(image_data, content_type=content_type)
-    response['Cache-Control'] = 'public, max-age=86400'
+    response['Cache-Control'] = 'private, max-age=86400'
     return response
 
 
