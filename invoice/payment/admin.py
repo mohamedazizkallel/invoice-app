@@ -1,6 +1,6 @@
 from django.contrib import admin
+from .models import Retenu, InvoiceRetenu, PurchaseRetenu
 
-# payment models reference sales (tenant-app) models via ForeignKey.
-# Registering them on the shared admin site causes "cannot resolve related
-# model" errors when the admin runs in the public schema.
-# Manage tenant data through the app UI instead.
+admin.site.register(Retenu)
+admin.site.register(InvoiceRetenu)
+admin.site.register(PurchaseRetenu)
