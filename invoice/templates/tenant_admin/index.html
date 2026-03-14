@@ -1,0 +1,23 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+{% if available_tenants %}
+<div style="background:#417690; color:#fff; padding:10px 15px; margin-bottom:20px; border-radius:4px; display:flex; align-items:center; gap:10px;">
+  <strong>Schema:</strong>
+  <form method="get" action="{% url 'switch_tenant' %}" style="display:inline;">
+    <select name="schema" onchange="this.form.submit()" style="padding:4px 8px; border-radius:3px; border:none;">
+      <option value="public" {% if current_schema == 'public' %}selected{% endif %}>public (shared)</option>
+      {% for t in available_tenants %}
+      <option value="{{ t.schema_name }}" {% if current_schema == t.schema_name %}selected{% endif %}>
+        {{ t.name }} ({{ t.schema_name }})
+      </option>
+      {% endfor %}
+    </select>
+  </form>
+  <span style="font-size:12px; opacity:0.8;">
+    Currently viewing: <strong>{{ current_schema }}</strong>
+  </span>
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}
