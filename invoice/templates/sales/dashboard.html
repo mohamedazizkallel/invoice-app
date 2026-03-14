@@ -210,7 +210,7 @@
         <tbody>
           {% for d in debtors %}
           <tr>
-            <td>{{ d.client.name }}</td>
+            <td>{{ d.client.clientname }}</td>
             <td class="text-end text-danger fw-bold">{{ d.balance|floatformat:2 }} DA</td>
           </tr>
           {% endfor %}
