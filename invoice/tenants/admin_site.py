@@ -12,19 +12,12 @@ class TenantAwareAdminSite(AdminSite):
     def each_context(self, request):
         ctx = super().each_context(request)
         if request.user.is_authenticated and request.user.is_superuser:
-            # Query tenants from public schema regardless of current schema
-            from django_tenants.utils import get_public_schema_name
-            connection.set_schema_to_public()
+            # Tenants table is in public schema but we can query it
+            # from any schema since it's a shared model — no need to switch.
             ctx['available_tenants'] = (
                 Tenant.objects
                 .exclude(schema_name=get_public_schema_name())
                 .order_by('name')
             )
-            # Restore the schema from session if set
-            schema = getattr(request, 'session', {}).get('_admin_schema')
-            if schema:
-                tenant = Tenant.objects.filter(schema_name=schema).first()
-                if tenant:
-                    connection.set_tenant(tenant)
             ctx['current_schema'] = connection.schema_name
         return ctx
