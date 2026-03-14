@@ -1483,34 +1483,13 @@ def invoice_delete(request, invoice_id):
     if request.method == 'POST':
         invoice_title = invoice.title
 
-        # Create reversal ledger entries before deletion
-        if invoice.client:
-            invoice_total = invoice.calculate_total()
+        with transaction.atomic():
+            # Delete all ledger entries tied to this invoice instead of
+            # creating reversal entries that inflate the grand livre.
+            ClientTransaction.objects.filter(invoice=invoice).delete()
 
-            had_debit = ClientTransaction.objects.filter(
-                invoice=invoice, source='INVOICE_CREATED', transaction_type='DEBIT'
-            ).exists()
-            if had_debit:
-                ClientTransaction.objects.create(
-                    client=invoice.client,
-                    invoice=None,
-                    transaction_type='CREDIT',
-                    source='INVOICE_DELETED',
-                    amount=invoice_total,
-                    description=f'Annulation facture {invoice.uniqueId} - {invoice_title}'
-                )
+            invoice.delete()
 
-            if invoice.amount_paid > 0:
-                ClientTransaction.objects.create(
-                    client=invoice.client,
-                    invoice=None,
-                    transaction_type='DEBIT',
-                    source='INVOICE_DELETED',
-                    amount=invoice.amount_paid,
-                    description=f'Annulation paiement facture {invoice.uniqueId} - {invoice_title}'
-                )
-
-        invoice.delete()
         messages.success(request, f'Invoice "{invoice_title}" deleted and inventory restored!')
 
     return redirect('invoices_list')
