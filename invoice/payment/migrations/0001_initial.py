@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('sales', '0001_initial'),
+        ('sales', '0014_purchase_suppliertransaction_supply_purchaseline_and_more'),
     ]
 
     operations = [
