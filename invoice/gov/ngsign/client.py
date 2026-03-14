@@ -1,6 +1,6 @@
-import os
 import base64
 import requests
+from decouple import config
 from gov.ngsign.exceptions import NGSignAuthError, NGSignAPIError
 
 INVOICE_API_BASE = 'https://sandbox.ng-sign.com/server'
@@ -9,7 +9,7 @@ TIMEOUT = 30
 
 
 def _partner_jwt():
-    return os.environ['NGSIGNE_API']
+    return config('NGSIGNE_API')
 
 
 def _auth_headers(jwt):

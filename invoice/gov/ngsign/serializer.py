@@ -80,7 +80,7 @@ def build_payload(gov_invoice):
         'clientIdentifier': client.mf,
         'clientDetails': {
             'partnerIdentifier': client.mf,
-            'partnerName': client.name,
+            'partnerName': client.clientname,
             'address': _address(client.adress),
         },
 
@@ -113,5 +113,5 @@ def build_payload(gov_invoice):
             'qrPositionP': 0,
         },
         'invoiceTIEF': tief,
-        'clientEmail': getattr(client, 'email', None) or '',
+        'clientEmail': getattr(client, 'emailAddress', None) or '',
     }

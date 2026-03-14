@@ -2595,13 +2595,29 @@ def invoice_ngsign_submit(request, invoice_id):
     from gov.ngsign.service import submit_invoice
     from gov.ngsign.exceptions import NGSignNotConfiguredError, NGSignSubmissionError
 
+    from gov.teif.builder import build_unsigned_teif
+
     invoice = get_object_or_404(Invoice, id=invoice_id)
+    seller = Settings.get_cached()
     gov_invoice = GovInvoice.objects.filter(invoice=invoice).first()
     if not gov_invoice or not gov_invoice.unsigned_xml:
-        return JsonResponse({
-            'success': False,
-            'error': "XML non signable introuvable. Générez d'abord le XML de la facture."
-        }, status=400)
+        try:
+            unsigned_xml = build_unsigned_teif(invoice, seller)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Erreur lors de la génération du XML : {e}'
+            }, status=400)
+        if gov_invoice:
+            gov_invoice.unsigned_xml = unsigned_xml
+            gov_invoice.status = 'draft'
+            gov_invoice.save()
+        else:
+            gov_invoice = GovInvoice.objects.create(
+                invoice=invoice,
+                unsigned_xml=unsigned_xml,
+                status='draft',
+            )
 
     try:
         submit_invoice(gov_invoice)

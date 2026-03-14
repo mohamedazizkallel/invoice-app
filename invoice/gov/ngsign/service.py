@@ -1,10 +1,10 @@
-import os
 import logging
 from django.utils import timezone
 from django.db import connection
 
 from gov.ngsign import client
 from gov.ngsign import serializer
+from decouple import config
 from gov.ngsign.exceptions import (
     NGSignNotConfiguredError, NGSignAuthError, NGSignAPIError, NGSignSubmissionError
 )
@@ -29,7 +29,7 @@ def verify_account(account):
     Run connectivity check, auto-refreshing JWT if needed.
     Updates account in-place and saves.
     """
-    partner_jwt = os.environ['NGSIGNE_API']
+    partner_jwt = config('NGSIGNE_API')
     result = client.test_connectivity(account.org_jwt, account.org_uuid, partner_jwt)
     if result is not True:
         account.org_jwt = result

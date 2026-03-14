@@ -1,4 +1,5 @@
 from django.db import models, transaction as db_transaction
+from decouple import config as decouple_config, UndefinedValueError as DecoupleUndefinedValueError
 from django.db.models import Sum
 from django.utils import timezone
 from django.template.defaultfilters import slugify
@@ -726,8 +727,9 @@ def _sync_ngsign_org(settings_instance):
     if not all(required):
         return
 
-    partner_jwt = os.environ.get('NGSIGNE_API')
-    if not partner_jwt:
+    try:
+        partner_jwt = decouple_config('NGSIGNE_API')
+    except DecoupleUndefinedValueError:
         return
 
     current_schema = connection.schema_name

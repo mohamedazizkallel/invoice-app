@@ -193,7 +193,7 @@ def _build_lin_section(parent, invoice):
             amountTypeCode="I-171"  # Montant total HT de l'article
         )
         amount = etree.SubElement(moa, teif("Amount"), currencyIdentifier="TND")
-        amount.text = f"{line.get_line_total():.3f}"
+        amount.text = f"{line.get_line_ht():.3f}"
 
 
 def _build_invoice_alc(parent, invoice):
