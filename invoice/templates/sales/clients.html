@@ -44,6 +44,45 @@
   </form>
 </div>
 
+  {% if debtors %}
+  <div class="modern-card mb-3">
+    <div class="d-flex justify-content-between align-items-center" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#debtorsCollapse" aria-expanded="false">
+      <h6 class="mb-0">
+        <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+        Clients avec solde impayé
+        <span class="badge bg-danger ms-2">{{ debtors|length }}</span>
+      </h6>
+      <i class="bi bi-chevron-down text-muted"></i>
+    </div>
+    <div class="collapse mt-3" id="debtorsCollapse">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Client</th>
+              <th class="text-end">Solde dû</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in debtors %}
+            <tr>
+              <td>{{ d.client.clientname }}</td>
+              <td class="text-end"><span class="text-danger fw-semibold">{{ d.balance|floatformat:3 }} TND</span></td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-success py-0" onclick="openLedgerModal({{ d.client.id }})" title="Grand Livre">
+                  <i class="bi bi-journal-text me-1"></i>Voir
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   {% if clients %}
   <div class="modern-card">
     <table class="table modern-table mb-0">

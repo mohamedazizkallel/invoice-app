@@ -136,8 +136,14 @@ def dashboard(request):
         delivered=Count('id', filter=Q(status='DELIVERED')),
     )
 
-    # Client count
+    # Client count + debtors
     clients_count = Client.objects.count()
+    debtors = []
+    for c in Client.objects.all():
+        bal = c.get_balance()
+        if bal > Decimal('0'):
+            debtors.append({'client': c, 'balance': bal})
+    debtors.sort(key=lambda d: d['balance'], reverse=True)
 
     context = {
         'invoices': invoices,
@@ -162,6 +168,7 @@ def dashboard(request):
         'bl_delivered': bl_stats['delivered'],
         # Clients
         'clients_count': clients_count,
+        'debtors': debtors,
     }
     return render(request, "sales/dashboard.html", context)
 
@@ -192,10 +199,19 @@ def clients(request):
     if status_filter:
         clients_qs = clients_qs.filter(status=status_filter)
 
+    # Debtors: clients with positive balance (owe money)
+    debtors = []
+    for c in clients_qs:
+        bal = c.get_balance()
+        if bal > Decimal('0'):
+            debtors.append({'client': c, 'balance': bal})
+    debtors.sort(key=lambda d: d['balance'], reverse=True)
+
     form = ClientForm()
     transaction_form = ClientTransactionForm()
     return render(request, 'sales/clients.html', {
         'clients': clients_qs,
+        'debtors': debtors,
         'form': form,
         'transaction_form': transaction_form,
         'search_query': search_query,

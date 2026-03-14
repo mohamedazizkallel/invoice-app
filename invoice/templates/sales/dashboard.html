@@ -191,6 +191,41 @@
   </div>
 </div>
 
+<!-- Debtors -->
+{% if debtors %}
+<div class="modern-card mb-4">
+  <div class="d-flex justify-content-between align-items-center" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#debtorsCollapse" aria-expanded="false">
+    <h2 class="mb-0"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Clients avec solde impayé ({{ debtors|length }})</h2>
+    <i class="bi bi-chevron-down"></i>
+  </div>
+  <div class="collapse" id="debtorsCollapse">
+    <div class="table-responsive mt-3">
+      <table class="table modern-table mb-0">
+        <thead>
+          <tr>
+            <th>Client</th>
+            <th class="text-end">Montant dû</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in debtors %}
+          <tr>
+            <td>{{ d.client.name }}</td>
+            <td class="text-end text-danger fw-bold">{{ d.balance|floatformat:2 }} DA</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-2">
+      <a href="{% url 'clients' %}" class="btn btn-sm btn-link text-decoration-none">
+        Voir tous les clients <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- Recent Invoices -->
 <div class="modern-card">
   <div class="d-flex justify-content-between align-items-center mb-3">
