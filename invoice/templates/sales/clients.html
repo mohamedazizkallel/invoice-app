@@ -418,6 +418,44 @@
 </main>
 
 <script>
+// MF duplicate check — fetch cached map once, check locally
+(function() {
+  let mfMap = null;
+
+  fetch('/mf-map/?type=client', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .then(r => r.json())
+    .then(data => { mfMap = data; });
+
+  function checkMf(input, excludeId) {
+    if (!mfMap) return;
+    const mf = input.value.trim().toLowerCase();
+    let warn = input.parentElement.querySelector('.mf-warning');
+    if (warn) warn.remove();
+    if (!mf) return;
+    const match = mfMap[mf];
+    if (match && (!excludeId || String(match.id) !== String(excludeId))) {
+      warn = document.createElement('div');
+      warn.className = 'mf-warning alert alert-warning py-1 px-2 mt-1 mb-0 small';
+      warn.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Un client avec ce MF existe déjà : <strong>' + match.name + '</strong>';
+      input.parentElement.appendChild(warn);
+    }
+  }
+
+  const addMfInput = document.getElementById('id_mf');
+  if (addMfInput) {
+    addMfInput.addEventListener('input', function() { checkMf(this); });
+  }
+
+  const editMfInput = document.getElementById('editClientMf');
+  if (editMfInput) {
+    editMfInput.addEventListener('input', function() {
+      const form = document.getElementById('editClientForm');
+      const m = form.action.match(/\/clients\/(\d+)\/edit\//);
+      checkMf(this, m ? m[1] : null);
+    });
+  }
+})();
+
 document.getElementById('viewClientModal')?.addEventListener('show.bs.modal', function(event) {
   const btn = event.relatedTarget;
   const id = btn.getAttribute('data-client-id');

@@ -362,6 +362,16 @@ def client_unpaid_invoices(request, client_id):
     return JsonResponse({'invoices': result})
 
 @login_required
+def mf_map(request):
+    entity_type = request.GET.get('type', 'client')
+    if entity_type == 'supplier':
+        data = Supplier.get_mf_map()
+    else:
+        data = Client.get_mf_map()
+    return JsonResponse(data)
+
+
+@login_required
 def suppliers(request):
     if request.method == 'POST':
         form = SupplierForm(request.POST, request.FILES)

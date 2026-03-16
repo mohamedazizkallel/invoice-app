@@ -46,6 +46,33 @@ class Client(models.Model):
         self.last_updated = timezone.localtime(timezone.now())
 
         super().save(*args, **kwargs)
+        Client.invalidate_mf_cache()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        Client.invalidate_mf_cache()
+
+    @staticmethod
+    def get_mf_cache_key():
+        from django.db import connection
+        return f'client_mf_map_{connection.schema_name}'
+
+    @classmethod
+    def get_mf_map(cls):
+        from django.core.cache import cache
+        key = cls.get_mf_cache_key()
+        mf_map = cache.get(key)
+        if mf_map is None:
+            mf_map = {}
+            for c in cls.objects.exclude(mf='').exclude(mf__isnull=True).values('id', 'clientname', 'mf'):
+                mf_map[c['mf'].lower()] = {'name': c['clientname'], 'id': c['id']}
+            cache.set(key, mf_map, timeout=None)
+        return mf_map
+
+    @classmethod
+    def invalidate_mf_cache(cls):
+        from django.core.cache import cache
+        cache.delete(cls.get_mf_cache_key())
 
     def get_balance(self):
         """Positive = client owes money (net debits)"""
@@ -132,6 +159,33 @@ class Supplier(models.Model):
         self.last_updated = timezone.localtime(timezone.now())
 
         super().save(*args, **kwargs)
+        Supplier.invalidate_mf_cache()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        Supplier.invalidate_mf_cache()
+
+    @staticmethod
+    def get_mf_cache_key():
+        from django.db import connection
+        return f'supplier_mf_map_{connection.schema_name}'
+
+    @classmethod
+    def get_mf_map(cls):
+        from django.core.cache import cache
+        key = cls.get_mf_cache_key()
+        mf_map = cache.get(key)
+        if mf_map is None:
+            mf_map = {}
+            for s in cls.objects.exclude(mf='').exclude(mf__isnull=True).values('id', 'name', 'mf'):
+                mf_map[s['mf'].lower()] = {'name': s['name'], 'id': s['id']}
+            cache.set(key, mf_map, timeout=None)
+        return mf_map
+
+    @classmethod
+    def invalidate_mf_cache(cls):
+        from django.core.cache import cache
+        cache.delete(cls.get_mf_cache_key())
 
     def get_balance(self):
         """Positive = we owe supplier (net credits)"""
