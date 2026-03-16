@@ -379,13 +379,16 @@
     const mf = input.value.trim().toLowerCase();
     let warn = input.parentElement.querySelector('.mf-warning');
     if (warn) warn.remove();
-    if (!mf) return;
-    const match = mfMap[mf];
-    if (match && (!excludeId || String(match.id) !== String(excludeId))) {
-      warn = document.createElement('div');
-      warn.className = 'mf-warning alert alert-warning py-1 px-2 mt-1 mb-0 small';
-      warn.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Un fournisseur avec ce MF existe déjà : <strong>' + match.name + '</strong>';
-      input.parentElement.appendChild(warn);
+    if (mf.length < 8) return;
+    const typed = mf.slice(0, 8);
+    for (const [key, match] of Object.entries(mfMap)) {
+      if (key.slice(0, 8) === typed && (!excludeId || String(match.id) !== String(excludeId))) {
+        warn = document.createElement('div');
+        warn.className = 'mf-warning alert alert-warning py-1 px-2 mt-1 mb-0 small';
+        warn.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Un fournisseur avec ce MF existe déjà : <strong>' + match.name + '</strong> (' + key + ')';
+        input.parentElement.appendChild(warn);
+        return;
+      }
     }
   }
 
