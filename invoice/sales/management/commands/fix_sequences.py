@@ -15,23 +15,27 @@ class Command(BaseCommand):
             self.stdout.write(f"Fixing sequences for schema: {schema}")
 
             with connection.cursor() as cursor:
-                # Find all tables with a serial/identity 'id' column
+                # Find ALL sequences in this schema and reset them
                 cursor.execute("""
-                    SELECT table_name
-                    FROM information_schema.columns
-                    WHERE table_schema = %s
-                      AND column_name = 'id'
-                      AND column_default LIKE 'nextval%%'
+                    SELECT sequence_name
+                    FROM information_schema.sequences
+                    WHERE sequence_schema = %s
                 """, [schema])
-                tables = [row[0] for row in cursor.fetchall()]
+                sequences = [row[0] for row in cursor.fetchall()]
 
-                for table in tables:
-                    cursor.execute(f"""
-                        SELECT setval(
-                            pg_get_serial_sequence('{schema}.{table}', 'id'),
-                            COALESCE((SELECT MAX(id) FROM "{schema}"."{table}"), 1)
-                        )
-                    """)
-                    self.stdout.write(f"  Reset: {table}")
+                for seq in sequences:
+                    # Extract table name from sequence (convention: tablename_id_seq)
+                    table = seq.replace('_id_seq', '')
+                    try:
+                        cursor.execute(f"""
+                            SELECT setval(
+                                '"{schema}"."{seq}"',
+                                COALESCE((SELECT MAX(id) FROM "{schema}"."{table}"), 1)
+                            )
+                        """)
+                        self.stdout.write(f"  Reset: {seq}")
+                    except Exception as e:
+                        self.stdout.write(f"  Skipped {seq}: {e}")
+                        connection.cursor()  # reset connection after error
 
         self.stdout.write(self.style.SUCCESS("Done."))
