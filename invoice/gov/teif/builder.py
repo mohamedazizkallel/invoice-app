@@ -1,3 +1,5 @@
+import re
+
 from sales.models import Invoice, Settings
 from lxml import etree
 from datetime import datetime
@@ -9,6 +11,9 @@ from .namespaces import (
     teif,
 )
 
+# Characters that TTN rejects in text content
+_FORBIDDEN_CHARS = re.compile(r'[%/\\<>&\"\']')
+
 
 def _build_invoice_header(parent, seller, client):
     """Build the invoice header with sender/receiver identifiers"""
@@ -19,14 +24,14 @@ def _build_invoice_header(parent, seller, client):
         header,
         teif("MessageSenderIdentifier"),
         type="I-01"  # Matricule Fiscal type
-    ).text = seller.mf
+    ).text = _clean_mf(seller.mf)
 
     # Receiver identifier with mandatory type attribute (note typo in schema: Reciever not Receiver)
     etree.SubElement(
         header,
         teif("MessageRecieverIdentifier"),  # Schema has typo: Reciever
         type="I-01"  # Matricule Fiscal type
-    ).text = client.mf
+    ).text = _clean_mf(client.mf)
 
     return header
 
@@ -53,13 +58,25 @@ def _build_dtm(parent, invoice):
     """Build Date/Time section with correct format"""
     dtm_issue = etree.SubElement(parent, teif("Dtm"))
     
-    # Use DateText with functionCode and format attributes (lowercase ddMMyy per schema)
+    # Use DateText with functionCode and format attributes
     etree.SubElement(
-        dtm_issue, 
+        dtm_issue,
         teif("DateText"),
         functionCode="I-31",  # Issuance date
-        format="ddMMyy"  # Must be lowercase per schema
+        format="ddMMyy"  # Schema enumerates lowercase: ddMMyy
     ).text = invoice.date_created.strftime("%d%m%y")
+
+
+def _clean_mf(mf: str) -> str:
+    """Strip slashes from Matricule Fiscal — TTN rejects MF values containing '/'"""
+    return mf.replace("/", "")
+
+
+def _sanitize(text: str) -> str:
+    """Remove special characters that TTN rejects (%, /, etc.)"""
+    if not text:
+        return text
+    return _FORBIDDEN_CHARS.sub('', text)
 
 
 def _build_partner_details(parent, name, tax_id, address, function_code):
@@ -75,21 +92,21 @@ def _build_partner_details(parent, name, tax_id, address, function_code):
     
     # PartnerIdentifier with type attribute
     etree.SubElement(
-        nad, 
+        nad,
         teif("PartnerIdentifier"),
         type="I-01"
-    ).text = tax_id
+    ).text = _clean_mf(tax_id)
     
-    # PartnerName (not PartnerNom per schema)
+    # PartnerName with nameType: Physical or Qualification per schema
     etree.SubElement(
-        nad, 
+        nad,
         teif("PartnerName"),
         nameType="Physical"
-    ).text = name
+    ).text = _sanitize(name)
     
     # PartnerAdresses
     partner_addresses = etree.SubElement(nad, teif("PartnerAdresses"))
-    etree.SubElement(partner_addresses, teif("AdressDescription")).text = address
+    etree.SubElement(partner_addresses, teif("AdressDescription")).text = _sanitize(address)
     etree.SubElement(partner_addresses, teif("Country"), codeList="ISO_3166-1").text = "TN"
 
 
@@ -128,9 +145,11 @@ def _build_lin_section(parent, invoice):
         # Item identifier (instead of LinNum)
         etree.SubElement(lin, teif("ItemIdentifier")).text = str(idx)
 
-        # Description
+        # Description (ImdType requires ItemCode + ItemDescription children)
         description = line.service.description or line.service.title
-        etree.SubElement(lin, teif("LinImd")).text = description
+        lin_imd = etree.SubElement(lin, teif("LinImd"))
+        etree.SubElement(lin_imd, teif("ItemCode")).text = str(line.service.id)
+        etree.SubElement(lin_imd, teif("ItemDescription")).text = _sanitize(description)
 
         # Quantity with measurementUnit attribute
         qty = etree.SubElement(lin, teif("LinQty"))
@@ -159,7 +178,7 @@ def _build_lin_section(parent, invoice):
             tax,
             teif("TaxTypeName"),
             code="I-1602"
-        )
+        ).text = "TVA"  # NotNullDataStringType_200 requires non-empty text
 
         tax_details = etree.SubElement(tax, teif("TaxDetails"))
         etree.SubElement(tax_details, teif("TaxRate")).text = f"{invoice.get_tva():.2f}"
@@ -171,7 +190,7 @@ def _build_lin_section(parent, invoice):
             moa_details,
             teif("Moa"),
             currencyCodeList="ISO_4217",
-            amountTypeCode="I-180"
+            amountTypeCode="I-171"  # Montant total HT de l'article
         )
         amount = etree.SubElement(moa, teif("Amount"), currencyIdentifier="TND")
         amount.text = f"{line.get_line_total():.3f}"
@@ -199,7 +218,7 @@ def _build_invoice_alc(parent, invoice):
             allowance_details,
             teif("Moa"),
             currencyCodeList="ISO_4217",
-            amountTypeCode="I-151"
+            amountTypeCode="I-173"  # Montant total de la remise globale facture
         )
         amount = etree.SubElement(moa, teif("Amount"), currencyIdentifier="TND")
         amount.text = f"{discount_amount:.3f}"
@@ -208,7 +227,7 @@ def _build_invoice_alc(parent, invoice):
         if invoice.discount:
             ftx = etree.SubElement(allowance_details, teif("Ftx"))
             ftx_detail = etree.SubElement(ftx, teif("FreeTextDetail"), subjectCode="I-41")
-            etree.SubElement(ftx_detail, teif("FreeTexts")).text = f"Remise de {invoice.discount}%"
+            etree.SubElement(ftx_detail, teif("FreeTexts")).text = f"Remise de {invoice.discount} pct"
 
 
 def _build_invoice_tax(parent, invoice):
@@ -232,80 +251,75 @@ def _build_invoice_tax(parent, invoice):
     tax_rate_details = etree.SubElement(tax, teif("TaxDetails"))
     etree.SubElement(tax_rate_details, teif("TaxRate")).text = f"{invoice.get_tva():.2f}"
     
-    # AmountDetails wrapper for tax amounts
-    amount_details = etree.SubElement(tax_details, teif("AmountDetails"))
-    
-    # Moa for taxable base
-    moa_base = etree.SubElement(amount_details, teif("MoaDetails"))
-    etree.SubElement(
-        moa_base,
+    # Each AmountDetails IS a MoaDetailsType — Moa goes directly inside it
+    # Taxable base
+    ad_base = etree.SubElement(tax_details, teif("AmountDetails"))
+    moa_base = etree.SubElement(
+        ad_base,
         teif("Moa"),
         currencyCodeList="ISO_4217",
-        amountTypeCode="I-171"  # Taxable base
+        amountTypeCode="I-177"  # Montant base taxe
     )
-    amount_base = etree.SubElement(moa_base.find(teif("Moa")), teif("Amount"), currencyIdentifier="TND")
-    amount_base.text = f"{invoice.calculate_subtotal_after_discount():.3f}"
-    
-    # Moa for tax amount
-    moa_tax = etree.SubElement(amount_details, teif("MoaDetails"))
-    etree.SubElement(
-        moa_tax,
+    etree.SubElement(moa_base, teif("Amount"), currencyIdentifier="TND").text = \
+        f"{invoice.calculate_subtotal_after_discount():.3f}"
+
+    # Tax amount
+    ad_tax = etree.SubElement(tax_details, teif("AmountDetails"))
+    moa_tax = etree.SubElement(
+        ad_tax,
         teif("Moa"),
         currencyCodeList="ISO_4217",
-        amountTypeCode="I-176"  # Tax amount
+        amountTypeCode="I-178"  # Montant Taxe
     )
-    amount_tax = etree.SubElement(moa_tax.find(teif("Moa")), teif("Amount"), currencyIdentifier="TND")
-    amount_tax.text = f"{invoice.calculate_tva_amount():.3f}"
+    etree.SubElement(moa_tax, teif("Amount"), currencyIdentifier="TND").text = \
+        f"{invoice.calculate_tva_amount():.3f}"
 
 
 def _build_invoice_totals(parent, invoice):
     """Build invoice monetary totals using Moa with amountTypeCode"""
     moa_section = etree.SubElement(parent, teif("InvoiceMoa"))
-    
-    # AmountDetails wrapper (required)
-    amount_details = etree.SubElement(moa_section, teif("AmountDetails"))
-    
-    # Helper function to create Moa with proper structure
-    def add_moa(parent, amount_code, amount_value):
-        moa_details = etree.SubElement(parent, teif("MoaDetails"))
+
+    # MoaInvoiceType: sequence of AmountDetails (each is MoaDetailsType → Moa directly inside)
+    def add_moa(amount_code, amount_value):
+        ad = etree.SubElement(moa_section, teif("AmountDetails"))
         moa = etree.SubElement(
-            moa_details,
+            ad,
             teif("Moa"),
             currencyCodeList="ISO_4217",
             amountTypeCode=amount_code
         )
-        amount_el = etree.SubElement(moa, teif("Amount"), currencyIdentifier="TND")
-        amount_el.text = f"{amount_value:.3f}"
+        etree.SubElement(moa, teif("Amount"), currencyIdentifier="TND").text = \
+            f"{amount_value:.3f}"
 
     # Total HT BEFORE discount (I-172)
-    add_moa(amount_details, "I-172", invoice.calculate_service_subtotal())
-    
-    # TVA amount (I-176)
-    add_moa(amount_details, "I-176", invoice.calculate_tva_amount())
-    
-    # Timbre Fiscal (I-177)
-    add_moa(amount_details, "I-177", invoice.get_timbre_fiscal())
-    
+    add_moa("I-172", invoice.calculate_service_subtotal())
+
+    # Total HT AFTER discount (I-176)
+    add_moa("I-176", invoice.calculate_subtotal_after_discount())
+
+    # TVA amount (I-181: Montant total Taxe)
+    add_moa("I-181", invoice.calculate_tva_amount())
+
+    # Timbre Fiscal (I-179)
+    add_moa("I-179", invoice.get_timbre_fiscal())
+
     # Total TTC (I-180)
-    add_moa(amount_details, "I-180", invoice.calculate_total())
-
-
-def _build_ref_ttn_val(parent):
-    """Build reference TTN validation placeholder"""
-    etree.SubElement(parent, teif("RefTtnVal"))
+    add_moa("I-180", invoice.calculate_total())
 
 
 def _build_invoice_body(parent, invoice, seller):
     """Build the complete invoice body"""
     body = etree.SubElement(parent, teif("InvoiceBody"))
 
+    # Order must match BodyType sequence in XSD:
+    # Bgm, Dtm, PartnerSection, LinSection, InvoiceMoa, InvoiceTax, InvoiceAlc(opt)
     _build_bgm(body, invoice)
     _build_dtm(body, invoice)
     _build_partner_section(body, invoice, seller)
     _build_lin_section(body, invoice)
-    _build_invoice_alc(body, invoice)  # Discount section (if applicable)
-    _build_invoice_tax(body, invoice)  # Mandatory tax summary
-    _build_invoice_totals(body, invoice)
+    _build_invoice_totals(body, invoice)   # InvoiceMoa — must come before InvoiceTax
+    _build_invoice_tax(body, invoice)      # InvoiceTax
+    _build_invoice_alc(body, invoice)      # InvoiceAlc (optional, must be last)
 
     return body
 
@@ -348,7 +362,8 @@ def build_unsigned_teif(invoice: Invoice, seller: Settings) -> bytes:
     # Build document structure
     _build_invoice_header(root, seller, invoice.client)
     _build_invoice_body(root, invoice, seller)
-    _build_ref_ttn_val(root)
+    # RefTtnVal omitted — RefTtnType requires children (ReferenceTTN, ReferenceCEV, ReferenceDate)
+    # and is minOccurs="0", so it is only included when TTN reference data is available
 
     # Return pretty formatted XML (will be condensed before signing)
     xml_bytes = etree.tostring(

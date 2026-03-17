@@ -10,7 +10,7 @@ NAMESPACE_MAP = {
     "xades": XADES_NS,
 }
 
-TEIF_VERSION = "1.8.7"
+TEIF_VERSION = "1.8.9"
 CONTROLLING_AGENCY = "TTN"
 
 def teif(tag: str) -> QName:
