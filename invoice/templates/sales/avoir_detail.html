@@ -728,10 +728,15 @@ updateDetailPreview();
           if (data.success) {
             const badge = document.getElementById('ngsign-status-badge');
             if (badge) badge.textContent = data.ngsign_status;
-            alert('Statut : ' + data.ngsign_status + (data.ttn_reference ? ' — Ref: ' + data.ttn_reference : ''));
+            showToast('Statut : ' + data.ngsign_status + (data.ttn_reference ? ' — Réf: ' + data.ttn_reference : ''), 'info');
+            if (typeof fetchNotifications === 'function') fetchNotifications();
           } else {
-            alert('Erreur : ' + data.error);
+            showToast('Erreur : ' + data.error, 'error');
           }
+          checkBtn.disabled = false;
+        })
+        .catch(err => {
+          showToast('Erreur réseau : ' + err.message, 'error');
           checkBtn.disabled = false;
         });
     });

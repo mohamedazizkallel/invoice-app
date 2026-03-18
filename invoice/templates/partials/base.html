@@ -932,7 +932,7 @@
 
     // Close on outside click
     document.addEventListener('click', function(e) {
-      if (!dropdown.contains(e.target) && e.target !== bell) {
+      if (!dropdown.contains(e.target) && !bell.contains(e.target)) {
         dropdown.classList.remove('show');
       }
     });
@@ -990,6 +990,12 @@
       startPolling();
     }
 
+    function escapeHtml(str) {
+      var div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
     function renderItem(item, actionType) {
       let actionHtml = '';
       if (actionType === 'sign' && item.pds_url) {
@@ -1004,8 +1010,8 @@
 
       return '<div class="notification-item">' +
         '<div class="notification-item-info">' +
-          '<span class="notification-item-number">' + item.doc_number + '</span>' +
-          '<span class="notification-item-client">' + item.client_name + '</span>' +
+          '<span class="notification-item-number">' + escapeHtml(item.doc_number) + '</span>' +
+          '<span class="notification-item-client">' + escapeHtml(item.client_name) + '</span>' +
         '</div>' +
         actionHtml +
       '</div>';

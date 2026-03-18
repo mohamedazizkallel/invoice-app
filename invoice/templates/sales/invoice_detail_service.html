@@ -1156,11 +1156,16 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
           if (data.success) {
             const badge = document.getElementById('ngsign-status-badge');
-            if (badge) badge.textContent = 'NGSign: ' + data.ngsign_status;
-            alert('Statut TTN : ' + data.ngsign_status + (data.ttn_reference ? ' — Réf: ' + data.ttn_reference : ''));
+            if (badge) badge.textContent = data.ngsign_status;
+            showToast('Statut : ' + data.ngsign_status + (data.ttn_reference ? ' — Réf: ' + data.ttn_reference : ''), 'info');
+            if (typeof fetchNotifications === 'function') fetchNotifications();
           } else {
-            alert('Erreur : ' + data.error);
+            showToast('Erreur : ' + data.error, 'error');
           }
+          checkBtn.disabled = false;
+        })
+        .catch(err => {
+          showToast('Erreur réseau : ' + err.message, 'error');
           checkBtn.disabled = false;
         });
     });
