@@ -22,9 +22,12 @@
 
   .invoice-paper {
     background: white;
-    border-radius: 12px;
+    border-radius: 0;
     box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     overflow: hidden;
+    min-height: 1122px;
+    display: flex;
+    flex-direction: column;
   }
 
   .invoice-header {
@@ -85,7 +88,7 @@
   .invoice-number { font-size: 1.1rem; font-weight: 700; color: #111827; margin-bottom: 0.25rem; }
   .invoice-date { font-size: 0.75rem; color: #6b7280; margin-bottom: 0.5rem; }
 
-  .invoice-body { padding: 1.5rem 2rem; }
+  .invoice-body { padding: 1.5rem 2rem; flex: 1; }
 
   .info-row {
     display: grid;
@@ -126,7 +129,6 @@
   .info-item small { display: block; font-size: 0.65rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 0.15rem; }
   .info-item strong { font-size: 0.85rem; color: #111827; }
 
-  /* Items Table */
   .items-section { margin-bottom: 1.5rem; }
 
   .items-header {
@@ -174,10 +176,8 @@
     background: white;
   }
 
-  .items-table tbody tr:nth-child(even) td { background: #f9fafb; }
   .items-table .text-end { text-align: right; }
 
-  /* Summary */
   .summary-section {
     display: grid;
     grid-template-columns: 1fr 320px;
@@ -245,13 +245,14 @@
 
   .grand-total .value { font-size: 1.25rem; font-weight: 700; }
 
-  /* Signatures */
+  /* Bottom: Signatures + Footer */
+  .invoice-bottom { margin-top: auto; }
+
   .signatures-section {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 3rem;
-    margin-top: 2.5rem;
-    padding-top: 1.5rem;
+    padding: 1.5rem 2rem 0 2rem;
   }
 
   .signature-box { text-align: center; }
@@ -273,16 +274,14 @@
     color: #9ca3af;
   }
 
-  /* QR Code placeholder */
   .qr-placeholder {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    margin-top: 1.5rem;
+    justify-content: center;
     min-height: 100px;
+    margin-bottom: 0.5rem;
   }
 
-  /* Footer */
   .invoice-footer {
     padding: 1rem 2rem;
     background: #f9fafb;
@@ -311,116 +310,47 @@
   /* Print */
   @media print {
     @page { size: A4; margin: 8mm; }
-
-    * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     body { background: white !important; font-size: 9pt; line-height: 1.3; }
-
-    header, nav, footer,
-    .modern-header, .modern-sidebar, .app-footer,
-    #sidebarMenu,
-    .invoice-actions, .no-print,
-    .modal, .modal-backdrop,
-    .toast-container {
-      display: none !important;
-    }
-
+    header, nav, footer, .modern-header, .modern-sidebar, .app-footer, #sidebarMenu,
+    .invoice-actions, .no-print, .modal, .modal-backdrop, .toast-container { display: none !important; }
     .container-fluid > .row { display: block !important; }
-
-    .col-md-9, .col-lg-10, .main-content {
-      width: 100% !important;
-      max-width: 100% !important;
-      flex: 0 0 100% !important;
-      padding: 0 !important;
-      margin: 0 !important;
-    }
-
+    .col-md-9, .col-lg-10, .main-content { width: 100% !important; max-width: 100% !important; flex: 0 0 100% !important; padding: 0 !important; margin: 0 !important; }
     .invoice-wrapper { max-width: 100%; }
-    .invoice-paper { box-shadow: none; border-radius: 0; border: 1px solid #000; }
-
-    .invoice-header {
-      background: white !important;
-      border-bottom: 2px solid #000;
-      padding: 0.75rem 1rem;
-    }
-
-    .header-content {
-      display: grid !important;
-      grid-template-columns: 1fr auto 1fr !important;
-      gap: 0.75rem !important;
-    }
-
-    .invoice-center {
-      border-left: 1px solid #000 !important;
-      border-right: 1px solid #000 !important;
-      padding: 0 0.5rem !important;
-      min-width: 120px;
-    }
-
+    .invoice-paper { box-shadow: none; border-radius: 0; border: 1px solid #000; min-height: 100vh; display: flex; flex-direction: column; }
+    .invoice-header { background: white !important; border-bottom: 2px solid #000; padding: 0.75rem 1rem; }
+    .header-content { display: grid !important; grid-template-columns: 1fr auto 1fr !important; gap: 0.75rem !important; }
+    .invoice-center { border-left: 1px solid #000 !important; border-right: 1px solid #000 !important; padding: 0 0.5rem !important; min-width: 120px; }
     .entity-box { background: white !important; border: 1px solid #000; padding: 0.5rem 0.6rem; }
     .entity-box img { max-width: 100% !important; max-height: 80px !important; filter: grayscale(100%) contrast(120%); }
-
     .invoice-type { background: #000 !important; color: white !important; font-size: 0.5rem; padding: 0.15rem 0.4rem; margin-bottom: 0.4rem; }
     .invoice-number { font-size: 0.8rem; }
     .invoice-date { font-size: 0.6rem; }
-
     .invoice-body { padding: 1rem 1.25rem; }
-
     .info-row { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 1rem; margin-bottom: 1rem; padding-bottom: 1rem; }
     .info-box { background: white !important; border: 1px solid #000; padding: 0.6rem; }
     .info-box-title { font-size: 0.55rem; border-bottom: 1px dashed #000; margin-bottom: 0.5rem; }
     .info-box-title i { color: #000 !important; }
-    .info-box h4 { font-size: 0.8rem; }
-    .info-box p { font-size: 0.65rem; }
-    .info-item { background: #f5f5f5 !important; border: 1px solid #ccc; padding: 0.35rem; }
-    .info-item small { font-size: 0.5rem; }
-    .info-item strong { font-size: 0.7rem; }
-
-    .items-section { margin-bottom: 1rem; }
-    .items-header h3 { font-size: 0.7rem; }
-    .items-header h3 i { color: #000 !important; }
     .items-table { font-size: 0.7rem; }
     .items-table thead { background: #000 !important; }
     .items-table th { color: white !important; border: 1px solid #000 !important; padding: 0.5rem; font-size: 0.55rem; }
     .items-table td { border: 1px solid #000 !important; background: white !important; padding: 0.4rem 0.5rem; }
-    .items-table tbody tr:nth-child(even) td { background: #f5f5f5 !important; }
-
     .summary-section { display: grid !important; grid-template-columns: 1fr 280px !important; gap: 1rem; padding-top: 0.75rem; border-top: 1px dashed #000; page-break-inside: avoid; }
-    .notes-section h4 { font-size: 0.6rem; }
     .notes-section h4 i { color: #000 !important; }
     .notes-content { background: white !important; border-left: 2px solid #000; font-size: 0.6rem; padding: 0.5rem; }
     .totals-box { border: 1px solid #000; border-radius: 0; }
     .total-row { border-bottom: 1px solid #000; padding: 0.4rem 0.6rem; font-size: 0.7rem; }
-    .total-row .label, .total-row .value { color: #000; }
     .grand-total { background: #000 !important; color: white !important; padding: 0.5rem 0.6rem; }
-    .grand-total .label { font-size: 0.6rem; }
-    .grand-total .value { font-size: 1rem; }
-
-    .signatures-section { margin-top: 1.5rem; padding-top: 1rem; }
-    .signature-label { margin-bottom: 3rem; color: #000; }
-    .signature-line { border-top: 1px solid #000; }
-
     .invoice-footer { background: white !important; border-top: 1px solid #000; padding: 0.6rem 1rem; font-size: 0.6rem; }
-    .footer-legal { font-size: 0.55rem; border-top: 1px dashed #000; padding-top: 0.5rem; margin-top: 0.5rem; }
-
-    .invoice-header, .summary-section, .signatures-section, .invoice-footer { page-break-inside: avoid; }
-    .items-table { page-break-inside: auto; }
-    .items-table tr { page-break-inside: avoid; }
+    .footer-legal { font-size: 0.55rem; border-top: 1px dashed #000; }
   }
 
-  /* Responsive */
   @media screen and (max-width: 768px) {
     .header-content { grid-template-columns: 1fr; gap: 1rem; }
     .invoice-center { border-left: none; border-right: none; border-top: 1px dashed #d1d5db; border-bottom: 1px dashed #d1d5db; padding: 1rem 0; }
     .info-row { grid-template-columns: 1fr; }
     .summary-section { grid-template-columns: 1fr; }
     .signatures-section { grid-template-columns: 1fr; gap: 2rem; }
-    .invoice-header { padding: 1rem; }
-    .invoice-body { padding: 1rem; }
-    .invoice-footer { padding: 0.75rem 1rem; }
   }
 </style>
 {% endblock %}
@@ -433,13 +363,28 @@
     <a href="{% url 'avoirs_list' %}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left me-2"></i> Retour aux Avoirs
     </a>
-    <div class="d-flex gap-2">
-      <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editAvoirDetailModal">
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editAvoirDetailModal">
         <i class="bi bi-pencil me-1"></i> Modifier
       </button>
-      <button onclick="window.print()" class="btn btn-primary">
+      <button onclick="window.print()" class="btn btn-sm btn-primary">
         <i class="bi bi-printer me-1"></i> Imprimer
       </button>
+
+      {% if gov_invoice and gov_invoice.ngsign_status %}
+      <span class="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill {% if gov_invoice.ngsign_status == 'SIGNED' or gov_invoice.ngsign_status == 'TTN_SIGNED' %}bg-success bg-opacity-10 text-success{% elif gov_invoice.ngsign_status == 'ERROR' or gov_invoice.ngsign_status == 'TTN_REJECTED' %}bg-danger bg-opacity-10 text-danger{% else %}bg-warning bg-opacity-10 text-warning{% endif %}" id="ngsign-status-badge" style="font-size: 0.75rem; font-weight: 600;">
+        <i class="bi bi-circle-fill" style="font-size: 0.4rem;"></i> {{ gov_invoice.ngsign_status }}
+      </span>
+      {% endif %}
+
+      <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ngsignSubmitModal">
+        <i class="bi bi-pen me-1"></i> NGSign
+      </button>
+      {% if gov_invoice and gov_invoice.ngsign_invoice_uuid %}
+      <button type="button" class="btn btn-sm btn-outline-info" id="btn-ngsign-check" data-avoir-id="{{ avoir.id }}">
+        <i class="bi bi-arrow-repeat me-1"></i> Statut
+      </button>
+      {% endif %}
     </div>
   </div>
 
@@ -449,8 +394,6 @@
     <!-- Header -->
     <div class="invoice-header">
       <div class="header-content">
-
-        <!-- Left: Logo -->
         <div class="entity-box" style="display:flex; align-items:center; justify-content:center; min-height:120px; padding:0; overflow:hidden;">
           {% if settings_obj and settings_obj.clientLogo %}
             <img src="{% url 'company_logo' %}?v={{ settings_obj.last_updated|date:'U' }}" alt="{{ settings_obj.clientname }}" style="width:100%; height:120px; object-fit:cover;">
@@ -459,7 +402,6 @@
           {% endif %}
         </div>
 
-        <!-- Center: Document Info -->
         <div class="invoice-center">
           <div class="invoice-type">
             <i class="bi bi-arrow-return-left"></i> Facture d'Avoir
@@ -473,7 +415,6 @@
           {% endif %}
         </div>
 
-        <!-- Right: Company -->
         <div class="entity-box">
           <div class="entity-label">De: (Emetteur)</div>
           {% if settings_obj %}
@@ -488,14 +429,11 @@
           <div class="entity-name">Votre Societe</div>
           {% endif %}
         </div>
-
       </div>
     </div>
 
     <!-- Body -->
     <div class="invoice-body">
-
-      <!-- Info Row -->
       <div class="info-row">
         <div class="info-box">
           <div class="info-box-title"><i class="bi bi-person"></i> Client</div>
@@ -530,12 +468,10 @@
         </div>
       </div>
 
-      <!-- Items Table -->
       <div class="items-section">
         <div class="items-header">
           <h3><i class="bi bi-arrow-return-left"></i> Description</h3>
         </div>
-
         <table class="items-table">
           <thead>
             <tr>
@@ -552,7 +488,6 @@
         </table>
       </div>
 
-      <!-- Summary Section -->
       <div class="summary-section">
         <div class="notes-section">
           <h4><i class="bi bi-sticky"></i> Arrete</h4>
@@ -576,38 +511,62 @@
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- QR Code placeholder -->
-      <div class="qr-placeholder" id="avoir-qrcode">
-      </div>
-
-      <!-- Signatures -->
+    <!-- Bottom: Signatures + Footer -->
+    <div class="invoice-bottom">
       <div class="signatures-section">
         <div class="signature-box">
+          <div class="qr-placeholder" id="avoir-qrcode"></div>
           <div class="signature-label">Signature de l'emetteur</div>
           <div class="signature-line">Nom et cachet</div>
         </div>
         <div class="signature-box">
+          <div class="qr-placeholder" style="visibility: hidden;"></div>
           <div class="signature-label">Signature du client</div>
           <div class="signature-line">Nom et cachet</div>
         </div>
       </div>
 
-    </div>
-
-    <!-- Footer -->
-    <div class="invoice-footer">
-      <div class="footer-row">
-        <div>
-          {% if settings_obj and settings_obj.rib %}<div><strong>RIB:</strong> {{ settings_obj.rib }}</div>{% endif %}
+      <div class="invoice-footer">
+        <div class="footer-row">
+          <div>
+            {% if settings_obj and settings_obj.rib %}<div><strong>RIB:</strong> {{ settings_obj.rib }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="footer-legal">
+          {{ settings_obj.clientname|default:"Votre Societe" }} | {{ settings_obj.adress|default:"Adresse" }} |
+          MF: {{ settings_obj.mf|default:"XXXXXXX" }} | Document genere le {% now "d/m/Y" %}
         </div>
       </div>
-      <div class="footer-legal">
-        {{ settings_obj.clientname|default:"Votre Societe" }} | {{ settings_obj.adress|default:"Adresse" }} |
-        MF: {{ settings_obj.mf|default:"XXXXXXX" }} | Document genere le {% now "d/m/Y" %}
-      </div>
     </div>
 
+  </div>
+</div>
+
+<!-- NGSign Submit Modal -->
+<div class="modal fade no-print" id="ngsignSubmitModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Soumettre a NGSign</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if gov_invoice and gov_invoice.ngsign_status %}
+        <div class="alert alert-warning">
+          Cet avoir a deja ete soumis a NGSign (statut : <strong>{{ gov_invoice.ngsign_status }}</strong>).
+        </div>
+        {% endif %}
+        <p>Voulez-vous soumettre cet avoir a NGSign pour signature electronique ?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btn-ngsign-confirm">
+          {% if gov_invoice and gov_invoice.ngsign_status %}Soumettre quand meme{% else %}Soumettre{% endif %}
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -626,7 +585,6 @@
         </div>
         <div class="modal-body pt-2">
           <div class="row g-2">
-
             <div class="col-md-6">
               <label class="form-label fw-semibold mb-1">Facture liee <span class="text-muted small">(optionnel)</span></label>
               <select class="form-select form-select-sm" name="invoice_id" id="detailEditInvoiceSelect">
@@ -634,12 +592,10 @@
               </select>
             </div>
             <div class="col-md-6"></div>
-
             <div class="col-12">
               <label class="form-label fw-semibold mb-1">Description <span class="text-danger">*</span></label>
               <textarea class="form-control form-control-sm" name="description" rows="4" required>{{ avoir.description }}</textarea>
             </div>
-
             <div class="col-md-4">
               <label class="form-label fw-semibold mb-1">Montant HT <span class="text-danger">*</span></label>
               <div class="input-group input-group-sm">
@@ -648,13 +604,11 @@
                 <span class="input-group-text">D</span>
               </div>
             </div>
-
             <div class="col-md-4">
               <label class="form-label fw-semibold mb-1">TVA %</label>
               <input type="number" class="form-control form-control-sm" name="tva" id="detailEditTva"
                      step="0.01" min="0" value="{{ avoir.tva }}">
             </div>
-
             <div class="col-md-4">
               <label class="form-label fw-semibold text-muted">Apercu</label>
               <div class="card bg-light border-0 rounded-3">
@@ -670,7 +624,6 @@
                 </div>
               </div>
             </div>
-
           </div>
         </div>
         <div class="modal-footer border-0">
@@ -685,7 +638,7 @@
 </div>
 
 <script>
-// Load linked invoices for the edit modal
+// Load linked invoices for edit modal
 (function () {
   const clientId = {{ avoir.client_id }};
   const currentInvoiceId = "{{ avoir.invoice_id|default:'' }}";
@@ -715,6 +668,75 @@ function updateDetailPreview() {
 document.getElementById('detailEditAmountHt').addEventListener('input', updateDetailPreview);
 document.getElementById('detailEditTva').addEventListener('input', updateDetailPreview);
 updateDetailPreview();
+
+// NGSign submit
+(function () {
+  const confirmBtn = document.getElementById('btn-ngsign-confirm');
+  if (!confirmBtn) return;
+
+  confirmBtn.addEventListener('click', function () {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Envoi en cours...';
+
+    const csrfToken = document.cookie.split(';')
+      .map(c => c.trim())
+      .find(c => c.startsWith('csrftoken='));
+    const token = csrfToken ? csrfToken.split('=')[1] : '';
+
+    fetch('{% url "avoir-ngsign-submit" avoir.id %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': token },
+    })
+      .then(r => r.json())
+      .then(data => {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('ngsignSubmitModal'));
+        if (modal) modal.hide();
+        if (data.success) {
+          showToast(data.message, 'success');
+          if (typeof fetchNotifications === 'function') fetchNotifications();
+        } else {
+          showToast('Erreur : ' + data.error, 'error');
+        }
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Soumettre';
+      })
+      .catch(err => {
+        showToast('Erreur réseau : ' + err.message, 'error');
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Soumettre';
+      });
+  });
+
+  // Status check
+  const checkBtn = document.getElementById('btn-ngsign-check');
+  if (checkBtn) {
+    checkBtn.addEventListener('click', function () {
+      const avoirId = checkBtn.dataset.avoirId;
+      checkBtn.disabled = true;
+
+      const csrfToken = document.cookie.split(';')
+        .map(c => c.trim())
+        .find(c => c.startsWith('csrftoken='));
+      const token = csrfToken ? csrfToken.split('=')[1] : '';
+
+      fetch(`/avoirs/${avoirId}/ngsign/check/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': token },
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            const badge = document.getElementById('ngsign-status-badge');
+            if (badge) badge.textContent = data.ngsign_status;
+            alert('Statut : ' + data.ngsign_status + (data.ttn_reference ? ' — Ref: ' + data.ttn_reference : ''));
+          } else {
+            alert('Erreur : ' + data.error);
+          }
+          checkBtn.disabled = false;
+        });
+    });
+  }
+})();
 </script>
 
 {% endblock %}
