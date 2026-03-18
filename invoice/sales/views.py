@@ -4,7 +4,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.urls import reverse
 from django.contrib import messages
 from django.http import HttpResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.core.paginator import Paginator
 from django.db.models import Q,Sum, Count
 from django.db import transaction
@@ -2791,3 +2791,77 @@ def _process_ngsign_submission(gov_invoice_id, schema_name):
             logger.exception(f'Failed to update error status for GovInvoice {gov_invoice_id}')
     finally:
         connection.close()
+
+
+@login_required
+@require_GET
+def ngsign_pending_api(request):
+    """Return all GovInvoice records with non-terminal ngsign_status, grouped by category."""
+    from django.urls import reverse
+    from django.utils import timezone
+    from gov.models import GovInvoice
+    from gov.ngsign.client import get_pds_url
+
+    TO_SIGN = {'CREATED', 'CONFIGURED'}
+    ERRORS = {'ERROR', 'TTN_REJECTED', 'TTN_NOTTRANSFERED'}
+    STALE_SECONDS = 60
+
+    gov_invoices = (
+        GovInvoice.objects
+        .exclude(ngsign_status__in=['TTN_SIGNED', 'TTN_TRANSFERED', 'CANCELLED'])
+        .exclude(ngsign_status__isnull=True)
+        .exclude(ngsign_status='')
+        .select_related('invoice__client', 'credit_note__client')
+    )
+
+    now = timezone.now()
+    to_sign = []
+    errors = []
+    in_progress = []
+
+    for gi in gov_invoices:
+        if gi.invoice:
+            doc_type = 'invoice'
+            doc_number = gi.invoice.uniqueId
+            client_name = gi.invoice.client.clientname if gi.invoice.client else ''
+            detail_url = reverse('invoice_detail', args=[gi.invoice.id])
+        elif gi.credit_note:
+            doc_type = 'avoir'
+            doc_number = gi.credit_note.uniqueId
+            client_name = gi.credit_note.client.clientname if gi.credit_note.client else ''
+            detail_url = reverse('avoir_detail', args=[gi.credit_note.id])
+        else:
+            continue
+
+        # Stale detection: SUBMITTING for >60s is treated as ERROR
+        status = gi.ngsign_status
+        if status == 'SUBMITTING' and gi.submitted_at and (now - gi.submitted_at).total_seconds() > STALE_SECONDS:
+            status = 'ERROR'
+            gi.ngsign_status = 'ERROR'
+            gi.notes = 'Soumission expirée (délai dépassé).'
+            gi.save(update_fields=['ngsign_status', 'notes'])
+
+        item = {
+            'id': gi.id,
+            'doc_type': doc_type,
+            'doc_number': doc_number,
+            'client_name': client_name,
+            'status': status,
+            'detail_url': detail_url,
+            'pds_url': get_pds_url(gi.ngsign_transaction_uuid) if gi.ngsign_transaction_uuid else None,
+            'notes': gi.notes or '',
+        }
+
+        if status in TO_SIGN:
+            to_sign.append(item)
+        elif status in ERRORS:
+            errors.append(item)
+        else:
+            in_progress.append(item)
+
+    return JsonResponse({
+        'to_sign': to_sign,
+        'errors': errors,
+        'in_progress': in_progress,
+        'total': len(to_sign) + len(errors) + len(in_progress),
+    })

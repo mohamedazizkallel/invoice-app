@@ -19,7 +19,9 @@ from .views import (dashboard, delete_supplier, edit_supplier,
                     bons_livraison_list, bon_livraison_create, bon_livraison_edit,
                     bon_livraison_delete, bon_livraison_detail, bon_livraison_modal_data,
                     devis_list, devis_create, devis_detail, devis_update, devis_delete, devis_convert,
-                    invoice_ngsign_submit, invoice_ngsign_check)
+                    invoice_ngsign_submit, invoice_ngsign_check,
+                    avoir_ngsign_submit, avoir_ngsign_check,
+                    ngsign_pending_api)
 
 urlpatterns = [
     path('', login_view,name='login'),
@@ -87,6 +89,11 @@ urlpatterns = [
     path('avoirs/<int:avoir_id>/edit/', avoir_edit, name='avoir_edit'),
     path('avoirs/<int:avoir_id>/delete/', avoir_delete, name='avoir_delete'),
     path('avoirs/<int:avoir_id>/modal-data/', avoir_modal_data, name='avoir_modal_data'),
+    path('avoirs/<int:avoir_id>/ngsign/submit/', avoir_ngsign_submit, name='avoir-ngsign-submit'),
+    path('avoirs/<int:avoir_id>/ngsign/check/', avoir_ngsign_check, name='avoir-ngsign-check'),
+
+    # NGSign API
+    path('api/ngsign/pending/', ngsign_pending_api, name='ngsign-pending-api'),
     path('clients/<int:client_id>/all-invoices/', client_all_invoices, name='client_all_invoices'),
 
     # Bons de Livraison
