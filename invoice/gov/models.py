@@ -1,8 +1,9 @@
 from django.db import models
-from sales.models import Invoice
+from sales.models import Invoice, CreditNote
 
 class GovInvoice(models.Model):
-    invoice = models.OneToOneField(Invoice, on_delete=models.CASCADE)
+    invoice = models.OneToOneField(Invoice, on_delete=models.CASCADE, null=True, blank=True)
+    credit_note = models.OneToOneField(CreditNote, on_delete=models.CASCADE, null=True, blank=True)
 
     unsigned_xml = models.BinaryField()
     signature_xml = models.BinaryField(null=True)
@@ -25,6 +26,7 @@ class GovInvoice(models.Model):
         null=True,
         blank=True,
         choices=[
+            ('SUBMITTING', 'SUBMITTING'),
             ('CREATED', 'CREATED'),
             ('CONFIGURED', 'CONFIGURED'),
             ('SIGNED', 'SIGNED'),
@@ -39,3 +41,5 @@ class GovInvoice(models.Model):
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, default='')
+    submitted_at = models.DateTimeField(null=True, blank=True)
