@@ -879,6 +879,180 @@
     });
   </script>
 
+  {% if user.is_authenticated %}
+  <script>
+  (function() {
+    const bell = document.getElementById('notificationBell');
+    const dropdown = document.getElementById('notificationDropdown');
+    const badge = document.getElementById('notificationBadge');
+    const content = document.getElementById('notificationContent');
+    const badges = document.getElementById('notificationBadges');
+    if (!bell) return;
+
+    let pollInterval = null;
+
+    // Toast helper — creates and shows a toast programmatically
+    window.showToast = function(message, type) {
+      type = type || 'info';
+      let container = document.querySelector('.toast-container');
+      if (!container) {
+        const wrapper = document.createElement('div');
+        wrapper.setAttribute('aria-live', 'polite');
+        wrapper.setAttribute('aria-atomic', 'true');
+        container = document.createElement('div');
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        wrapper.appendChild(container);
+        document.body.appendChild(wrapper);
+      }
+      const iconMap = {
+        success: 'bi-check-circle-fill',
+        error: 'bi-x-circle-fill',
+        warning: 'bi-exclamation-triangle-fill',
+        info: 'bi-info-circle-fill',
+      };
+      const toastEl = document.createElement('div');
+      toastEl.className = 'toast modern-toast align-items-center border-0 mb-2 text-white toast-' + type;
+      toastEl.setAttribute('role', 'alert');
+      toastEl.setAttribute('data-bs-delay', '4000');
+      toastEl.innerHTML =
+        '<div class="d-flex">' +
+          '<div class="toast-body"><i class="bi ' + (iconMap[type] || iconMap.info) + ' me-2"></i>' + message + '</div>' +
+          '<button type="button" class="btn-close ' + (type !== 'warning' ? 'btn-close-white' : '') + ' me-2 m-auto" data-bs-dismiss="toast"></button>' +
+        '</div>';
+      container.appendChild(toastEl);
+      new bootstrap.Toast(toastEl).show();
+      toastEl.addEventListener('hidden.bs.toast', function() { toastEl.remove(); });
+    };
+
+    // Toggle dropdown
+    bell.addEventListener('click', function(e) {
+      e.stopPropagation();
+      dropdown.classList.toggle('show');
+    });
+
+    // Close on outside click
+    document.addEventListener('click', function(e) {
+      if (!dropdown.contains(e.target) && e.target !== bell) {
+        dropdown.classList.remove('show');
+      }
+    });
+
+    function renderNotifications(data) {
+      // Update badge
+      if (data.total > 0) {
+        badge.textContent = data.total;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+
+      // Header badges
+      let badgeHtml = '';
+      if (data.to_sign.length) badgeHtml += '<span style="background:#f39c12;color:#000;border-radius:10px;padding:2px 7px;font-size:0.65rem;margin-left:4px;">' + data.to_sign.length + '</span>';
+      if (data.errors.length) badgeHtml += '<span style="background:#e74c3c;color:#fff;border-radius:10px;padding:2px 7px;font-size:0.65rem;margin-left:4px;">' + data.errors.length + '</span>';
+      if (data.in_progress.length) badgeHtml += '<span style="background:#2ecc71;color:#000;border-radius:10px;padding:2px 7px;font-size:0.65rem;margin-left:4px;">' + data.in_progress.length + '</span>';
+      badges.innerHTML = badgeHtml;
+
+      if (data.total === 0) {
+        content.innerHTML = '<div class="notification-empty">Aucun document en cours.</div>';
+        stopPolling();
+        return;
+      }
+
+      let html = '';
+
+      if (data.to_sign.length) {
+        html += '<div class="notification-group-label to-sign">A signer (' + data.to_sign.length + ')</div>';
+        data.to_sign.forEach(function(item) {
+          html += renderItem(item, 'sign');
+        });
+      }
+
+      if (data.errors.length) {
+        html += '<div class="notification-group-label errors">Erreurs (' + data.errors.length + ')</div>';
+        data.errors.forEach(function(item) {
+          html += renderItem(item, 'view');
+        });
+      }
+
+      if (data.in_progress.length) {
+        html += '<div class="notification-group-label in-progress">En cours (' + data.in_progress.length + ')</div>';
+        data.in_progress.forEach(function(item) {
+          if (item.status === 'SUBMITTING') {
+            html += renderItem(item, 'spinner');
+          } else {
+            html += renderItem(item, 'check');
+          }
+        });
+      }
+
+      content.innerHTML = html;
+      startPolling();
+    }
+
+    function renderItem(item, actionType) {
+      let actionHtml = '';
+      if (actionType === 'sign' && item.pds_url) {
+        actionHtml = '<button class="notification-item-action sign" onclick="window.open(\'' + item.pds_url + '\', \'_blank\')">Signer</button>';
+      } else if (actionType === 'view') {
+        actionHtml = '<a href="' + item.detail_url + '" class="notification-item-action view" style="text-decoration:none;">Voir</a>';
+      } else if (actionType === 'check') {
+        actionHtml = '<button class="notification-item-action check" onclick="ngsignCheck(\'' + item.detail_url + '\')">Check</button>';
+      } else if (actionType === 'spinner') {
+        actionHtml = '<span class="notification-spinner"></span>';
+      }
+
+      return '<div class="notification-item">' +
+        '<div class="notification-item-info">' +
+          '<span class="notification-item-number">' + item.doc_number + '</span>' +
+          '<span class="notification-item-client">' + item.client_name + '</span>' +
+        '</div>' +
+        actionHtml +
+      '</div>';
+    }
+
+    window.fetchNotifications = function() {
+      fetch('/api/ngsign/pending/')
+        .then(function(r) { return r.json(); })
+        .then(function(data) { renderNotifications(data); })
+        .catch(function() {});
+    };
+
+    function startPolling() {
+      if (pollInterval) return;
+      pollInterval = setInterval(function() {
+        if (document.hidden) return;
+        fetchNotifications();
+      }, 30000);
+    }
+
+    function stopPolling() {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    }
+
+    // Pause/resume on tab visibility
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden && badge.style.display !== 'none') {
+        fetchNotifications();
+      }
+    });
+
+    // Check button action from dropdown — navigates to detail page where user can run full check
+    window.ngsignCheck = function(detailUrl) {
+      window.location.href = detailUrl;
+    };
+
+    // Initial fetch
+    document.addEventListener('DOMContentLoaded', function() {
+      fetchNotifications();
+    });
+  })();
+  </script>
+  {% endif %}
+
   {% block scripts %}{% endblock %}
 
   <script src="{% static 'assets/js/tom-select.complete.min.js' %}"></script>
