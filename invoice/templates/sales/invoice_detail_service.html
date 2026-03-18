@@ -30,9 +30,12 @@
 
   .invoice-paper {
     background: white;
-    border-radius: 12px;
+    border-radius: 0;
     box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     overflow: hidden;
+    min-height: 1122px; /* A4 ratio: 794 * 297/210 */
+    display: flex;
+    flex-direction: column;
   }
 
   /* Header */
@@ -330,13 +333,17 @@
 
   .grand-total .value { font-size: 1.25rem; font-weight: 700; }
 
+  /* Signatures + Footer wrapper — pushed to bottom */
+  .invoice-bottom {
+    margin-top: auto;
+  }
+
   /* Signatures */
   .signatures-section {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 3rem;
-    margin-top: 2.5rem;
-    padding-top: 1.5rem;
+    padding: 1.5rem 2rem 0 2rem;
   }
 
   .signature-box { text-align: center; }
@@ -358,13 +365,13 @@
     color: #9ca3af;
   }
 
-  /* QR Code placeholder */
+  /* QR Code placeholder — above emetteur signature */
   .qr-placeholder {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    margin-top: 1.5rem;
+    justify-content: center;
     min-height: 100px;
+    margin-bottom: 0.5rem;
   }
 
   /* Footer */
@@ -432,7 +439,7 @@
 
     .invoice-wrapper { max-width: 100%; }
 
-    .invoice-paper { box-shadow: none; border-radius: 0; border: 1px solid #000; }
+    .invoice-paper { box-shadow: none; border-radius: 0; border: 1px solid #000; min-height: 100vh; display: flex; flex-direction: column; }
 
     .invoice-header {
       background: white !important;
@@ -532,27 +539,29 @@
     <a href="{% url 'invoices_list' %}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left me-2"></i> Retour aux Factures
     </a>
-    <div class="d-flex gap-2">
-      <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editInvoiceModal{{ invoice.id }}">
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editInvoiceModal{{ invoice.id }}">
         <i class="bi bi-pencil me-1"></i> Modifier
       </button>
-      <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteInvoiceModal">
+      <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteInvoiceModal">
         <i class="bi bi-trash me-1"></i> Supprimer
       </button>
-      <button onclick="window.print()" class="btn btn-primary">
+      <button onclick="window.print()" class="btn btn-sm btn-primary">
         <i class="bi bi-printer me-1"></i> Imprimer
       </button>
+
       {% if gov_invoice and gov_invoice.ngsign_status %}
-      <span class="badge {% if gov_invoice.ngsign_status == 'SIGNED' or gov_invoice.ngsign_status == 'TTN_ACCEPTED' %}bg-success{% elif gov_invoice.ngsign_status == 'ERROR' or gov_invoice.ngsign_status == 'TTN_REJECTED' %}bg-danger{% else %}bg-warning text-dark{% endif %}" id="ngsign-status-badge">
-        NGSign: {{ gov_invoice.ngsign_status }}
+      <span class="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill {% if gov_invoice.ngsign_status == 'SIGNED' or gov_invoice.ngsign_status == 'TTN_SIGNED' %}bg-success bg-opacity-10 text-success{% elif gov_invoice.ngsign_status == 'ERROR' or gov_invoice.ngsign_status == 'TTN_REJECTED' %}bg-danger bg-opacity-10 text-danger{% else %}bg-warning bg-opacity-10 text-warning{% endif %}" id="ngsign-status-badge" style="font-size: 0.75rem; font-weight: 600;">
+        <i class="bi bi-circle-fill" style="font-size: 0.4rem;"></i> {{ gov_invoice.ngsign_status }}
       </span>
       {% endif %}
-      <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ngsignSubmitModal">
-        <i class="bi bi-pen me-1"></i> Soumettre à NGSign
+
+      <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ngsignSubmitModal">
+        <i class="bi bi-pen me-1"></i> NGSign
       </button>
       {% if gov_invoice and gov_invoice.ngsign_invoice_uuid %}
-      <button type="button" class="btn btn-outline-info" id="btn-ngsign-check" data-invoice-id="{{ invoice.id }}">
-        <i class="bi bi-arrow-repeat me-1"></i> Vérifier statut TTN
+      <button type="button" class="btn btn-sm btn-outline-info" id="btn-ngsign-check" data-invoice-id="{{ invoice.id }}">
+        <i class="bi bi-arrow-repeat me-1"></i> Statut
       </button>
       {% endif %}
     </div>
@@ -734,34 +743,35 @@
         </div>
       </div>
 
-      <!-- QR Code placeholder -->
-      <div class="qr-placeholder" id="invoice-qrcode">
-      </div>
+    </div>
 
-      <!-- Signatures -->
+    <!-- Signatures + Footer — pushed to bottom of page -->
+    <div class="invoice-bottom">
       <div class="signatures-section">
         <div class="signature-box">
+          <div class="qr-placeholder" id="invoice-qrcode">
+          </div>
           <div class="signature-label">Signature de l'emetteur</div>
           <div class="signature-line">Nom et cachet</div>
         </div>
         <div class="signature-box">
+          <div class="qr-placeholder" style="visibility: hidden;">
+          </div>
           <div class="signature-label">Signature du client</div>
           <div class="signature-line">Nom et cachet</div>
         </div>
       </div>
 
-    </div>
-
-    <!-- Invoice Footer -->
-    <div class="invoice-footer">
-      <div class="footer-row">
-        <div>
-          {% if p_settings.rib %}<div><strong>RIB:</strong> {{ p_settings.rib }}</div>{% endif %}
+      <div class="invoice-footer">
+        <div class="footer-row">
+          <div>
+            {% if p_settings.rib %}<div><strong>RIB:</strong> {{ p_settings.rib }}</div>{% endif %}
+          </div>
         </div>
-      </div>
-      <div class="footer-legal">
-        {{ p_settings.clientname|default:"Votre Société" }} | {{ p_settings.adress|default:"Adresse" }} |
-        MF: {{ p_settings.mf|default:"XXXXXXX" }} | Document généré le {% now "d/m/Y" %}
+        <div class="footer-legal">
+          {{ p_settings.clientname|default:"Votre Société" }} | {{ p_settings.adress|default:"Adresse" }} |
+          MF: {{ p_settings.mf|default:"XXXXXXX" }} | Document généré le {% now "d/m/Y" %}
+        </div>
       </div>
     </div>
 
@@ -1111,21 +1121,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const modal = bootstrap.Modal.getInstance(document.getElementById('ngsignSubmitModal'));
         if (modal) modal.hide();
         if (data.success) {
-          const badge = document.getElementById('ngsign-status-badge');
-          if (badge) {
-            badge.textContent = 'NGSign: ' + data.ngsign_status;
-            badge.className = 'badge bg-success';
-          }
-          alert('✓ ' + data.message);
-          location.reload();
+          showToast(data.message, 'success');
+          if (typeof fetchNotifications === 'function') fetchNotifications();
         } else {
-          alert('Erreur : ' + data.error);
+          showToast('Erreur : ' + data.error, 'error');
         }
         confirmBtn.disabled = false;
         confirmBtn.textContent = 'Soumettre';
       })
       .catch(err => {
-        alert('Erreur réseau : ' + err);
+        showToast('Erreur réseau : ' + err.message, 'error');
         confirmBtn.disabled = false;
         confirmBtn.textContent = 'Soumettre';
       });
