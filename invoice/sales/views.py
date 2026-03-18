@@ -2178,6 +2178,7 @@ def avoir_delete(request, avoir_id):
 @login_required
 def avoir_detail(request, avoir_id):
     """Display a printable credit note detail page."""
+    from gov.models import GovInvoice
     credit_note = get_object_or_404(CreditNote, id=avoir_id)
     settings_obj = Settings.get_cached()
     total_in_words = num2words_tnd_fr(Decimal(str(credit_note.calculate_total())))
@@ -2185,6 +2186,7 @@ def avoir_detail(request, avoir_id):
         'avoir': credit_note,
         'settings_obj': settings_obj,
         'total_in_words': total_in_words,
+        'gov_invoice': GovInvoice.objects.filter(credit_note=credit_note).first(),
     })
 
 
@@ -2590,48 +2592,51 @@ def devis_convert(request, devis_id):
 @login_required
 @require_POST
 def invoice_ngsign_submit(request, invoice_id):
-    """Submit an invoice to NGSign for Seal signing."""
+    """Submit an invoice to NGSign asynchronously."""
+    import threading
+    from django.db import connection
+    from django.utils import timezone
     from gov.models import GovInvoice
-    from gov.ngsign.service import submit_invoice
-    from gov.ngsign.exceptions import NGSignNotConfiguredError, NGSignSubmissionError
-
-    from gov.teif.builder import build_unsigned_teif
 
     invoice = get_object_or_404(Invoice, id=invoice_id)
-    seller = Settings.get_cached()
-    gov_invoice = GovInvoice.objects.filter(invoice=invoice).first()
-    if not gov_invoice or not gov_invoice.unsigned_xml:
-        try:
-            unsigned_xml = build_unsigned_teif(invoice, seller)
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'error': f'Erreur lors de la génération du XML : {e}'
-            }, status=400)
-        if gov_invoice:
-            gov_invoice.unsigned_xml = unsigned_xml
-            gov_invoice.status = 'draft'
-            gov_invoice.save()
-        else:
-            gov_invoice = GovInvoice.objects.create(
-                invoice=invoice,
-                unsigned_xml=unsigned_xml,
-                status='draft',
-            )
 
-    try:
-        submit_invoice(gov_invoice)
+    gov_invoice = GovInvoice.objects.filter(invoice=invoice).first()
+
+    # Guard: block if already submitting
+    if gov_invoice and gov_invoice.ngsign_status == 'SUBMITTING':
         return JsonResponse({
-            'success': True,
-            'ngsign_status': gov_invoice.ngsign_status,
-            'message': 'Facture soumise et signée avec succès.'
-        })
-    except NGSignNotConfiguredError as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=400)
-    except NGSignSubmissionError as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': f'Erreur inattendue: {e}'}, status=500)
+            'success': False,
+            'error': 'Soumission déjà en cours.'
+        }, status=409)
+
+    # Create or update GovInvoice
+    if gov_invoice:
+        gov_invoice.ngsign_status = 'SUBMITTING'
+        gov_invoice.status = 'draft'
+        gov_invoice.submitted_at = timezone.now()
+        gov_invoice.notes = ''
+        gov_invoice.save(update_fields=['ngsign_status', 'status', 'submitted_at', 'notes'])
+    else:
+        gov_invoice = GovInvoice.objects.create(
+            invoice=invoice,
+            unsigned_xml=b'',
+            status='draft',
+            ngsign_status='SUBMITTING',
+            submitted_at=timezone.now(),
+        )
+
+    schema_name = connection.schema_name
+    thread = threading.Thread(
+        target=_process_ngsign_submission,
+        args=(gov_invoice.id, schema_name),
+        daemon=True,
+    )
+    thread.start()
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Document soumis en arrière-plan.'
+    })
 
 
 @login_required
@@ -2639,9 +2644,8 @@ def invoice_ngsign_submit(request, invoice_id):
 def invoice_ngsign_check(request, invoice_id):
     """Force TTN status check for an invoice."""
     from gov.models import GovInvoice
-    from gov.ngsign import client
-    from gov.ngsign.service import _get_account
-    from gov.ngsign.exceptions import NGSignAPIError
+    from gov.ngsign.service import check_status
+    from gov.ngsign.exceptions import NGSignAPIError, NGSignNotConfiguredError
 
     invoice = get_object_or_404(Invoice, id=invoice_id)
     gov_invoice = GovInvoice.objects.filter(invoice=invoice).first()
@@ -2653,14 +2657,137 @@ def invoice_ngsign_check(request, invoice_id):
         }, status=400)
 
     try:
-        account = _get_account()
-        result = client.check_ttn_status(account.org_jwt, gov_invoice.ngsign_invoice_uuid)
-        gov_invoice.ngsign_status = result['status']
-        gov_invoice.save()
+        result = check_status(gov_invoice)
         return JsonResponse({
             'success': True,
             'ngsign_status': gov_invoice.ngsign_status,
             'ttn_reference': result.get('ttnReference', ''),
         })
-    except NGSignAPIError as e:
+    except (NGSignAPIError, NGSignNotConfiguredError) as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def avoir_ngsign_submit(request, avoir_id):
+    """Submit a credit note (avoir) to NGSign asynchronously."""
+    import threading
+    from django.db import connection
+    from django.utils import timezone
+    from gov.models import GovInvoice
+    from sales.models import CreditNote
+
+    credit_note = get_object_or_404(CreditNote, id=avoir_id)
+
+    gov_invoice = GovInvoice.objects.filter(credit_note=credit_note).first()
+
+    # Guard: block if already submitting
+    if gov_invoice and gov_invoice.ngsign_status == 'SUBMITTING':
+        return JsonResponse({
+            'success': False,
+            'error': 'Soumission déjà en cours.'
+        }, status=409)
+
+    # Create or update GovInvoice
+    if gov_invoice:
+        gov_invoice.ngsign_status = 'SUBMITTING'
+        gov_invoice.status = 'draft'
+        gov_invoice.submitted_at = timezone.now()
+        gov_invoice.notes = ''
+        gov_invoice.save(update_fields=['ngsign_status', 'status', 'submitted_at', 'notes'])
+    else:
+        gov_invoice = GovInvoice.objects.create(
+            credit_note=credit_note,
+            unsigned_xml=b'',
+            status='draft',
+            ngsign_status='SUBMITTING',
+            submitted_at=timezone.now(),
+        )
+
+    schema_name = connection.schema_name
+    thread = threading.Thread(
+        target=_process_ngsign_submission,
+        args=(gov_invoice.id, schema_name),
+        daemon=True,
+    )
+    thread.start()
+
+    return JsonResponse({
+        'success': True,
+        'message': 'Document soumis en arrière-plan.'
+    })
+
+
+@login_required
+@require_POST
+def avoir_ngsign_check(request, avoir_id):
+    """Force TTN status check for a credit note."""
+    from gov.models import GovInvoice
+    from gov.ngsign.service import check_status
+    from gov.ngsign.exceptions import NGSignAPIError, NGSignNotConfiguredError
+    from sales.models import CreditNote
+
+    credit_note = get_object_or_404(CreditNote, id=avoir_id)
+    gov_invoice = GovInvoice.objects.filter(credit_note=credit_note).first()
+
+    if not gov_invoice or not gov_invoice.ngsign_invoice_uuid:
+        return JsonResponse({
+            'success': False,
+            'error': "Cet avoir n'a pas encore été soumis à NGSign."
+        }, status=400)
+
+    try:
+        result = check_status(gov_invoice)
+        return JsonResponse({
+            'success': True,
+            'ngsign_status': gov_invoice.ngsign_status,
+            'ttn_reference': result.get('ttnReference', ''),
+        })
+    except (NGSignAPIError, NGSignNotConfiguredError) as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+def _process_ngsign_submission(gov_invoice_id, schema_name):
+    """
+    Background thread: generate XML/PDF, submit to NGSign, update GovInvoice.
+    Runs outside the request cycle — must set tenant schema and close connection.
+    """
+    import logging
+    from django.db import connection
+    from django.utils import timezone
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        connection.set_schema(schema_name)
+        from gov.models import GovInvoice
+        from gov.ngsign.service import submit_invoice
+        from gov.teif.builder import build_unsigned_teif, build_unsigned_teif_avoir
+        from sales.models import Settings
+
+        gov_invoice = GovInvoice.objects.get(id=gov_invoice_id)
+        seller = Settings.get_cached()
+
+        # Generate unsigned XML if missing
+        if not gov_invoice.unsigned_xml:
+            if gov_invoice.credit_note:
+                gov_invoice.unsigned_xml = build_unsigned_teif_avoir(gov_invoice.credit_note, seller)
+            else:
+                gov_invoice.unsigned_xml = build_unsigned_teif(gov_invoice.invoice, seller)
+            gov_invoice.save(update_fields=['unsigned_xml'])
+
+        submit_invoice(gov_invoice)
+        logger.info(f'NGSign submission succeeded for GovInvoice {gov_invoice_id}')
+
+    except Exception as e:
+        logger.exception(f'NGSign submission failed for GovInvoice {gov_invoice_id}')
+        try:
+            from gov.models import GovInvoice
+            gov_invoice = GovInvoice.objects.get(id=gov_invoice_id)
+            gov_invoice.ngsign_status = 'ERROR'
+            gov_invoice.notes = str(e)[:500]
+            gov_invoice.save(update_fields=['ngsign_status', 'notes'])
+        except Exception:
+            logger.exception(f'Failed to update error status for GovInvoice {gov_invoice_id}')
+    finally:
+        connection.close()
