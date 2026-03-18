@@ -39,6 +39,7 @@ class NGSignClientAccount(models.Model):
     )
     org_uuid = models.CharField(max_length=100, blank=True)
     org_jwt = models.TextField(blank=True)
+    signer_email = models.EmailField(blank=True, help_text="Email du compte NGSign autorisé à signer (ex: votre compte partner)")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
     last_verified_at = models.DateTimeField(null=True, blank=True)

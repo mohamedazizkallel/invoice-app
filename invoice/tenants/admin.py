@@ -55,6 +55,27 @@ class NGSignClientAccountAdmin(admin.ModelAdmin):
 
     @admin.action(description='Vérifier la connectivité NGSign')
     def verify_connectivity(self, request, queryset):
-        # Placeholder — will be wired to service.verify_account() later
+        from gov.ngsign.client import check_invoice_status
+        from gov.ngsign.exceptions import NGSignAuthError, NGSignAPIError
         for account in queryset:
-            self.message_user(request, f"{account.tenant.name}: vérification à implémenter")
+            try:
+                check_invoice_status(account.org_jwt, 'test')
+                account.status = 'ACTIVE'
+                account.save()
+                self.message_user(request, f"{account.tenant.name}: connectivité OK")
+            except NGSignAuthError:
+                account.status = 'ERROR'
+                account.save()
+                self.message_user(request, f"{account.tenant.name}: JWT invalide ou expiré", level='error')
+            except NGSignAPIError as e:
+                if '401' in str(e) or '403' in str(e):
+                    account.status = 'ERROR'
+                    account.save()
+                    self.message_user(request, f"{account.tenant.name}: authentification échouée", level='error')
+                else:
+                    # Any non-auth error means the connection works
+                    account.status = 'ACTIVE'
+                    account.save()
+                    self.message_user(request, f"{account.tenant.name}: connectivité OK")
+            except Exception as e:
+                self.message_user(request, f"{account.tenant.name}: erreur — {e}", level='error')

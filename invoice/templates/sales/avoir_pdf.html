@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page {
+    size: A4;
+    margin: 4mm 5mm;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 9pt;
+    color: #333;
+  }
+
+  .page-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    padding: 0;
+  }
+
+  .page-content { flex: 1; }
+  .page-bottom { margin-top: auto; }
+
+  /* Header */
+  .invoice-header {
+    padding: 12px 16px;
+    border-bottom: 2px solid #f97316;
+    background: #fff7ed;
+    margin-bottom: 14px;
+  }
+
+  .header-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .header-left { flex: 1; }
+
+  .header-center {
+    text-align: center;
+    padding: 0 14px;
+    border-left: 1px dashed #d1d5db;
+    border-right: 1px dashed #d1d5db;
+    min-width: 140px;
+  }
+
+  .header-right { flex: 1; }
+
+  .entity-box {
+    background: white;
+    padding: 8px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+  }
+
+  .logo-box {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 90px;
+    padding: 0;
+  }
+
+  .logo-box img {
+    max-width: 100%;
+    max-height: 90px;
+    object-fit: contain;
+  }
+
+  .entity-label {
+    font-size: 6.5pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #9ca3af;
+    margin-bottom: 4px;
+  }
+
+  .entity-name { font-size: 9.5pt; font-weight: 700; color: #111827; margin-bottom: 2px; }
+  .entity-details { font-size: 7.5pt; color: #6b7280; line-height: 1.5; }
+
+  .invoice-type {
+    display: inline-block;
+    background: #f97316;
+    color: white;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-size: 7pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .invoice-number { font-size: 11pt; font-weight: 700; color: #111827; margin-bottom: 3px; }
+  .invoice-date { font-size: 7.5pt; color: #6b7280; }
+  .invoice-ref { font-size: 7pt; color: #6b7280; margin-top: 3px; }
+
+  /* Info Row */
+  .info-row {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .info-box {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #f9fafb;
+  }
+
+  .info-box-title {
+    font-size: 7pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed #d1d5db;
+  }
+
+  .info-box h4 { font-size: 10pt; font-weight: 600; color: #111827; margin-bottom: 3px; }
+  .info-box p { font-size: 8pt; color: #6b7280; margin: 2px 0; line-height: 1.4; }
+
+  .info-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .info-item { flex: 0 0 calc(50% - 3px); padding: 4px 6px; background: white; border-radius: 3px; }
+  .info-item small { display: block; font-size: 6pt; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 1px; }
+  .info-item strong { font-size: 8.5pt; color: #111827; }
+
+  /* Items Table */
+  .items-section { margin-bottom: 14px; }
+  .section-title { font-size: 8.5pt; font-weight: 600; color: #111827; margin-bottom: 6px; }
+
+  .items-table { width: 100%; border-collapse: collapse; }
+  .items-table th {
+    background: #374151;
+    color: white;
+    padding: 6px 8px;
+    font-size: 7pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    text-align: left;
+    border: 1px solid #374151;
+  }
+  .items-table td {
+    padding: 5px 8px;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    font-size: 8.5pt;
+    background: white;
+  }
+  .text-end { text-align: right; }
+  .fw-bold { font-weight: 700; }
+
+  /* Summary */
+  .summary-section {
+    display: flex;
+    gap: 14px;
+    padding-top: 10px;
+    border-top: 1px dashed #d1d5db;
+  }
+
+  .notes-section { flex: 1; }
+  .notes-title { font-size: 7.5pt; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 4px; }
+  .notes-content {
+    font-size: 8pt;
+    color: #6b7280;
+    line-height: 1.5;
+    padding: 6px 8px;
+    background: #f9fafb;
+    border-left: 3px solid #f97316;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .totals-box {
+    width: 260px;
+    flex-shrink: 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 10px;
+    font-size: 8.5pt;
+    border-bottom: 1px solid #e5e7eb;
+    background: white;
+  }
+  .total-row:last-of-type { border-bottom: none; }
+  .total-row .label { color: #6b7280; }
+  .total-row .value { font-weight: 600; color: #374151; }
+
+  .grand-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 10px;
+    background: #374151;
+    color: white;
+  }
+  .grand-total .label { font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: white; }
+  .grand-total .value { font-size: 12pt; font-weight: 700; color: white; }
+
+  /* Bottom */
+  .signatures-section {
+    display: flex;
+    gap: 40px;
+    padding: 12px 16px 0 16px;
+  }
+  .signature-box { flex: 1; text-align: center; }
+  .qr-placeholder { display: flex; align-items: center; justify-content: center; min-height: 100px; margin-bottom: 6px; }
+  .signature-label { font-size: 7.5pt; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 50px; }
+  .signature-line { border-top: 1px solid #374151; margin: 0 20px; padding-top: 4px; font-size: 6.5pt; color: #9ca3af; }
+
+  .invoice-footer {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+    font-size: 7pt;
+    color: #9ca3af;
+    text-align: center;
+  }
+  .footer-rib { font-size: 7.5pt; color: #6b7280; margin-bottom: 3px; }
+</style>
+</head>
+<body>
+
+<div class="page-wrapper">
+  <div class="page-content">
+
+    <!-- Header -->
+    <div class="invoice-header">
+      <div class="header-content">
+        <div class="header-left">
+          <div class="logo-box">
+            {% if seller.clientLogo %}
+              <img src="{{ seller.clientLogo }}" alt="{{ seller.clientname }}">
+            {% else %}
+              <div style="padding: 10px; font-size: 8pt; color: #9ca3af;">{{ seller.clientname }}</div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="header-center">
+          <div class="invoice-type">Facture d'Avoir</div>
+          <div class="invoice-number">N&deg; {{ avoir.uniqueId }}</div>
+          <div class="invoice-date">{{ avoir.date_created|date:"d/m/Y" }}</div>
+          {% if avoir.invoice %}
+          <div class="invoice-ref">Ref: #{{ avoir.invoice.uniqueId }}</div>
+          {% endif %}
+        </div>
+        <div class="header-right">
+          <div class="entity-box">
+            <div class="entity-label">De: (&Eacute;metteur)</div>
+            <div class="entity-name">{{ seller.clientname }}</div>
+            <div class="entity-details">
+              {{ seller.adress }}<br>
+              MF: {{ seller.mf }}
+              {% if seller.phone %}<br>T&eacute;l: {{ seller.phone }}{% endif %}
+              {% if seller.rib %}<br>RIB: {{ seller.rib }}{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info Row -->
+    <div class="info-row">
+      <div class="info-box">
+        <div class="info-box-title">Client</div>
+        <h4>{{ avoir.client.clientname }}</h4>
+        <p>{{ avoir.client.adress|default:"Adresse non sp&eacute;cifi&eacute;e" }}</p>
+        <p>MF: {{ avoir.client.mf|default:"-" }}</p>
+        {% if avoir.client.emailAddress %}<p>{{ avoir.client.emailAddress }}</p>{% endif %}
+      </div>
+      <div class="info-box">
+        <div class="info-box-title">D&eacute;tails</div>
+        <div class="info-grid">
+          <div class="info-item">
+            <small>N&deg; Avoir</small>
+            <strong>{{ avoir.uniqueId }}</strong>
+          </div>
+          <div class="info-item">
+            <small>Date</small>
+            <strong>{{ avoir.date_created|date:"d/m/Y" }}</strong>
+          </div>
+          <div class="info-item">
+            <small>TVA</small>
+            <strong>{{ avoir.tva }}%</strong>
+          </div>
+          {% if avoir.invoice %}
+          <div class="info-item">
+            <small>Facture li&eacute;e</small>
+            <strong>#{{ avoir.invoice.uniqueId }}</strong>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Items -->
+    <div class="items-section">
+      <div class="section-title">Description</div>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="text-end">Montant HT</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{{ avoir.description }}</td>
+            <td class="text-end fw-bold">{{ avoir.amount_ht|floatformat:3 }} DT</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-section">
+      <div class="notes-section">
+        <div class="notes-title">Arr&ecirc;t&eacute;</div>
+        <div class="notes-content">
+          Arr&ecirc;t&eacute; la pr&eacute;sente facture d'avoir &agrave; la somme de {{ total_in_words }}.
+        </div>
+      </div>
+      <div class="totals-box">
+        <div class="total-row">
+          <span class="label">Total HT</span>
+          <span class="value">{{ avoir.amount_ht|floatformat:3 }} DT</span>
+        </div>
+        <div class="total-row">
+          <span class="label">TVA ({{ avoir.tva }}%)</span>
+          <span class="value">{{ avoir.calculate_tva_amount|floatformat:3 }} DT</span>
+        </div>
+        <div class="grand-total">
+          <span class="label">Total TTC</span>
+          <span class="value">{{ avoir.calculate_total|floatformat:3 }} DT</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom -->
+  <div class="page-bottom">
+    <div class="signatures-section">
+      <div class="signature-box">
+        <div class="qr-placeholder"></div>
+        <div class="signature-label">Signature de l'emetteur</div>
+        <div class="signature-line">Nom et cachet</div>
+      </div>
+      <div class="signature-box">
+        <div class="qr-placeholder" style="visibility: hidden;"></div>
+        <div class="signature-label">Signature du client</div>
+        <div class="signature-line">Nom et cachet</div>
+      </div>
+    </div>
+
+    <div class="invoice-footer">
+      {% if seller.rib %}<div class="footer-rib"><strong>RIB:</strong> {{ seller.rib }}</div>{% endif %}
+      {{ seller.clientname }} | {{ seller.adress }} | MF: {{ seller.mf }}
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

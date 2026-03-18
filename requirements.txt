@@ -21,3 +21,4 @@ psycopg2-binary==2.9.10
 python-decouple==3.8
 whitenoise==6.8.2
 django-tenants==3.10.0
+weasyprint==68.1

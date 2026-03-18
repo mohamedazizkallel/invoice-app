@@ -5,6 +5,7 @@ from gov.ngsign.exceptions import NGSignAuthError, NGSignAPIError
 
 INVOICE_API_BASE = 'https://sandbox.ng-sign.com/server'
 PARTNER_API_BASE = 'https://sandbox.ng-sign.com'
+PDS_BASE = 'https://sandbox.ng-sign.com/pds/#/teif/invoice'
 TIMEOUT = 30
 
 
@@ -77,57 +78,47 @@ def refresh_jwt(partner_jwt, org_uuid):
     return resp.json()['object']['jwt']
 
 
-def test_connectivity(org_jwt, org_uuid, partner_jwt):
+def create_transaction(org_jwt, invoices_payload, signer_email):
     """
-    Verify org JWT is valid. Auto-refreshes on 401.
-    Returns True if valid, or the new JWT string if refreshed.
-    Raises NGSignAuthError if refresh also fails.
+    Create an e-Signature transaction via /protected/invoice/xml/transaction/create.
+    Returns the transaction object dict (contains uuid for PDS redirect).
     """
-    resp = requests.get(
-        f'{INVOICE_API_BASE}/protected/invoice/status',
-        headers=_auth_headers(org_jwt),
-        timeout=TIMEOUT,
-    )
-    if resp.status_code == 200:
-        return True
-    if resp.status_code == 401:
-        try:
-            new_jwt = refresh_jwt(partner_jwt, org_uuid)
-        except NGSignAuthError:
-            raise NGSignAuthError('JWT invalide et rafraîchissement échoué.')
-        retry = requests.get(
-            f'{INVOICE_API_BASE}/protected/invoice/status',
-            headers=_auth_headers(new_jwt),
-            timeout=TIMEOUT,
-        )
-        if retry.status_code == 200:
-            return new_jwt
-        raise NGSignAuthError('JWT invalide après rafraîchissement.')
-    raise NGSignAPIError(f'test_connectivity unexpected status: {resp.status_code}')
-
-
-def submit_seal(org_jwt, invoices_payload):
-    """Submit invoices for Seal signing. Returns transaction object dict."""
     body = {
         'invoices': invoices_payload,
-        'notifyOwner': False,
-        'sendToSigner': False,
+        'signerEmail': signer_email,
     }
     resp = requests.post(
-        f'{INVOICE_API_BASE}/protected/invoice/v2/transaction/seal',
+        f'{INVOICE_API_BASE}/protected/invoice/xml/transaction/create',
         json=body,
         headers=_auth_headers(org_jwt),
         timeout=TIMEOUT,
     )
     if resp.status_code != 200:
-        raise NGSignAPIError(f'submit_seal failed: {resp.status_code} — {resp.text}')
+        raise NGSignAPIError(f'create_transaction failed: {resp.status_code} — {resp.text}')
+    return resp.json()['object']
+
+
+def get_pds_url(transaction_uuid):
+    """Return the PDS (Page de Signature) URL for user redirect."""
+    return f'{PDS_BASE}/{transaction_uuid}'
+
+
+def check_invoice_status(org_jwt, invoice_uuid):
+    """Check invoice status. Returns invoice status dict."""
+    resp = requests.post(
+        f'{INVOICE_API_BASE}/protected/invoice/xml/check/{invoice_uuid}',
+        headers=_auth_headers(org_jwt),
+        timeout=TIMEOUT,
+    )
+    if resp.status_code != 200:
+        raise NGSignAPIError(f'check_invoice_status failed: {resp.status_code}')
     return resp.json()['object']
 
 
 def get_signed_xml(org_jwt, invoice_uuid):
     """Download signed XML for an invoice. Returns raw XML bytes."""
     resp = requests.get(
-        f'{INVOICE_API_BASE}/protected/invoice/xml/{invoice_uuid}',
+        f'{INVOICE_API_BASE}/protected/invoice/xml/xml/{invoice_uuid}',
         headers=_auth_headers(org_jwt),
         timeout=TIMEOUT,
     )
@@ -135,15 +126,3 @@ def get_signed_xml(org_jwt, invoice_uuid):
         raise NGSignAPIError(f'get_signed_xml failed: {resp.status_code}')
     b64_content = resp.json()['object']
     return base64.b64decode(b64_content)
-
-
-def check_ttn_status(org_jwt, invoice_uuid):
-    """Force TTN status sync. Returns invoice status dict."""
-    resp = requests.post(
-        f'{INVOICE_API_BASE}/protected/invoice/check/{invoice_uuid}',
-        headers=_auth_headers(org_jwt),
-        timeout=TIMEOUT,
-    )
-    if resp.status_code != 200:
-        raise NGSignAPIError(f'check_ttn_status failed: {resp.status_code}')
-    return resp.json()['object']

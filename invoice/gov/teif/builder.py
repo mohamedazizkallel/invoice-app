@@ -1,6 +1,6 @@
 import re
 
-from sales.models import Invoice, Settings
+from sales.models import Invoice, CreditNote, Settings
 from lxml import etree
 from datetime import datetime
 
@@ -36,35 +36,32 @@ def _build_invoice_header(parent, seller, client):
     return header
 
 
-def _build_bgm(parent, invoice):
+def _build_bgm(parent, doc, doc_type="I-11", doc_label="Facture"):
     """Build Beginning of Message section with correct tags"""
     bgm = etree.SubElement(parent, teif("Bgm"))
 
-    # DocumentIdentifier comes first
     etree.SubElement(
-        bgm, 
+        bgm,
         teif("DocumentIdentifier")
-    ).text = invoice.uniqueId
-    
-    # DocumentType with code attribute and content
+    ).text = doc.uniqueId
+
     etree.SubElement(
-        bgm, 
+        bgm,
         teif("DocumentType"),
-        code="I-11"
-    ).text = "Facture"  # Must have content per schema
+        code=doc_type
+    ).text = doc_label
 
 
-def _build_dtm(parent, invoice):
+def _build_dtm(parent, doc):
     """Build Date/Time section with correct format"""
     dtm_issue = etree.SubElement(parent, teif("Dtm"))
-    
-    # Use DateText with functionCode and format attributes
+
     etree.SubElement(
         dtm_issue,
         teif("DateText"),
-        functionCode="I-31",  # Issuance date
-        format="ddMMyy"  # Schema enumerates lowercase: ddMMyy
-    ).text = invoice.date_created.strftime("%d%m%y")
+        functionCode="I-31",
+        format="ddMMyy"
+    ).text = doc.date_created.strftime("%d%m%y")
 
 
 def _clean_mf(mf: str) -> str:
@@ -313,7 +310,7 @@ def _build_invoice_body(parent, invoice, seller):
 
     # Order must match BodyType sequence in XSD:
     # Bgm, Dtm, PartnerSection, LinSection, InvoiceMoa, InvoiceTax, InvoiceAlc(opt)
-    _build_bgm(body, invoice)
+    _build_bgm(body, invoice, doc_type="I-11", doc_label="Facture")
     _build_dtm(body, invoice)
     _build_partner_section(body, invoice, seller)
     _build_lin_section(body, invoice)
@@ -423,3 +420,120 @@ def inject_signature(unsigned_xml: bytes, signature_element: etree._Element) -> 
     )
     
     return condense_to_single_line(xml_bytes)
+
+
+# ── Credit Note (Avoir) ──
+
+def _build_avoir_lin_section(parent, credit_note):
+    """Build line items for a credit note (single line with description + amount)."""
+    lin_section = etree.SubElement(parent, teif("LinSection"))
+    lin = etree.SubElement(lin_section, teif("Lin"))
+
+    etree.SubElement(lin, teif("ItemIdentifier")).text = "1"
+
+    lin_imd = etree.SubElement(lin, teif("LinImd"))
+    etree.SubElement(lin_imd, teif("ItemCode")).text = "AV1"
+    etree.SubElement(lin_imd, teif("ItemDescription")).text = _sanitize(credit_note.description)
+
+    qty = etree.SubElement(lin, teif("LinQty"))
+    etree.SubElement(qty, teif("Quantity"), measurementUnit="C62").text = "1"
+
+    tax = etree.SubElement(lin, teif("LinTax"))
+    etree.SubElement(tax, teif("TaxTypeName"), code="I-1602").text = "TVA"
+    tax_details = etree.SubElement(tax, teif("TaxDetails"))
+    etree.SubElement(tax_details, teif("TaxRate")).text = f"{credit_note.tva:.2f}"
+
+    lin_moa = etree.SubElement(lin, teif("LinMoa"))
+    moa_details = etree.SubElement(lin_moa, teif("MoaDetails"))
+    moa = etree.SubElement(
+        moa_details, teif("Moa"),
+        currencyCodeList="ISO_4217", amountTypeCode="I-171"
+    )
+    etree.SubElement(moa, teif("Amount"), currencyIdentifier="TND").text = f"{credit_note.amount_ht:.3f}"
+
+
+def _build_avoir_tax(parent, credit_note):
+    """Build tax section for a credit note."""
+    tax_section = etree.SubElement(parent, teif("InvoiceTax"))
+    tax_details = etree.SubElement(tax_section, teif("InvoiceTaxDetails"))
+    tax = etree.SubElement(tax_details, teif("Tax"))
+
+    etree.SubElement(tax, teif("TaxTypeName"), code="I-1602").text = "TVA"
+    rate_details = etree.SubElement(tax, teif("TaxDetails"))
+    etree.SubElement(rate_details, teif("TaxRate")).text = f"{credit_note.tva:.2f}"
+
+    # Taxable base (I-177)
+    ad_base = etree.SubElement(tax_details, teif("AmountDetails"))
+    moa_base = etree.SubElement(
+        ad_base, teif("Moa"),
+        currencyCodeList="ISO_4217", amountTypeCode="I-177"
+    )
+    etree.SubElement(moa_base, teif("Amount"), currencyIdentifier="TND").text = f"{credit_note.amount_ht:.3f}"
+
+    # Tax amount (I-178)
+    ad_tax = etree.SubElement(tax_details, teif("AmountDetails"))
+    moa_tax = etree.SubElement(
+        ad_tax, teif("Moa"),
+        currencyCodeList="ISO_4217", amountTypeCode="I-178"
+    )
+    etree.SubElement(moa_tax, teif("Amount"), currencyIdentifier="TND").text = f"{credit_note.calculate_tva_amount():.3f}"
+
+
+def _build_avoir_totals(parent, credit_note):
+    """Build monetary totals for a credit note."""
+    moa_section = etree.SubElement(parent, teif("InvoiceMoa"))
+
+    def add_moa(amount_code, amount_value):
+        ad = etree.SubElement(moa_section, teif("AmountDetails"))
+        moa = etree.SubElement(
+            ad, teif("Moa"),
+            currencyCodeList="ISO_4217", amountTypeCode=amount_code
+        )
+        etree.SubElement(moa, teif("Amount"), currencyIdentifier="TND").text = f"{amount_value:.3f}"
+
+    add_moa("I-172", credit_note.amount_ht)        # Total HT
+    add_moa("I-176", credit_note.amount_ht)        # Total HT after discount (no discount on avoir)
+    add_moa("I-181", credit_note.calculate_tva_amount())  # TVA
+    add_moa("I-179", 0)                            # No timbre fiscal on avoir
+    add_moa("I-180", credit_note.calculate_total()) # Total TTC
+
+
+def _build_avoir_body(parent, credit_note, seller):
+    """Build the complete credit note body."""
+    body = etree.SubElement(parent, teif("InvoiceBody"))
+
+    _build_bgm(body, credit_note, doc_type="I-12", doc_label="Avoir")
+    _build_dtm(body, credit_note)
+
+    # Partner section — reuse same structure
+    ps = etree.SubElement(body, teif("PartnerSection"))
+    _build_partner_details(ps, seller.clientname, seller.mf, seller.adress, "I-62")
+    _build_partner_details(ps, credit_note.client.clientname, credit_note.client.mf, credit_note.client.adress, "I-64")
+
+    _build_avoir_lin_section(body, credit_note)
+    _build_avoir_totals(body, credit_note)
+    _build_avoir_tax(body, credit_note)
+
+    return body
+
+
+def build_unsigned_teif_avoir(credit_note: CreditNote, seller: Settings) -> bytes:
+    """Build unsigned TEIF XML for a credit note (avoir)."""
+    if not credit_note.client:
+        raise ValueError("Credit note must have a client assigned")
+    if not credit_note.uniqueId:
+        raise ValueError("Credit note must have a uniqueId")
+    if not seller.mf or not credit_note.client.mf:
+        raise ValueError("Both seller and client must have MF (Matricule Fiscal)")
+
+    root = etree.Element(
+        teif("TEIF"),
+        nsmap=NAMESPACE_MAP,
+        version=TEIF_VERSION,
+        controlingAgency=CONTROLLING_AGENCY,
+    )
+
+    _build_invoice_header(root, seller, credit_note.client)
+    _build_avoir_body(root, credit_note, seller)
+
+    return etree.tostring(root, encoding='utf-8', xml_declaration=True, pretty_print=True)
