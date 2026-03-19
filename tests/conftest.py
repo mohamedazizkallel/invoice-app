@@ -55,7 +55,18 @@ def ngsign_account(tenant_setup, db):
     """Create an NGSignClientAccount in the public schema for the test tenant."""
     current = connection.schema_name
     connection.set_schema_to_public()
-    from tests.factories import NGSignClientAccountFactory
-    account = NGSignClientAccountFactory(tenant=tenant_setup)
+    from tenants.models import NGSignClientAccount
+    account, _ = NGSignClientAccount.objects.update_or_create(
+        tenant=tenant_setup,
+        defaults={
+            'org_uuid': 'test-org-uuid',
+            'org_jwt': 'test-org-jwt-token',
+            'signer_email': 'signer@test.com',
+            'status': 'ACTIVE',
+        },
+    )
     connection.set_schema(current)
-    return account
+    yield account
+    connection.set_schema_to_public()
+    account.delete()
+    connection.set_schema(current)
