@@ -89,6 +89,7 @@ The `conftest.py` provides shared fixtures for tenant schema setup:
 
 ```python
 import pytest
+from unittest.mock import patch
 from django.db import connection
 
 @pytest.fixture(scope='session')
@@ -127,12 +128,14 @@ def logged_in_client(user):
 
 @pytest.fixture
 def seller(tenant):
-    """Create a Settings (seller) instance — needed by most NGSign code paths."""
+    """Create a Settings (seller) instance — needed by most NGSign code paths.
+    Mocks _sync_ngsign_org to prevent real API calls on Settings.save()."""
     from tests.factories import SettingsFactory
-    return SettingsFactory()
+    with patch('sales.models._sync_ngsign_org'):
+        return SettingsFactory()
 
 @pytest.fixture
-def ngsign_account(tenant_setup):
+def ngsign_account(tenant_setup, db):
     """Create an NGSignClientAccount in the public schema for the test tenant."""
     from django.db import connection
     current = connection.schema_name
@@ -206,7 +209,7 @@ class CreditNoteFactory(DjangoModelFactory):
 
     client = factory.SubFactory(ClientFactory)
     uniqueId = factory.Sequence(lambda n: f'AV-{n:03d}-2026')
-    date_created = factory.LazyFunction(timezone.now)
+    # date_created uses auto_now_add=True on the model, so it cannot be overridden via factory
     description = factory.Faker('sentence')
     amount_ht = factory.Faker('pydecimal', left_digits=3, right_digits=3, positive=True)
     tva = 19
@@ -349,7 +352,7 @@ Tests for `submit_invoice`, `check_status`, `_get_account`:
 |------|-----------------|
 | `test_submit_calls_build_payload_and_create_transaction` | Mocks both, verifies called with correct args |
 | `test_submit_stores_transaction_and_invoice_uuids` | After submit, GovInvoice has correct UUIDs |
-| `test_submit_sets_status_created` | After submit, `ngsign_status` is `CREATED` |
+| `test_submit_sets_status_from_response` | After submit, `ngsign_status` is read from API response (`invoice_info.get('status', 'CREATED')`). Mock must return response dict with `invoices: [{uuid: ..., status: 'CREATED'}]`. Also test the default when `status` key is absent. |
 | `test_submit_raises_not_configured_when_no_account` | No NGSignClientAccount → raises `NGSignNotConfiguredError` |
 | `test_submit_raises_not_configured_when_no_signer_email` | Account exists but `signer_email` empty → raises |
 | `test_submit_raises_not_configured_when_account_error` | Account has `status='ERROR'` → raises |
