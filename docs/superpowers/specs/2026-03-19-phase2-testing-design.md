@@ -118,29 +118,30 @@ Add to existing `tests/factories.py`:
 - `invoice`: `SubFactory(InvoiceFactory)`
 - `retenu_type`: `SubFactory(RetenuFactory)`
 - `base_amount`: `Decimal('1000.000')`
-- `retenu_rate`: `None` *(auto-populated from retenu_type.rate in save())*
-- `retenu_amount`: `Decimal('0.000')` *(auto-calculated in save())*
+- `retenu_rate`: `factory.LazyAttribute(lambda o: o.retenu_type.rate)`
+- `retenu_amount`: `factory.LazyAttribute(lambda o: (o.base_amount * o.retenu_rate) / Decimal('100'))`
 
 ### PurchaseRetenuFactory
 - `purchase`: `SubFactory(PurchaseFactory)`
 - `retenu_type`: `SubFactory(RetenuFactory)`
 - `base_amount`: `Decimal('1000.000')`
-- `retenu_rate`: `None`
-- `retenu_amount`: `Decimal('0.000')`
+- `retenu_rate`: `factory.LazyAttribute(lambda o: o.retenu_type.rate)`
+- `retenu_amount`: `factory.LazyAttribute(lambda o: (o.base_amount * o.retenu_rate) / Decimal('100'))`
+
+### DevisServiceFactory
+InvoiceService linked to a Devis instead of an Invoice. Needed for Devis calculation tests.
+- `devis`: `SubFactory(DevisFactory)`
+- `invoice`: `None`
+- `service`: `SubFactory(ServiceFactory)`
+- `unit_price`: `Decimal('100.000')`
+- `has_fodec`: `False`
 
 ---
 
 ## 3. Shared Conftest Additions
 
 ### `logged_in_client` fixture
-```python
-@pytest.fixture
-def logged_in_client(client, user, tenant):
-    """Django test client with authenticated user session."""
-    client.force_login(user)
-    return client
-```
-
+Use existing `logged_in_client` fixture from `conftest.py` (already creates an authenticated Django test client).
 All view tests use `logged_in_client` for auth.
 
 ### Cache clearing
@@ -197,13 +198,14 @@ Expand existing Phase 1 model tests. Move existing file, add new tests.
 | `test_purchase_line_get_line_total` | quantity × unit_price |
 | `test_purchase_line_get_fodec_amount` | 1% when has_fodec=True, 0 when False |
 
-### Invoice model (10 tests — expanding Phase 1)
+### Invoice model (15 tests — expanding Phase 1)
 | Test | What it verifies |
 |------|-----------------|
 | `test_invoice_calculate_service_subtotal` | Sum of InvoiceService.get_line_ht() |
 | `test_invoice_calculate_total_fodec` | Sum of service FODEC amounts |
 | `test_invoice_calculate_discount_amount` | Discount % on subtotal |
 | `test_invoice_calculate_tva_amount` | TVA on (subtotal_after_discount + FODEC) |
+| `test_invoice_calculate_total_tva` | subtotal_after_discount + FODEC + TVA (no timbre) |
 | `test_invoice_calculate_total` | Full TTC including timbre |
 | `test_invoice_get_total_retenue` | Aggregate of InvoiceRetenu amounts |
 | `test_invoice_get_net_amount` | Total minus retenues |
@@ -211,6 +213,7 @@ Expand existing Phase 1 model tests. Move existing file, add new tests.
 | `test_invoice_get_auto_retenu_below_threshold` | Returns 0 when total <= 1000D |
 | `test_invoice_get_auto_retenu_manual_exists` | Returns 0 when manual retenu already applied |
 | `test_invoice_get_credit_notes_total` | Sum of linked CreditNote totals |
+| `test_invoice_has_retenue` | Returns True with retenues, False without |
 | `test_invoice_uniqueId_sequential` | save() generates "FV-001-2026" format |
 | `test_invoice_save_auto_populates_from_settings` | tva/timbre_fiscal from Settings when null |
 
@@ -229,29 +232,33 @@ Expand existing Phase 1 model tests. Move existing file, add new tests.
 | `test_credit_note_calculate_total` | amount_ht + TVA |
 | `test_credit_note_uniqueId_sequential` | save() generates "AV-001-2026" format |
 
-### BonLivraison model (3 tests)
+### BonLivraison model (4 tests)
 | Test | What it verifies |
 |------|-----------------|
 | `test_bon_livraison_calculate_total_ht` | Sum of line amounts |
 | `test_bon_livraison_calculate_tva_amount` | total_ht × tva / 100 |
 | `test_bon_livraison_calculate_total_ttc` | total_ht + tva_amount |
+| `test_bon_livraison_uniqueId_sequential` | save() generates "BL-001-2026" format |
 
-### Devis model (6 tests)
+### Devis model (8 tests)
 | Test | What it verifies |
 |------|-----------------|
 | `test_devis_calculate_service_subtotal` | Sum of devis_services line HT |
+| `test_devis_calculate_total_fodec` | Sum of devis_services FODEC amounts |
 | `test_devis_calculate_discount_amount` | Discount applied to (subtotal + FODEC) — differs from Invoice |
 | `test_devis_calculate_tva_amount` | TVA on (subtotal + FODEC - discount) |
 | `test_devis_calculate_total` | subtotal + FODEC - discount + TVA + timbre |
 | `test_devis_convert_to_invoice` | Creates Invoice, copies InvoiceService rows, sets ACCEPTED |
 | `test_devis_convert_idempotent` | Second call returns same invoice |
+| `test_devis_uniqueId_sequential` | save() generates "DV-001-2026" format |
 
-### Service model (3 tests)
+### Service model (4 tests)
 | Test | What it verifies |
 |------|-----------------|
 | `test_service_total_price_flat` | Returns price directly |
 | `test_service_total_price_day` | price × duration_days |
 | `test_service_total_price_hour` | price × duration_hours |
+| `test_service_total_price_unit` | Falls through to price (no multiplier) |
 
 ### Settings model (3 tests)
 | Test | What it verifies |
@@ -335,7 +342,7 @@ Expand existing Phase 1 model tests. Move existing file, add new tests.
 
 | Test | View | What it verifies |
 |------|------|-----------------|
-| `test_devis_create_success` | `devis_create` | Creates Devis + InvoiceService rows |
+| `test_devis_create_success` | `devis_create` | Creates Devis + InvoiceService rows (linked to devis, not invoice) |
 | `test_devis_update_fields` | `devis_update` | Updates devis + rebuilds services |
 | `test_devis_convert_creates_invoice` | `devis_convert` | Calls convert_to_invoice(), redirects to invoice |
 | `test_devis_convert_already_converted` | `devis_convert` | Returns info message, redirects to existing invoice |
@@ -449,7 +456,7 @@ Phase 2 adds coverage for:
 
 | Area | File | Tests |
 |------|------|-------|
-| Sales Models | `tests/sales/test_models.py` | ~50 |
+| Sales Models | `tests/sales/test_models.py` | 59 |
 | Invoice Views | `tests/sales/test_invoice_views.py` | 10 |
 | Credit Note Views | `tests/sales/test_credit_note_views.py` | 6 |
 | Client Views | `tests/sales/test_client_views.py` | 10 |
@@ -462,4 +469,4 @@ Phase 2 adds coverage for:
 | Retenu Models | `tests/payment/test_retenu_models.py` | 6 |
 | Payment Views | `tests/payment/test_payment_views.py` | 9 |
 | Utilities | `tests/sales/test_utilities.py` | 8 |
-| **Total** | | **~129** |
+| **Total** | | **~138** |
