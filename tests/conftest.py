@@ -27,9 +27,30 @@ def tenant(tenant_setup, db):
 
 @pytest.fixture
 def user(tenant):
-    """Create a test user in the tenant schema."""
+    """Create a test user in the public schema with a TenantUser link.
+
+    Users and TenantUser live in the public schema (shared apps).
+    We switch schemas temporarily to create them, then restore the tenant schema.
+    Uses get_or_create to be safe with transaction=True tests (no auto-rollback).
+    """
     from django.contrib.auth.models import User
-    return User.objects.create_user(username='testuser', password='testpass123')
+    from tenants.models import TenantUser
+
+    current_schema = connection.schema_name
+    connection.set_schema_to_public()
+    try:
+        user_obj, _ = User.objects.get_or_create(
+            username='testuser',
+            defaults={'is_active': True},
+        )
+        user_obj.set_password('testpass123')
+        user_obj.save(update_fields=['password'])
+
+        TenantUser.objects.get_or_create(user=user_obj, defaults={'tenant': tenant})
+    finally:
+        connection.set_schema(current_schema)
+
+    return user_obj
 
 
 @pytest.fixture
