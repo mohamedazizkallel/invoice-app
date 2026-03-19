@@ -1,5 +1,6 @@
 import pytest
 from decimal import Decimal
+from unittest.mock import patch
 
 
 @pytest.mark.django_db(transaction=True)
@@ -76,6 +77,36 @@ class TestInvoiceCalculations:
         invoice = InvoiceFactory()
 
         assert invoice.calculate_service_subtotal() == Decimal('0')
+
+
+@pytest.mark.django_db(transaction=True)
+class TestSettingsGetCached:
+    def test_returns_settings_instance(self, tenant, seller):
+        from sales.models import Settings
+        result = Settings.get_cached()
+        assert result is not None
+        assert result.pk == seller.pk
+
+    def test_returns_none_when_no_settings(self, tenant):
+        from sales.models import Settings
+        from django.core.cache import cache
+        cache.clear()
+        Settings.objects.all().delete()
+        result = Settings.get_cached()
+        assert result is None
+
+    def test_invalidates_on_save(self, tenant, seller):
+        from sales.models import Settings
+        from django.core.cache import cache
+        # Prime the cache
+        Settings.get_cached()
+        # Change and save
+        with patch('sales.models._sync_ngsign_org'):
+            seller.clientname = 'Updated Name'
+            seller.save()
+        # Cache should return updated instance
+        result = Settings.get_cached()
+        assert result.clientname == 'Updated Name'
 
 
 @pytest.mark.django_db(transaction=True)

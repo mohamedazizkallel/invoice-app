@@ -229,3 +229,26 @@ class TestAvoirNgsignCheck:
         url = reverse('avoir-ngsign-check', args=[cn.id])
         resp = logged_in_client.post(url)
         assert resp.status_code == 400
+
+
+@pytest.mark.django_db(transaction=True)
+class TestCheckViewGuards:
+    def test_invoice_check_requires_login(self, tenant):
+        from django.test import Client
+        from tests.factories import InvoiceFactory
+        invoice = InvoiceFactory()
+
+        anon_client = Client()
+        url = reverse('invoice-ngsign-check', args=[invoice.id])
+        resp = anon_client.post(url)
+        assert resp.status_code == 302
+
+    def test_avoir_check_requires_login(self, tenant):
+        from django.test import Client
+        from tests.factories import CreditNoteFactory
+        cn = CreditNoteFactory()
+
+        anon_client = Client()
+        url = reverse('avoir-ngsign-check', args=[cn.id])
+        resp = anon_client.post(url)
+        assert resp.status_code == 302

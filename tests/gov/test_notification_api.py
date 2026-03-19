@@ -56,7 +56,8 @@ class TestNgsignPendingApi:
 
     def test_groups_fresh_submitting_to_in_progress(self, logged_in_client, tenant, seller):
         from tests.factories import GovInvoiceFactory
-        GovInvoiceFactory(ngsign_status='SUBMITTING', submitted_at=timezone.now())
+        # Use a timestamp just 5 seconds ago — well within the 60s stale threshold
+        GovInvoiceFactory(ngsign_status='SUBMITTING', submitted_at=timezone.now() - timedelta(seconds=5))
 
         resp = logged_in_client.get(reverse(API_URL_NAME))
         data = resp.json()
