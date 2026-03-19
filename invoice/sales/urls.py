@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (dashboard, delete_supplier, edit_supplier,
                     login_view,add_service,
                     logout_view,settings_view,edit_client,service_view,edit_service,delete_service,
-                    invoice_delete,export_invoices,import_invoices,download_invoice_template
+                    invoice_delete
                     ,invoices_list,invoice_create,invoice_detail,invoice_edit,invoice_modal_data,
                     clients, mf_map,
                     delete_client, suppliers,
@@ -53,9 +53,6 @@ urlpatterns = [
     path('invoices/<int:invoice_id>/delete/', invoice_delete, name='invoice_delete'),
     path('invoices/<int:invoice_id>/ngsign/submit/', invoice_ngsign_submit, name='invoice-ngsign-submit'),
     path('invoices/<int:invoice_id>/ngsign/check/', invoice_ngsign_check, name='invoice-ngsign-check'),
-    path('invoices/export/', export_invoices, name='export_invoices'),
-    path('invoices/import/', import_invoices, name='import_invoices'),
-    path('invoices/template/', download_invoice_template, name='download_invoice_template'),
 
     # Services
     path('Services/', service_view, name='services_list'),
