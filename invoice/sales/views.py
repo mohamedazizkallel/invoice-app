@@ -2520,6 +2520,7 @@ def ngsign_pending_api(request):
     from django.utils import timezone
     from gov.models import GovInvoice
     from gov.ngsign.client import get_pds_url
+    from .models import NotificationState
 
     TO_SIGN = {'CREATED', 'CONFIGURED'}
     ERRORS = {'ERROR', 'TTN_REJECTED', 'TTN_NOTTRANSFERED'}
@@ -2533,10 +2534,20 @@ def ngsign_pending_api(request):
         .select_related('invoice__client', 'credit_note__client')
     )
 
+    # Prefetch notification states for current user
+    user_states = {
+        ns.gov_invoice_id: ns
+        for ns in NotificationState.objects.filter(
+            user=request.user,
+            gov_invoice__in=gov_invoices,
+        )
+    }
+
     now = timezone.now()
     to_sign = []
     errors = []
     in_progress = []
+    unread_count = 0
 
     for gi in gov_invoices:
         if gi.invoice:
@@ -2560,6 +2571,26 @@ def ngsign_pending_api(request):
             gi.notes = 'Soumission expirée (délai dépassé).'
             gi.save(update_fields=['ngsign_status', 'notes'])
 
+        # Check notification state
+        state = user_states.get(gi.id)
+        is_read = False
+        if state:
+            if state.status_snapshot == status:
+                # Status unchanged — respect saved state
+                if state.is_dismissed:
+                    continue  # Skip dismissed items
+                is_read = state.is_read
+            else:
+                # Status changed — reset stale state
+                state.is_read = False
+                state.is_dismissed = False
+                state.dismissed_at = None
+                state.status_snapshot = status
+                state.save(update_fields=['is_read', 'is_dismissed', 'dismissed_at', 'status_snapshot'])
+
+        if not is_read:
+            unread_count += 1
+
         item = {
             'id': gi.id,
             'doc_type': doc_type,
@@ -2569,6 +2600,7 @@ def ngsign_pending_api(request):
             'detail_url': detail_url,
             'pds_url': get_pds_url(gi.ngsign_transaction_uuid) if gi.ngsign_transaction_uuid else None,
             'notes': gi.notes or '',
+            'is_read': is_read,
         }
 
         if status in TO_SIGN:
@@ -2583,4 +2615,165 @@ def ngsign_pending_api(request):
         'errors': errors,
         'in_progress': in_progress,
         'total': len(to_sign) + len(errors) + len(in_progress),
+        'unread_count': unread_count,
+    })
+
+
+@login_required
+@require_POST
+def mark_all_notifications_read(request):
+    """Mark all active (non-terminal, non-dismissed) notifications as read for the current user."""
+    from gov.models import GovInvoice
+    from .models import NotificationState
+
+    TERMINAL = {'TTN_SIGNED', 'TTN_TRANSFERED', 'CANCELLED'}
+
+    active_govs = (
+        GovInvoice.objects
+        .exclude(ngsign_status__in=TERMINAL)
+        .exclude(ngsign_status__isnull=True)
+        .exclude(ngsign_status='')
+    )
+
+    for gi in active_govs:
+        state, _ = NotificationState.objects.get_or_create(
+            user=request.user,
+            gov_invoice=gi,
+            defaults={'status_snapshot': gi.ngsign_status, 'is_read': True},
+        )
+        if not _:
+            # Only update if not currently dismissed with matching status
+            if state.is_dismissed and state.status_snapshot == gi.ngsign_status:
+                continue
+            state.is_read = True
+            state.status_snapshot = gi.ngsign_status
+            state.save(update_fields=['is_read', 'status_snapshot'])
+
+    return JsonResponse({'ok': True, 'unread_count': 0})
+
+
+@login_required
+@require_POST
+def dismiss_notification(request, gov_invoice_id):
+    """Dismiss a single notification by GovInvoice ID."""
+    from gov.models import GovInvoice
+    from .models import NotificationState
+
+    gi = get_object_or_404(GovInvoice, id=gov_invoice_id)
+
+    NotificationState.objects.update_or_create(
+        user=request.user,
+        gov_invoice=gi,
+        defaults={
+            'is_dismissed': True,
+            'status_snapshot': gi.ngsign_status,
+            'dismissed_at': timezone.now(),
+        },
+    )
+
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def notifications_page(request):
+    """Full notifications history page with filtering and pagination."""
+    from gov.models import GovInvoice
+    from .models import NotificationState
+
+    STATUS_TABS = {
+        'to_sign': {'CREATED', 'CONFIGURED'},
+        'errors': {'ERROR', 'TTN_REJECTED', 'TTN_NOTTRANSFERED'},
+        'in_progress': {'SUBMITTING', 'SIGNED', 'MIXED'},
+        'done': {'TTN_SIGNED', 'TTN_TRANSFERED', 'CANCELLED'},
+    }
+
+    active_tab = request.GET.get('tab', 'all')
+
+    govs = (
+        GovInvoice.objects
+        .exclude(ngsign_status__isnull=True)
+        .exclude(ngsign_status='')
+        .select_related('invoice__client', 'credit_note__client')
+        .order_by('-created_at')
+    )
+
+    if active_tab in STATUS_TABS:
+        govs = govs.filter(ngsign_status__in=STATUS_TABS[active_tab])
+
+    # Prefetch notification states for current user
+    user_states = {
+        ns.gov_invoice_id: ns
+        for ns in NotificationState.objects.filter(
+            user=request.user,
+            gov_invoice__in=govs,
+        )
+    }
+
+    items = []
+    for gi in govs:
+        state = user_states.get(gi.id)
+
+        # Determine read/dismissed, handle reappearance
+        is_read = False
+        is_dismissed = False
+        if state:
+            if state.status_snapshot == gi.ngsign_status:
+                is_read = state.is_read
+                is_dismissed = state.is_dismissed
+            else:
+                # Status changed — reset stale state
+                state.is_read = False
+                state.is_dismissed = False
+                state.dismissed_at = None
+                state.status_snapshot = gi.ngsign_status
+                state.save(update_fields=['is_read', 'is_dismissed', 'dismissed_at', 'status_snapshot'])
+
+        if gi.invoice:
+            doc_type = 'Facture'
+            doc_number = gi.invoice.uniqueId
+            client_name = gi.invoice.client.clientname if gi.invoice.client else ''
+            detail_url = reverse('invoice_detail', args=[gi.invoice.id])
+        elif gi.credit_note:
+            doc_type = 'Avoir'
+            doc_number = gi.credit_note.uniqueId
+            client_name = gi.credit_note.client.clientname if gi.credit_note.client else ''
+            detail_url = reverse('avoir_detail', args=[gi.credit_note.id])
+        else:
+            continue
+
+        items.append({
+            'id': gi.id,
+            'doc_type': doc_type,
+            'doc_number': doc_number,
+            'client_name': client_name,
+            'status': gi.ngsign_status,
+            'notes': gi.notes or '',
+            'date': gi.created_at,
+            'detail_url': detail_url,
+            'is_read': is_read,
+            'is_dismissed': is_dismissed,
+        })
+
+    paginator = Paginator(items, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Tab counts
+    all_govs = (
+        GovInvoice.objects
+        .exclude(ngsign_status__isnull=True)
+        .exclude(ngsign_status='')
+    )
+    tab_counts = {
+        'all': all_govs.count(),
+        'to_sign': all_govs.filter(ngsign_status__in=STATUS_TABS['to_sign']).count(),
+        'errors': all_govs.filter(ngsign_status__in=STATUS_TABS['errors']).count(),
+        'in_progress': all_govs.filter(ngsign_status__in=STATUS_TABS['in_progress']).count(),
+        'done': all_govs.filter(ngsign_status__in=STATUS_TABS['done']).count(),
+    }
+
+    return render(request, 'sales/notifications.html', {
+        'page_obj': page_obj,
+        'active_tab': active_tab,
+        'tab_counts': tab_counts,
     })
