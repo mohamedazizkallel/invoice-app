@@ -247,6 +247,49 @@
         to { transform: rotate(360deg); }
       }
 
+      .notification-item.read { opacity: 0.6; }
+
+      .notification-item-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .notification-dismiss {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.3);
+        font-size: 0.75rem;
+        cursor: pointer;
+        padding: 2px 4px;
+        line-height: 1;
+        transition: color 0.2s;
+      }
+
+      .notification-dismiss:hover { color: #e74c3c; }
+
+      .notification-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .notification-footer a,
+      .notification-footer button {
+        font-size: 0.7rem;
+        color: #3498db;
+        text-decoration: none;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .notification-footer a:hover,
+      .notification-footer button:hover { text-decoration: underline; }
+
       /* Modern Sidebar */
       .modern-sidebar {
         background: var(--sidebar-bg);
@@ -673,10 +716,16 @@
         <div class="notification-dropdown" id="notificationDropdown">
           <div class="notification-header">
             <span class="notification-header-title">Documents NGSign</span>
-            <div id="notificationBadges"></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div id="notificationBadges"></div>
+              <button type="button" id="markAllReadBtn" style="display:none;font-size:0.65rem;color:#3498db;background:none;border:none;cursor:pointer;" onclick="markAllRead()">Tout lire</button>
+            </div>
           </div>
           <div id="notificationContent">
             <div class="notification-empty">Chargement...</div>
+          </div>
+          <div class="notification-footer">
+            <a href="/notifications/">Voir tout</a>
           </div>
         </div>
       </div>
@@ -881,182 +930,252 @@
 
   {% if user.is_authenticated %}
   <script>
-  (function() {
-    const bell = document.getElementById('notificationBell');
-    const dropdown = document.getElementById('notificationDropdown');
-    const badge = document.getElementById('notificationBadge');
-    const content = document.getElementById('notificationContent');
-    const badges = document.getElementById('notificationBadges');
-    if (!bell) return;
+(function() {
+  const bell = document.getElementById('notificationBell');
+  const dropdown = document.getElementById('notificationDropdown');
+  const badge = document.getElementById('notificationBadge');
+  const content = document.getElementById('notificationContent');
+  const badges = document.getElementById('notificationBadges');
+  const markAllBtn = document.getElementById('markAllReadBtn');
+  if (!bell) return;
 
-    let pollInterval = null;
+  let pollInterval = null;
 
-    // Toast helper — creates and shows a toast programmatically
-    window.showToast = function(message, type) {
-      type = type || 'info';
-      let container = document.querySelector('.toast-container');
-      if (!container) {
-        const wrapper = document.createElement('div');
-        wrapper.setAttribute('aria-live', 'polite');
-        wrapper.setAttribute('aria-atomic', 'true');
-        container = document.createElement('div');
-        container.className = 'toast-container position-fixed top-0 end-0 p-3';
-        wrapper.appendChild(container);
-        document.body.appendChild(wrapper);
-      }
-      const iconMap = {
-        success: 'bi-check-circle-fill',
-        error: 'bi-x-circle-fill',
-        warning: 'bi-exclamation-triangle-fill',
-        info: 'bi-info-circle-fill',
-      };
-      const toastEl = document.createElement('div');
-      toastEl.className = 'toast modern-toast align-items-center border-0 mb-2 text-white toast-' + type;
-      toastEl.setAttribute('role', 'alert');
-      toastEl.setAttribute('data-bs-delay', '4000');
-      toastEl.innerHTML =
-        '<div class="d-flex">' +
-          '<div class="toast-body"><i class="bi ' + (iconMap[type] || iconMap.info) + ' me-2"></i>' + message + '</div>' +
-          '<button type="button" class="btn-close ' + (type !== 'warning' ? 'btn-close-white' : '') + ' me-2 m-auto" data-bs-dismiss="toast"></button>' +
-        '</div>';
-      container.appendChild(toastEl);
-      new bootstrap.Toast(toastEl).show();
-      toastEl.addEventListener('hidden.bs.toast', function() { toastEl.remove(); });
+  // CSRF helper
+  function getCSRFToken() {
+    const c = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='));
+    return c ? c.split('=')[1] : '';
+  }
+
+  // Toast helper
+  window.showToast = function(message, type) {
+    type = type || 'info';
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+      const wrapper = document.createElement('div');
+      wrapper.setAttribute('aria-live', 'polite');
+      wrapper.setAttribute('aria-atomic', 'true');
+      container = document.createElement('div');
+      container.className = 'toast-container position-fixed top-0 end-0 p-3';
+      wrapper.appendChild(container);
+      document.body.appendChild(wrapper);
+    }
+    const iconMap = {
+      success: 'bi-check-circle-fill',
+      error: 'bi-x-circle-fill',
+      warning: 'bi-exclamation-triangle-fill',
+      info: 'bi-info-circle-fill',
     };
-
-    // Toggle dropdown
-    bell.addEventListener('click', function(e) {
-      e.stopPropagation();
-      dropdown.classList.toggle('show');
-    });
-
-    // Close on outside click
-    document.addEventListener('click', function(e) {
-      if (!dropdown.contains(e.target) && !bell.contains(e.target)) {
-        dropdown.classList.remove('show');
-      }
-    });
-
-    function renderNotifications(data) {
-      // Update badge
-      if (data.total > 0) {
-        badge.textContent = data.total;
-        badge.style.display = 'flex';
-      } else {
-        badge.style.display = 'none';
-      }
-
-      // Header badges
-      let badgeHtml = '';
-      if (data.to_sign.length) badgeHtml += '<span style="background:#f39c12;color:#000;border-radius:10px;padding:2px 7px;font-size:0.65rem;margin-left:4px;">' + data.to_sign.length + '</span>';
-      if (data.errors.length) badgeHtml += '<span style="background:#e74c3c;color:#fff;border-radius:10px;padding:2px 7px;font-size:0.65rem;margin-left:4px;">' + data.errors.length + '</span>';
-      if (data.in_progress.length) badgeHtml += '<span style="background:#2ecc71;color:#000;border-radius:10px;padding:2px 7px;font-size:0.65rem;margin-left:4px;">' + data.in_progress.length + '</span>';
-      badges.innerHTML = badgeHtml;
-
-      if (data.total === 0) {
-        content.innerHTML = '<div class="notification-empty">Aucun document en cours.</div>';
-        stopPolling();
-        return;
-      }
-
-      let html = '';
-
-      if (data.to_sign.length) {
-        html += '<div class="notification-group-label to-sign">A signer (' + data.to_sign.length + ')</div>';
-        data.to_sign.forEach(function(item) {
-          html += renderItem(item, 'sign');
-        });
-      }
-
-      if (data.errors.length) {
-        html += '<div class="notification-group-label errors">Erreurs (' + data.errors.length + ')</div>';
-        data.errors.forEach(function(item) {
-          html += renderItem(item, 'view');
-        });
-      }
-
-      if (data.in_progress.length) {
-        html += '<div class="notification-group-label in-progress">En cours (' + data.in_progress.length + ')</div>';
-        data.in_progress.forEach(function(item) {
-          if (item.status === 'SUBMITTING') {
-            html += renderItem(item, 'spinner');
-          } else {
-            html += renderItem(item, 'check');
-          }
-        });
-      }
-
-      content.innerHTML = html;
-      startPolling();
-    }
-
-    function escapeHtml(str) {
-      var div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    }
-
-    function renderItem(item, actionType) {
-      let actionHtml = '';
-      if (actionType === 'sign' && item.pds_url) {
-        actionHtml = '<button class="notification-item-action sign" onclick="window.open(\'' + item.pds_url + '\', \'_blank\')">Signer</button>';
-      } else if (actionType === 'view') {
-        actionHtml = '<a href="' + item.detail_url + '" class="notification-item-action view" style="text-decoration:none;">Voir</a>';
-      } else if (actionType === 'check') {
-        actionHtml = '<button class="notification-item-action check" onclick="ngsignCheck(\'' + item.detail_url + '\')">Check</button>';
-      } else if (actionType === 'spinner') {
-        actionHtml = '<span class="notification-spinner"></span>';
-      }
-
-      return '<div class="notification-item">' +
-        '<div class="notification-item-info">' +
-          '<span class="notification-item-number">' + escapeHtml(item.doc_number) + '</span>' +
-          '<span class="notification-item-client">' + escapeHtml(item.client_name) + '</span>' +
-        '</div>' +
-        actionHtml +
+    const toastEl = document.createElement('div');
+    toastEl.className = 'toast modern-toast align-items-center border-0 mb-2 text-white toast-' + type;
+    toastEl.setAttribute('role', 'alert');
+    toastEl.setAttribute('data-bs-delay', '4000');
+    toastEl.innerHTML =
+      '<div class="d-flex">' +
+        '<div class="toast-body"><i class="bi ' + (iconMap[type] || iconMap.info) + ' me-2"></i>' + message + '</div>' +
+        '<button type="button" class="btn-close ' + (type !== 'warning' ? 'btn-close-white' : '') + ' me-2 m-auto" data-bs-dismiss="toast"></button>' +
       '</div>';
+    container.appendChild(toastEl);
+    new bootstrap.Toast(toastEl).show();
+    toastEl.addEventListener('hidden.bs.toast', function() { toastEl.remove(); });
+  };
+
+  // Toggle dropdown
+  bell.addEventListener('click', function(e) {
+    e.stopPropagation();
+    dropdown.classList.toggle('show');
+  });
+
+  // Close on outside click
+  document.addEventListener('click', function(e) {
+    if (!dropdown.contains(e.target) && !bell.contains(e.target)) {
+      dropdown.classList.remove('show');
+    }
+  });
+
+  function renderNotifications(data) {
+    // Update badge with unread count
+    if (data.unread_count > 0) {
+      badge.textContent = data.unread_count;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
     }
 
-    window.fetchNotifications = function() {
-      fetch('/api/ngsign/pending/')
-        .then(function(r) { return r.json(); })
-        .then(function(data) { renderNotifications(data); })
-        .catch(function() {});
-    };
+    // Show/hide mark all read button
+    markAllBtn.style.display = data.unread_count > 0 ? 'inline' : 'none';
 
-    function startPolling() {
-      if (pollInterval) return;
-      pollInterval = setInterval(function() {
-        if (document.hidden) return;
-        fetchNotifications();
-      }, 30000);
+    // Header badges
+    let badgeHtml = '';
+    if (data.to_sign.length) badgeHtml += '<span style="background:#f39c12;color:#000;border-radius:10px;padding:2px 7px;font-size:0.65rem;margin-left:4px;">' + data.to_sign.length + '</span>';
+    if (data.errors.length) badgeHtml += '<span style="background:#e74c3c;color:#fff;border-radius:10px;padding:2px 7px;font-size:0.65rem;margin-left:4px;">' + data.errors.length + '</span>';
+    if (data.in_progress.length) badgeHtml += '<span style="background:#2ecc71;color:#000;border-radius:10px;padding:2px 7px;font-size:0.65rem;margin-left:4px;">' + data.in_progress.length + '</span>';
+    badges.innerHTML = badgeHtml;
+
+    if (data.total === 0) {
+      content.innerHTML = '<div class="notification-empty">Aucun document en cours.</div>';
+      stopPolling();
+      return;
     }
 
-    function stopPolling() {
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-      }
+    let html = '';
+
+    if (data.to_sign.length) {
+      html += '<div class="notification-group-label to-sign">A signer (' + data.to_sign.length + ')</div>';
+      data.to_sign.forEach(function(item) {
+        html += renderItem(item, 'sign');
+      });
     }
 
-    // Pause/resume on tab visibility
-    document.addEventListener('visibilitychange', function() {
-      if (!document.hidden && badge.style.display !== 'none') {
-        fetchNotifications();
-      }
+    if (data.errors.length) {
+      html += '<div class="notification-group-label errors">Erreurs (' + data.errors.length + ')</div>';
+      data.errors.forEach(function(item) {
+        html += renderItem(item, 'error');
+      });
+    }
+
+    if (data.in_progress.length) {
+      html += '<div class="notification-group-label in-progress">En cours (' + data.in_progress.length + ')</div>';
+      data.in_progress.forEach(function(item) {
+        if (item.status === 'SUBMITTING') {
+          html += renderItem(item, 'spinner');
+        } else {
+          html += renderItem(item, 'check');
+        }
+      });
+    }
+
+    content.innerHTML = html;
+    startPolling();
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function renderItem(item, actionType) {
+    let actionHtml = '';
+    if (actionType === 'sign' && item.pds_url) {
+      actionHtml = '<button class="notification-item-action sign" onclick="window.open(\'' + item.pds_url + '\', \'_blank\')">Signer</button>';
+    } else if (actionType === 'error') {
+      actionHtml = '<button class="notification-item-action view" onclick="showErrorModal(' + JSON.stringify(item.doc_type) + ', ' + JSON.stringify(item.doc_number) + ', ' + JSON.stringify(item.client_name) + ', ' + JSON.stringify(item.notes) + ')">Détails</button>';
+    } else if (actionType === 'check') {
+      actionHtml = '<button class="notification-item-action check" onclick="ngsignCheck(\'' + item.detail_url + '\')">Check</button>';
+    } else if (actionType === 'spinner') {
+      actionHtml = '<span class="notification-spinner"></span>';
+    }
+
+    var readClass = item.is_read ? ' read' : '';
+
+    return '<div class="notification-item' + readClass + '" data-gov-id="' + item.id + '">' +
+      '<div class="notification-item-info">' +
+        '<span class="notification-item-number">' + escapeHtml(item.doc_number) + '</span>' +
+        '<span class="notification-item-client">' + escapeHtml(item.client_name) + '</span>' +
+      '</div>' +
+      '<div class="notification-item-actions">' +
+        actionHtml +
+        '<button class="notification-dismiss" onclick="dismissNotification(' + item.id + ', this)" title="Masquer">&times;</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  // Dismiss a single notification
+  window.dismissNotification = function(govInvoiceId, btnEl) {
+    var itemEl = btnEl.closest('.notification-item');
+    if (itemEl) itemEl.style.opacity = '0.3';
+
+    fetch('/api/ngsign/notifications/' + govInvoiceId + '/dismiss/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCSRFToken() },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function() { fetchNotifications(); })
+    .catch(function() {
+      if (itemEl) itemEl.style.opacity = '';
     });
+  };
 
-    // Check button action from dropdown — navigates to detail page where user can run full check
-    window.ngsignCheck = function(detailUrl) {
-      window.location.href = detailUrl;
-    };
-
-    // Initial fetch
-    document.addEventListener('DOMContentLoaded', function() {
+  // Mark all as read
+  window.markAllRead = function() {
+    fetch('/api/ngsign/notifications/read/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCSRFToken() },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      badge.style.display = 'none';
+      markAllBtn.style.display = 'none';
       fetchNotifications();
-    });
-  })();
-  </script>
+    })
+    .catch(function() {});
+  };
+
+  // Show error detail modal
+  window.showErrorModal = function(docType, docNumber, clientName, notes) {
+    document.getElementById('notifErrorModalTitle').textContent = docType + ' ' + docNumber + ' \u2014 ' + clientName;
+    document.getElementById('notifErrorModalBody').textContent = notes || 'Aucun détail disponible.';
+    new bootstrap.Modal(document.getElementById('notifErrorModal')).show();
+  };
+
+  window.fetchNotifications = function() {
+    fetch('/api/ngsign/pending/')
+      .then(function(r) { return r.json(); })
+      .then(function(data) { renderNotifications(data); })
+      .catch(function() {});
+  };
+
+  function startPolling() {
+    if (pollInterval) return;
+    pollInterval = setInterval(function() {
+      if (document.hidden) return;
+      fetchNotifications();
+    }, 30000);
+  }
+
+  function stopPolling() {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+  }
+
+  // Pause/resume on tab visibility
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden && badge.style.display !== 'none') {
+      fetchNotifications();
+    }
+  });
+
+  // Check button action from dropdown
+  window.ngsignCheck = function(detailUrl) {
+    window.location.href = detailUrl;
+  };
+
+  // Initial fetch
+  document.addEventListener('DOMContentLoaded', function() {
+    fetchNotifications();
+  });
+})();
+</script>
+<!-- Error Detail Modal -->
+<div class="modal fade" id="notifErrorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:#1a1d29;border:1px solid rgba(255,255,255,0.1);color:white;">
+      <div class="modal-header border-bottom" style="border-color:rgba(255,255,255,0.1) !important;">
+        <h6 class="modal-title" id="notifErrorModalTitle">Détails de l'erreur</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="notifErrorModalBody" style="white-space:pre-wrap;font-size:0.85rem;color:rgba(255,255,255,0.8);"></p>
+      </div>
+      <div class="modal-footer border-top" style="border-color:rgba(255,255,255,0.1) !important;">
+        <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
   {% endif %}
 
   {% block scripts %}{% endblock %}
