@@ -3,6 +3,7 @@ from decouple import config as decouple_config, UndefinedValueError as DecoupleU
 from django.db.models import Sum
 from django.utils import timezone
 from django.template.defaultfilters import slugify
+from django.conf import settings
 from uuid import uuid4
 from decimal import Decimal
 
@@ -1100,3 +1101,18 @@ class Devis(models.Model):
             self.slug = f"{base_slug}-{self.uniqueId}"
         self.last_updated = now
         super().save(*args, **kwargs)
+
+
+class NotificationState(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    gov_invoice = models.ForeignKey('gov.GovInvoice', on_delete=models.CASCADE)
+    status_snapshot = models.CharField(max_length=50)
+    is_read = models.BooleanField(default=False)
+    is_dismissed = models.BooleanField(default=False)
+    dismissed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('user', 'gov_invoice')
+
+    def __str__(self):
+        return f"NotificationState({self.user}, {self.gov_invoice_id}, read={self.is_read}, dismissed={self.is_dismissed})"
