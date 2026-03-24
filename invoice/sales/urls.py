@@ -21,7 +21,8 @@ from .views import (dashboard, delete_supplier, edit_supplier,
                     devis_list, devis_create, devis_detail, devis_update, devis_delete, devis_convert,
                     invoice_ngsign_submit, invoice_ngsign_check,
                     avoir_ngsign_submit, avoir_ngsign_check,
-                    ngsign_pending_api)
+                    ngsign_pending_api,
+                    mark_all_notifications_read, dismiss_notification, notifications_page)
 
 urlpatterns = [
     path('', login_view,name='login'),
@@ -108,4 +109,9 @@ urlpatterns = [
     path('devis/<int:devis_id>/update/', devis_update, name='devis_update'),
     path('devis/<int:devis_id>/delete/', devis_delete, name='devis_delete'),
     path('devis/<int:devis_id>/convert/', devis_convert, name='devis_convert'),
+
+    # Notifications
+    path('notifications/', notifications_page, name='notifications_page'),
+    path('api/ngsign/notifications/read/', mark_all_notifications_read, name='notifications-mark-read'),
+    path('api/ngsign/notifications/<int:gov_invoice_id>/dismiss/', dismiss_notification, name='notifications-dismiss'),
 ]
