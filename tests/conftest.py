@@ -91,3 +91,12 @@ def ngsign_account(tenant_setup, db):
     connection.set_schema_to_public()
     account.delete()
     connection.set_schema(current)
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    """Clear Django cache before and after each test."""
+    from django.core.cache import cache
+    cache.clear()
+    yield
+    cache.clear()
