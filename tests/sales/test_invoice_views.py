@@ -11,7 +11,7 @@ class TestInvoiceViews:
         client = Client()
         resp = client.get(reverse('invoices_list'))
         assert resp.status_code == 302
-        assert 'login' in resp.url or resp.url == '/'
+        assert resp.url == '/' or resp.url.startswith('/?next=')
 
     def test_invoice_list_renders(self, tenant, seller, logged_in_client):
         resp = logged_in_client.get(reverse('invoices_list'))

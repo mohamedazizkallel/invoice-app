@@ -15,7 +15,7 @@ class TestNgsignPendingApi:
 
         assert resp.status_code == 200
         data = resp.json()
-        assert data == {'to_sign': [], 'errors': [], 'in_progress': [], 'total': 0}
+        assert data == {'to_sign': [], 'errors': [], 'in_progress': [], 'total': 0, 'unread_count': 0}
 
     def test_groups_created_to_sign(self, logged_in_client, tenant, seller):
         from tests.factories import GovInvoiceFactory
