@@ -2345,9 +2345,10 @@ def invoice_ngsign_submit(request, invoice_id):
         )
 
     schema_name = connection.schema_name
+    redirect_url = request.build_absolute_uri(reverse('invoice_detail', args=[invoice.id]))
     thread = threading.Thread(
         target=_process_ngsign_submission,
-        args=(gov_invoice.id, schema_name),
+        args=(gov_invoice.id, schema_name, redirect_url),
         daemon=True,
     )
     thread.start()
@@ -2424,9 +2425,10 @@ def avoir_ngsign_submit(request, avoir_id):
         )
 
     schema_name = connection.schema_name
+    redirect_url = request.build_absolute_uri(reverse('avoir_detail', args=[credit_note.id]))
     thread = threading.Thread(
         target=_process_ngsign_submission,
-        args=(gov_invoice.id, schema_name),
+        args=(gov_invoice.id, schema_name, redirect_url),
         daemon=True,
     )
     thread.start()
@@ -2466,7 +2468,7 @@ def avoir_ngsign_check(request, avoir_id):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
-def _process_ngsign_submission(gov_invoice_id, schema_name):
+def _process_ngsign_submission(gov_invoice_id, schema_name, redirect_url=None):
     """
     Background thread: generate XML/PDF, submit to NGSign, update GovInvoice.
     Runs outside the request cycle — must set tenant schema and close connection.
@@ -2495,7 +2497,7 @@ def _process_ngsign_submission(gov_invoice_id, schema_name):
                 gov_invoice.unsigned_xml = build_unsigned_teif(gov_invoice.invoice, seller)
             gov_invoice.save(update_fields=['unsigned_xml'])
 
-        submit_invoice(gov_invoice)
+        submit_invoice(gov_invoice, redirect_url=redirect_url)
         logger.info(f'NGSign submission succeeded for GovInvoice {gov_invoice_id}')
 
     except Exception as e:
@@ -2525,6 +2527,25 @@ def ngsign_pending_api(request):
     TO_SIGN = {'CREATED', 'CONFIGURED'}
     ERRORS = {'ERROR', 'TTN_REJECTED', 'TTN_NOTTRANSFERED'}
     STALE_SECONDS = 60
+    ACTIVE_SIGNING = {'CREATED', 'CONFIGURED', 'SIGNED', 'MIXED'}
+
+    # Refresh status from NGSign for documents currently being signed
+    try:
+        from gov.ngsign.service import check_status
+        from gov.ngsign.exceptions import NGSignAPIError, NGSignNotConfiguredError
+        to_refresh = list(
+            GovInvoice.objects
+            .filter(ngsign_status__in=ACTIVE_SIGNING)
+            .exclude(ngsign_invoice_uuid__isnull=True)
+            .exclude(ngsign_invoice_uuid='')
+        )
+        for gi in to_refresh:
+            try:
+                check_status(gi)
+            except (NGSignAPIError, NGSignNotConfiguredError, Exception):
+                pass
+    except Exception:
+        pass
 
     gov_invoices = (
         GovInvoice.objects
@@ -2777,3 +2798,81 @@ def notifications_page(request):
         'active_tab': active_tab,
         'tab_counts': tab_counts,
     })
+
+
+@login_required
+def setup_wizard(request):
+    """Multi-step setup wizard for first-time company configuration."""
+    import base64 as _b64
+    from sales.middleware import _settings_complete
+
+    STEP_FIELDS = {
+        1: ['clientname', 'status', 'emailAddress', 'phone', 'adress'],
+        2: ['mf', 'tva', 'dt', 'default_retenu_rate'],
+        3: ['rib', 'logo_upload'],
+    }
+    STEP_REQUIRED = {
+        1: ['clientname', 'emailAddress', 'adress'],
+        2: ['mf'],
+        3: [],
+    }
+
+    if _settings_complete():
+        return redirect('dashboard')
+
+    step = request.session.get('setup_step', 1)
+    if step not in STEP_FIELDS:
+        step = 1
+
+    settings_obj = Settings.get_cached()
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'next')
+
+        if action == 'skip' and step == 3:
+            request.session.pop('setup_step', None)
+            return redirect('dashboard')
+
+        if step == 3:
+            form = SettingsForm(request.POST, request.FILES, instance=settings_obj)
+        else:
+            form = SettingsForm(request.POST, instance=settings_obj)
+
+        for fname in list(form.fields.keys()):
+            if fname not in STEP_FIELDS[step]:
+                del form.fields[fname]
+        for fname in form.fields:
+            form.fields[fname].required = fname in STEP_REQUIRED[step]
+
+        if form.is_valid():
+            obj = form.save(commit=False)
+
+            if step == 3:
+                logo_file = request.FILES.get('logo_upload')
+                if logo_file:
+                    if logo_file.size > 2 * 1024 * 1024:
+                        form.add_error('logo_upload', 'Le logo ne doit pas dépasser 2 Mo.')
+                        return render(request, 'sales/setup_wizard.html', {'form': form, 'step': step})
+                    raw = logo_file.read()
+                    encoded = _b64.b64encode(raw).decode('utf-8')
+                    obj.clientLogo = f'data:{logo_file.content_type};base64,{encoded}'
+                elif settings_obj:
+                    obj.clientLogo = settings_obj.clientLogo
+
+            obj.save()
+
+            if step == 3:
+                request.session.pop('setup_step', None)
+                return redirect('dashboard')
+            request.session['setup_step'] = step + 1
+            return redirect('setup_wizard')
+
+    else:
+        form = SettingsForm(instance=settings_obj)
+        for fname in list(form.fields.keys()):
+            if fname not in STEP_FIELDS[step]:
+                del form.fields[fname]
+        for fname in form.fields:
+            form.fields[fname].required = fname in STEP_REQUIRED[step]
+
+    return render(request, 'sales/setup_wizard.html', {'form': form, 'step': step})
