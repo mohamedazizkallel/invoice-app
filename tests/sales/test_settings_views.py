@@ -28,6 +28,9 @@ class TestSettingsViews:
         with patch('sales.models._sync_ngsign_org'):
             s = Settings.objects.create(
                 clientname='Logo Co',
+                mf='1234567ABC000',
+                adress='123 Rue Test, Tunis',
+                emailAddress='logo@co.tn',
                 clientLogo='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
             )
         resp = logged_in_client.get(reverse('company_logo'))

@@ -742,6 +742,13 @@
       </a>
     </div>
   </header>
+  {% if user.is_authenticated and not settings_complete %}
+  <div style="background:#f59e0b;padding:9px 16px;display:flex;align-items:center;gap:10px;">
+    <i class="bi bi-exclamation-triangle-fill" style="color:#0f172a;font-size:0.9rem;"></i>
+    <span style="font-size:0.85rem;color:#0f172a;font-weight:500;">Votre entreprise n'est pas encore configurée.</span>
+    <a href="{% url 'setup_wizard' %}" style="font-size:0.85rem;color:#0f172a;font-weight:700;text-decoration:underline;">Compléter la configuration →</a>
+  </div>
+  {% endif %}
 
   <div class="container-fluid p-0">
     <div class="row g-0">
