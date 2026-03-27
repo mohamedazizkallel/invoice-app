@@ -2817,12 +2817,12 @@ def setup_wizard(request):
         3: [],
     }
 
-    if _settings_complete():
-        return redirect('dashboard')
-
     step = request.session.get('setup_step', 1)
     if step not in STEP_FIELDS:
         step = 1
+
+    if _settings_complete() and 'setup_step' not in request.session:
+        return redirect('dashboard')
 
     settings_obj = Settings.get_cached()
 

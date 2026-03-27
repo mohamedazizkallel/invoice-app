@@ -93,7 +93,7 @@ class TestSetupWizardView:
                 'clientname': 'My Company',
                 'emailAddress': 'contact@company.tn',
                 'adress': '123 Rue Test, Tunis',
-                'status': 'Person Morale',
+                'status': 'Person Physique',
                 'phone': '',
             })
         assert resp.status_code == 302
