@@ -71,6 +71,7 @@ class SettingsFactory(DjangoModelFactory):
     clientname = 'Test Company SARL'
     mf = '9876543XYZ000'
     adress = '123 Rue Test, Tunis'
+    emailAddress = 'test@company.tn'
 
 
 class GovInvoiceFactory(DjangoModelFactory):
