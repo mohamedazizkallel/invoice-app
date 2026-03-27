@@ -26,6 +26,7 @@ class TestSubmitInvoice:
                 ngsign_account.org_jwt,
                 [{'payload': 'data'}],
                 signer_email=ngsign_account.signer_email,
+                redirect_url=None,
             )
 
     def test_stores_transaction_and_invoice_uuids(self, tenant, seller, ngsign_account):

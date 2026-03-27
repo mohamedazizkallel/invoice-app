@@ -47,7 +47,7 @@ class TestInvoiceNgsignSubmit:
         assert gov_invoice.ngsign_status == 'SUBMITTING'
         assert gov_invoice.notes == ''
 
-    def test_nonexistent_returns_404(self, logged_in_client, tenant):
+    def test_nonexistent_returns_404(self, logged_in_client, tenant, seller):
         url = reverse('invoice-ngsign-submit', args=[99999])
         resp = logged_in_client.post(url)
         assert resp.status_code == 404
@@ -75,7 +75,7 @@ class TestInvoiceNgsignSubmit:
         resp = anon_client.post(url)
         assert resp.status_code == 302
 
-    def test_requires_post(self, logged_in_client, tenant):
+    def test_requires_post(self, logged_in_client, tenant, seller):
         from tests.factories import InvoiceFactory
         invoice = InvoiceFactory()
 
@@ -182,7 +182,7 @@ class TestInvoiceNgsignCheck:
         assert data['success'] is True
         assert 'ngsign_status' in data
 
-    def test_not_submitted_returns_400(self, logged_in_client, tenant):
+    def test_not_submitted_returns_400(self, logged_in_client, tenant, seller):
         from tests.factories import InvoiceFactory
         invoice = InvoiceFactory()
 
@@ -222,7 +222,7 @@ class TestAvoirNgsignCheck:
         assert resp.status_code == 200
         assert resp.json()['success'] is True
 
-    def test_not_submitted_returns_400(self, logged_in_client, tenant):
+    def test_not_submitted_returns_400(self, logged_in_client, tenant, seller):
         from tests.factories import CreditNoteFactory
         cn = CreditNoteFactory()
 
