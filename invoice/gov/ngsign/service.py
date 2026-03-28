@@ -4,7 +4,7 @@ from django.db import connection
 from gov.ngsign import client
 from gov.ngsign import serializer
 from gov.ngsign.exceptions import (
-    NGSignNotConfiguredError, NGSignAPIError, NGSignSubmissionError
+    NGSignNotConfiguredError, NGSignAPIError, NGSignSubmissionError, NGSignLockedInvoiceError
 )
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ def _get_account():
         connection.set_schema(current_schema)
 
 
-def submit_invoice(gov_invoice):
+def submit_invoice(gov_invoice, redirect_url=None):
     """
     Create an e-Signature transaction for a GovInvoice.
     Returns the PDS redirect URL for the user to sign.
@@ -51,6 +51,7 @@ def submit_invoice(gov_invoice):
             account.org_jwt,
             [payload],
             signer_email=signer_email,
+            redirect_url=redirect_url,
         )
     except NGSignAPIError as e:
         gov_invoice.ngsign_status = 'ERROR'
@@ -77,7 +78,21 @@ def check_status(gov_invoice):
     if not account:
         raise NGSignNotConfiguredError('NGSign non configuré.')
 
-    result = client.check_invoice_status(account.org_jwt, gov_invoice.ngsign_invoice_uuid)
+    try:
+        result = client.check_invoice_status(account.org_jwt, gov_invoice.ngsign_invoice_uuid)
+    except NGSignLockedInvoiceError:
+        # Invoice locked = already processed by TTN. Fetch signed XML directly.
+        logger.info(f'GovInvoice {gov_invoice.id} is locked — fetching signed XML directly.')
+        try:
+            signed_xml = client.get_signed_xml(account.org_jwt, gov_invoice.ngsign_invoice_uuid)
+            gov_invoice.signed_xml = signed_xml
+            gov_invoice.status = 'signed'
+        except NGSignAPIError as e:
+            logger.warning(f'Signed XML fetch failed for locked invoice: {e}')
+        gov_invoice.ngsign_status = 'TTN_SIGNED'
+        gov_invoice.save()
+        return {'status': 'TTN_SIGNED'}
+
     gov_invoice.ngsign_status = result['status']
 
     # If signed by TTN, fetch the signed XML

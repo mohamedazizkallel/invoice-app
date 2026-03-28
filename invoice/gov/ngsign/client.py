@@ -1,7 +1,7 @@
 import base64
 import requests
 from decouple import config
-from gov.ngsign.exceptions import NGSignAuthError, NGSignAPIError
+from gov.ngsign.exceptions import NGSignAuthError, NGSignAPIError, NGSignLockedInvoiceError
 
 INVOICE_API_BASE = 'https://sandbox.ng-sign.com/server'
 PARTNER_API_BASE = 'https://sandbox.ng-sign.com'
@@ -78,7 +78,7 @@ def refresh_jwt(partner_jwt, org_uuid):
     return resp.json()['object']['jwt']
 
 
-def create_transaction(org_jwt, invoices_payload, signer_email):
+def create_transaction(org_jwt, invoices_payload, signer_email, redirect_url=None):
     """
     Create an e-Signature transaction via /protected/invoice/xml/transaction/create.
     Returns the transaction object dict (contains uuid for PDS redirect).
@@ -87,6 +87,8 @@ def create_transaction(org_jwt, invoices_payload, signer_email):
         'invoices': invoices_payload,
         'signerEmail': signer_email,
     }
+    if redirect_url:
+        body['redirectedTo'] = redirect_url
     resp = requests.post(
         f'{INVOICE_API_BASE}/protected/invoice/xml/transaction/create',
         json=body,
@@ -111,6 +113,12 @@ def check_invoice_status(org_jwt, invoice_uuid):
         timeout=TIMEOUT,
     )
     if resp.status_code != 200:
+        try:
+            body = resp.json()
+            if body.get('errorCode') == 50010:
+                raise NGSignLockedInvoiceError('Invoice is locked — already processed by TTN.')
+        except (ValueError, KeyError):
+            pass
         raise NGSignAPIError(f'check_invoice_status failed: {resp.status_code}')
     return resp.json()['object']
 

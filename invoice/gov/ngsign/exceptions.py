@@ -17,3 +17,7 @@ class NGSignAPIError(NGSignError):
 class NGSignSubmissionError(NGSignError):
     """Invoice submission to NGSign failed."""
     pass
+
+class NGSignLockedInvoiceError(NGSignError):
+    """Invoice is locked (already processed by TTN). Signed XML should be fetched directly."""
+    pass
