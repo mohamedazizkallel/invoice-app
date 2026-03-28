@@ -1,123 +1,88 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
+*.pyc
+*.pyo
+*.pyd
 
-# C extensions
-*.so
-#added
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+*.db
 media/
 staticfiles/
-statistics/
-db.sqlite3/
-# migrations tracked in git
-# Distribution / packaging
+*.pid
+
+# Environment
 .env
 !.env.example
-.Python
-env/
+
+# Distribution / packaging
 build/
-develop-eggs/
 dist/
-*.xml
+*.egg-info/
+*.egg
+.eggs/
+wheels/
+develop-eggs/
 downloads/
 eggs/
-.eggs/
 lib/
 lib64/
 parts/
 sdist/
 var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
+# Testing
 htmlcov/
 .tox/
 .coverage
 .coverage.*
 .cache
-nosetests.xml
+.hypothesis/
 coverage.xml
 *.cover
-.hypothesis/
+nosetests.xml
 
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# celery beat schedule file
-celerybeat-schedule
-
-# SageMath parsed files
-*.sage.py
-
-# dotenv
-.env
-
-# virtualenv
-.venv
-venv/
-ENV/
-.vscode
-# Spyder project settings
+# IDE / tools
+.vscode/
+.idea/
 .spyderproject
 .spyproject
-
-# Rope project settings
 .ropeproject
+.mypy_cache/
+.DS_Store
 
-# mkdocs documentation
+# Project-specific
+statistics/
+.superpowers/
+
+# Sphinx
+docs/_build/
 /site
 
-# mypy
-.mypy_cache/
+# Other
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+*.mo
+*.pot
+*.so
+*.sage.py
+.python-version
+celerybeat-schedule
+.ipynb_checkpoints
+instance/
+.webassets-cache
+.scrapy
 
-.DS_Store
-*.sqlite3
-media/
-*.pyc
-*.db
-*.pid
-
-# Ignore Django Migrations in Development if you are working on team
-
-# Only for Development only
+# Migrations tracked intentionally
 # **/migrations/**
-# !**/migrations
-# !**/migrations/__init__.py
