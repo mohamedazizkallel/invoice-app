@@ -1331,6 +1331,33 @@ def invoice_edit(request, invoice_id):
             if request.POST.get('discount'):
                 invoice.discount = float(request.POST['discount'])
 
+            # Custom date / number — only when not locked and not paid
+            if not invoice.is_locked and (status or invoice.status) != 'PAID':
+                from datetime import datetime, time
+                from django.utils import timezone as dj_tz
+
+                custom_date_raw = request.POST.get('invoice_date', '').strip()
+                if custom_date_raw:
+                    try:
+                        parsed = datetime.strptime(custom_date_raw, '%Y-%m-%d').date()
+                    except ValueError:
+                        raise ValueError('Date invalide')
+                    tz = dj_tz.get_current_timezone()
+                    invoice.date_created = dj_tz.make_aware(
+                        datetime.combine(parsed, time.min), tz
+                    )
+
+                custom_number_raw = request.POST.get('invoice_number', '').strip()
+                if custom_number_raw:
+                    try:
+                        manual_number = int(custom_number_raw)
+                    except ValueError:
+                        raise ValueError('Numéro invalide (1–999)')
+                    year = invoice.date_created.year if invoice.date_created else dj_tz.now().year
+                    invoice.uniqueId = Invoice.generate_unique_id(
+                        year, manual_number=manual_number, exclude_pk=invoice.pk,
+                    )
+
             # Client
             client_id = request.POST.get('client')
             if client_id:

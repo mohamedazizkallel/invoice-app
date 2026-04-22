@@ -171,6 +171,62 @@ class TestInvoiceViews:
         inv = Invoice.objects.filter(client=c).first()
         assert inv.date_created.date() == timezone.localtime(timezone.now()).date()
 
+    def test_invoice_edit_updates_date_and_number(self, tenant, seller, logged_in_client):
+        from datetime import date
+        from tests.factories import InvoiceFactory, ServiceFactory
+        s = ServiceFactory()
+        inv = InvoiceFactory(uniqueId='FV-001-2026', status='CURRENT', is_locked=False)
+        resp = logged_in_client.post(reverse('invoice_edit', args=[inv.id]), {
+            'client': inv.client.id, 'service_id[]': [s.id], 'unit_price[]': ['100.000'],
+            'has_fodec[]': ['0'], 'status': 'CURRENT',
+            'invoice_number': '77', 'invoice_date': '2026-02-10',
+        })
+        assert resp.status_code == 302
+        inv.refresh_from_db()
+        assert inv.uniqueId == 'FV-077-2026'
+        assert inv.date_created.date() == date(2026, 2, 10)
+
+    def test_invoice_edit_locked_ignores_date_number(self, tenant, seller, logged_in_client):
+        from tests.factories import InvoiceFactory, ServiceFactory
+        s = ServiceFactory()
+        inv = InvoiceFactory(uniqueId='FV-002-2026', status='CURRENT', is_locked=True)
+        original_id = inv.uniqueId
+        original_date = inv.date_created
+        logged_in_client.post(reverse('invoice_edit', args=[inv.id]), {
+            'client': inv.client.id, 'service_id[]': [s.id], 'unit_price[]': ['100.000'],
+            'has_fodec[]': ['0'], 'status': 'CURRENT',
+            'invoice_number': '99', 'invoice_date': '2020-01-01',
+        })
+        inv.refresh_from_db()
+        assert inv.uniqueId == original_id
+        assert inv.date_created == original_date
+
+    def test_invoice_edit_paid_ignores_date_number(self, tenant, seller, logged_in_client):
+        from tests.factories import InvoiceFactory, ServiceFactory
+        s = ServiceFactory()
+        inv = InvoiceFactory(uniqueId='FV-003-2026', status='PAID', is_locked=False)
+        original_id = inv.uniqueId
+        logged_in_client.post(reverse('invoice_edit', args=[inv.id]), {
+            'client': inv.client.id, 'service_id[]': [s.id], 'unit_price[]': ['100.000'],
+            'has_fodec[]': ['0'], 'status': 'PAID',
+            'invoice_number': '88',
+        })
+        inv.refresh_from_db()
+        assert inv.uniqueId == original_id
+
+    def test_invoice_edit_number_collision_rejected(self, tenant, seller, logged_in_client):
+        from tests.factories import InvoiceFactory, ServiceFactory
+        s = ServiceFactory()
+        InvoiceFactory(uniqueId='FV-050-2026')
+        inv = InvoiceFactory(uniqueId='FV-004-2026', status='CURRENT', is_locked=False)
+        logged_in_client.post(reverse('invoice_edit', args=[inv.id]), {
+            'client': inv.client.id, 'service_id[]': [s.id], 'unit_price[]': ['100.000'],
+            'has_fodec[]': ['0'], 'status': 'CURRENT',
+            'invoice_number': '50',
+        })
+        inv.refresh_from_db()
+        assert inv.uniqueId == 'FV-004-2026'
+
     def test_invoice_create_sequence_after_manual_jump(self, tenant, seller, logged_in_client):
         from tests.factories import ClientFactory, ServiceFactory
         from sales.models import Invoice
