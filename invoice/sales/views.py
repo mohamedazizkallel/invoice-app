@@ -1212,16 +1212,47 @@ def invoice_create(request):
                 messages.error(request, 'You must add at least one service.')
                 return redirect('invoices_list')
 
+            # Parse optional custom date
+            from datetime import datetime, time
+            from django.utils import timezone as dj_tz
+            custom_date_raw = request.POST.get('invoice_date', '').strip()
+            custom_datetime = None
+            if custom_date_raw:
+                try:
+                    parsed = datetime.strptime(custom_date_raw, '%Y-%m-%d').date()
+                except ValueError:
+                    raise ValueError('Date invalide')
+                tz = dj_tz.get_current_timezone()
+                custom_datetime = dj_tz.make_aware(datetime.combine(parsed, time.min), tz)
+
+            # Parse optional custom number
+            custom_number_raw = request.POST.get('invoice_number', '').strip()
+            manual_number = None
+            if custom_number_raw:
+                try:
+                    manual_number = int(custom_number_raw)
+                except ValueError:
+                    raise ValueError('Numéro invalide (1–999)')
+
+            # Determine year from picked date, else today
+            year = (custom_datetime.year if custom_datetime
+                    else dj_tz.localtime(dj_tz.now()).year)
+            unique_id = Invoice.generate_unique_id(year, manual_number=manual_number)
+
             # Create invoice
-            invoice = Invoice.objects.create(
+            invoice_kwargs = dict(
                 title=title,
                 client=client,
                 status=status,
                 notes=notes,
                 tva=tva,
                 timbre_fiscal=timbre_fiscal,
-                discount=discount
+                discount=discount,
+                uniqueId=unique_id,
             )
+            if custom_datetime is not None:
+                invoice_kwargs['date_created'] = custom_datetime
+            invoice = Invoice.objects.create(**invoice_kwargs)
 
             # Add services (if you have a Service model and InvoiceService model)
             fodec_flags = request.POST.getlist('has_fodec[]')

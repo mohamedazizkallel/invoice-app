@@ -112,3 +112,80 @@ class TestInvoiceViews:
         assert resp.status_code == 302
         from sales.models import Invoice
         assert Invoice.objects.filter(pk=invoice.pk).exists()
+
+    def test_invoice_create_with_manual_number(self, tenant, seller, logged_in_client):
+        from tests.factories import ClientFactory, ServiceFactory
+        from sales.models import Invoice
+        c = ClientFactory()
+        s = ServiceFactory()
+        resp = logged_in_client.post(reverse('invoice_create'), {
+            'client': c.id, 'service_id[]': [s.id], 'unit_price[]': ['100.000'],
+            'has_fodec[]': ['0'], 'tva': '19', 'timbre_fiscal': '1.000', 'discount': '0',
+            'invoice_number': '42',
+        })
+        assert resp.status_code == 302
+        inv = Invoice.objects.filter(client=c).first()
+        assert inv is not None
+        assert inv.uniqueId.startswith('FV-042-')
+
+    def test_invoice_create_manual_number_conflict(self, tenant, seller, logged_in_client):
+        from tests.factories import ClientFactory, ServiceFactory, InvoiceFactory
+        from sales.models import Invoice
+        c = ClientFactory()
+        s = ServiceFactory()
+        InvoiceFactory(client=c, uniqueId='FV-005-2026')
+        before = Invoice.objects.count()
+        resp = logged_in_client.post(reverse('invoice_create'), {
+            'client': c.id, 'service_id[]': [s.id], 'unit_price[]': ['100.000'],
+            'has_fodec[]': ['0'], 'tva': '19', 'timbre_fiscal': '1.000', 'discount': '0',
+            'invoice_number': '5',
+        })
+        assert resp.status_code == 302
+        assert Invoice.objects.count() == before
+
+    def test_invoice_create_with_manual_date(self, tenant, seller, logged_in_client):
+        from datetime import date
+        from tests.factories import ClientFactory, ServiceFactory
+        from sales.models import Invoice
+        c = ClientFactory()
+        s = ServiceFactory()
+        logged_in_client.post(reverse('invoice_create'), {
+            'client': c.id, 'service_id[]': [s.id], 'unit_price[]': ['100.000'],
+            'has_fodec[]': ['0'], 'tva': '19', 'timbre_fiscal': '1.000', 'discount': '0',
+            'invoice_date': '2025-06-15',
+        })
+        inv = Invoice.objects.filter(client=c).first()
+        assert inv.date_created.date() == date(2025, 6, 15)
+        assert inv.uniqueId.endswith('-2025')
+
+    def test_invoice_create_default_date_is_today(self, tenant, seller, logged_in_client):
+        from django.utils import timezone
+        from tests.factories import ClientFactory, ServiceFactory
+        from sales.models import Invoice
+        c = ClientFactory()
+        s = ServiceFactory()
+        logged_in_client.post(reverse('invoice_create'), {
+            'client': c.id, 'service_id[]': [s.id], 'unit_price[]': ['100.000'],
+            'has_fodec[]': ['0'], 'tva': '19', 'timbre_fiscal': '1.000', 'discount': '0',
+        })
+        inv = Invoice.objects.filter(client=c).first()
+        assert inv.date_created.date() == timezone.localtime(timezone.now()).date()
+
+    def test_invoice_create_sequence_after_manual_jump(self, tenant, seller, logged_in_client):
+        from tests.factories import ClientFactory, ServiceFactory
+        from sales.models import Invoice
+        c = ClientFactory()
+        s = ServiceFactory()
+        logged_in_client.post(reverse('invoice_create'), {
+            'client': c.id, 'service_id[]': [s.id], 'unit_price[]': ['100.000'],
+            'has_fodec[]': ['0'], 'tva': '19', 'timbre_fiscal': '1.000', 'discount': '0',
+            'invoice_number': '10', 'invoice_date': '2026-03-01',
+        })
+        logged_in_client.post(reverse('invoice_create'), {
+            'client': c.id, 'service_id[]': [s.id], 'unit_price[]': ['100.000'],
+            'has_fodec[]': ['0'], 'tva': '19', 'timbre_fiscal': '1.000', 'discount': '0',
+            'invoice_date': '2026-03-02',
+        })
+        ids = list(Invoice.objects.values_list('uniqueId', flat=True))
+        assert 'FV-010-2026' in ids
+        assert 'FV-011-2026' in ids
