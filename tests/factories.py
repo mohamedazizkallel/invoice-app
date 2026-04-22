@@ -58,7 +58,6 @@ class CreditNoteFactory(DjangoModelFactory):
 
     client = factory.SubFactory(ClientFactory)
     uniqueId = factory.Sequence(lambda n: f'AV-{n:03d}-2026')
-    # date_created uses auto_now_add=True — cannot be overridden
     description = 'Test credit note'
     amount_ht = factory.LazyFunction(lambda: __import__('decimal').Decimal('500.000'))
     tva = 19

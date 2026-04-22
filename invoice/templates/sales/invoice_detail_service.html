@@ -843,6 +843,17 @@
               <input type="number" step="0.01" class="form-control" name="discount" value="{{ invoice.discount|default:0.00 }}">
             </div>
 
+            {% if not invoice.is_locked and invoice.status != 'PAID' %}
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Date (optionnel)</label>
+              <input type="date" class="form-control" name="invoice_date" value="{{ invoice.date_created|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Numéro (optionnel)</label>
+              <input type="number" min="1" max="999" class="form-control" name="invoice_number" placeholder="Auto si vide">
+            </div>
+            {% endif %}
+
             <div class="col-12">
               <label class="form-label fw-semibold">Remarques</label>
               <textarea class="form-control" name="notes" rows="2">{{ invoice.notes }}</textarea>
