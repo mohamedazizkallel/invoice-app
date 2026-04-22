@@ -1822,13 +1822,42 @@ def avoir_create(request):
                 except Invoice.DoesNotExist:
                     pass
 
-            credit_note = CreditNote.objects.create(
+            from datetime import datetime, time
+            from django.utils import timezone as dj_tz
+
+            custom_date_raw = request.POST.get('invoice_date', '').strip()
+            custom_datetime = None
+            if custom_date_raw:
+                try:
+                    parsed = datetime.strptime(custom_date_raw, '%Y-%m-%d').date()
+                except ValueError:
+                    raise ValueError('Date invalide')
+                tz = dj_tz.get_current_timezone()
+                custom_datetime = dj_tz.make_aware(datetime.combine(parsed, time.min), tz)
+
+            custom_number_raw = request.POST.get('invoice_number', '').strip()
+            manual_number = None
+            if custom_number_raw:
+                try:
+                    manual_number = int(custom_number_raw)
+                except ValueError:
+                    raise ValueError('Numéro invalide (1–999)')
+
+            year = (custom_datetime.year if custom_datetime
+                    else dj_tz.localtime(dj_tz.now()).year)
+            unique_id = CreditNote.generate_unique_id(year, manual_number=manual_number)
+
+            cn_kwargs = dict(
                 client=client,
                 invoice=linked_invoice,
                 description=description,
                 amount_ht=amount_ht,
                 tva=tva,
+                uniqueId=unique_id,
             )
+            if custom_datetime is not None:
+                cn_kwargs['date_created'] = custom_datetime
+            credit_note = CreditNote.objects.create(**cn_kwargs)
 
             ClientTransaction.objects.create(
                 client=client,
@@ -1886,6 +1915,31 @@ def avoir_edit(request, avoir_id):
                     credit_note.invoice = None
             else:
                 credit_note.invoice = None
+
+            from datetime import datetime, time
+            from django.utils import timezone as dj_tz
+
+            custom_date_raw = request.POST.get('invoice_date', '').strip()
+            if custom_date_raw:
+                try:
+                    parsed = datetime.strptime(custom_date_raw, '%Y-%m-%d').date()
+                except ValueError:
+                    raise ValueError('Date invalide')
+                tz = dj_tz.get_current_timezone()
+                credit_note.date_created = dj_tz.make_aware(
+                    datetime.combine(parsed, time.min), tz
+                )
+
+            custom_number_raw = request.POST.get('invoice_number', '').strip()
+            if custom_number_raw:
+                try:
+                    manual_number = int(custom_number_raw)
+                except ValueError:
+                    raise ValueError('Numéro invalide (1–999)')
+                year = credit_note.date_created.year if credit_note.date_created else dj_tz.now().year
+                credit_note.uniqueId = CreditNote.generate_unique_id(
+                    year, manual_number=manual_number, exclude_pk=credit_note.pk,
+                )
 
             credit_note.save()
 
