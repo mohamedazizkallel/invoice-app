@@ -658,6 +658,37 @@ class CreditNote(models.Model):
     def calculate_total(self):
         return self.amount_ht + self.calculate_tva_amount()
 
+    @classmethod
+    def generate_unique_id(cls, year, manual_number=None, exclude_pk=None):
+        """Return formatted uniqueId like 'AV-005-2026'. See Invoice.generate_unique_id."""
+        year_str = str(year)
+        suffix = f'-{year_str}'
+
+        if manual_number is not None:
+            if not isinstance(manual_number, int) or manual_number < 1 or manual_number > 999:
+                raise ValueError('Numéro invalide (1–999)')
+            formatted = f'AV-{manual_number:03d}-{year_str}'
+            qs = cls.objects.filter(uniqueId=formatted)
+            if exclude_pk is not None:
+                qs = qs.exclude(pk=exclude_pk)
+            if qs.exists():
+                raise ValueError(f'Numéro {formatted} déjà utilisé')
+            return formatted
+
+        existing = cls.objects.filter(
+            uniqueId__startswith='AV-',
+            uniqueId__endswith=suffix,
+        )
+        max_num = 0
+        for cn in existing:
+            try:
+                n = int(cn.uniqueId.split('-')[1])
+            except (ValueError, IndexError):
+                continue
+            if n > max_num:
+                max_num = n
+        return f'AV-{max_num + 1:03d}-{year_str}'
+
     def save(self, *args, **kwargs):
         now = timezone.localtime(timezone.now())
         if not self.date_created:

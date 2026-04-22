@@ -564,6 +564,44 @@ class TestInvoiceGenerateUniqueId:
 
 
 @pytest.mark.django_db(transaction=True)
+class TestCreditNoteGenerateUniqueId:
+    def test_auto_starts_at_one(self, tenant, seller):
+        from sales.models import CreditNote
+        assert CreditNote.generate_unique_id(2026) == 'AV-001-2026'
+
+    def test_auto_increments_from_max(self, tenant, seller):
+        from sales.models import CreditNote
+        from tests.factories import CreditNoteFactory
+        CreditNoteFactory(uniqueId='AV-005-2026')
+        CreditNoteFactory(uniqueId='AV-003-2026')
+        assert CreditNote.generate_unique_id(2026) == 'AV-006-2026'
+
+    def test_manual_number_formats(self, tenant, seller):
+        from sales.models import CreditNote
+        assert CreditNote.generate_unique_id(2026, manual_number=42) == 'AV-042-2026'
+
+    def test_manual_number_collision_raises(self, tenant, seller):
+        from sales.models import CreditNote
+        from tests.factories import CreditNoteFactory
+        CreditNoteFactory(uniqueId='AV-007-2026')
+        with pytest.raises(ValueError, match='AV-007-2026'):
+            CreditNote.generate_unique_id(2026, manual_number=7)
+
+    def test_manual_number_out_of_range_raises(self, tenant, seller):
+        from sales.models import CreditNote
+        with pytest.raises(ValueError):
+            CreditNote.generate_unique_id(2026, manual_number=0)
+        with pytest.raises(ValueError):
+            CreditNote.generate_unique_id(2026, manual_number=1000)
+
+    def test_manual_number_excludes_self(self, tenant, seller):
+        from sales.models import CreditNote
+        from tests.factories import CreditNoteFactory
+        cn = CreditNoteFactory(uniqueId='AV-009-2026')
+        assert CreditNote.generate_unique_id(2026, manual_number=9, exclude_pk=cn.pk) == 'AV-009-2026'
+
+
+@pytest.mark.django_db(transaction=True)
 class TestServiceModel:
     def test_total_price_flat(self, tenant, seller):
         from tests.factories import ServiceFactory
