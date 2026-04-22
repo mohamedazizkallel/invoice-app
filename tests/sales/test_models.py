@@ -520,6 +520,50 @@ class TestDevisModel:
 
 
 @pytest.mark.django_db(transaction=True)
+class TestInvoiceGenerateUniqueId:
+    def test_auto_starts_at_one(self, tenant, seller):
+        from sales.models import Invoice
+        assert Invoice.generate_unique_id(2026) == 'FV-001-2026'
+
+    def test_auto_increments_from_max(self, tenant, seller):
+        from sales.models import Invoice
+        from tests.factories import InvoiceFactory
+        InvoiceFactory(uniqueId='FV-005-2026')
+        InvoiceFactory(uniqueId='FV-003-2026')
+        assert Invoice.generate_unique_id(2026) == 'FV-006-2026'
+
+    def test_auto_is_per_year(self, tenant, seller):
+        from sales.models import Invoice
+        from tests.factories import InvoiceFactory
+        InvoiceFactory(uniqueId='FV-010-2025')
+        assert Invoice.generate_unique_id(2026) == 'FV-001-2026'
+
+    def test_manual_number_formats(self, tenant, seller):
+        from sales.models import Invoice
+        assert Invoice.generate_unique_id(2026, manual_number=42) == 'FV-042-2026'
+
+    def test_manual_number_collision_raises(self, tenant, seller):
+        from sales.models import Invoice
+        from tests.factories import InvoiceFactory
+        InvoiceFactory(uniqueId='FV-007-2026')
+        with pytest.raises(ValueError, match='FV-007-2026'):
+            Invoice.generate_unique_id(2026, manual_number=7)
+
+    def test_manual_number_out_of_range_raises(self, tenant, seller):
+        from sales.models import Invoice
+        with pytest.raises(ValueError):
+            Invoice.generate_unique_id(2026, manual_number=0)
+        with pytest.raises(ValueError):
+            Invoice.generate_unique_id(2026, manual_number=1000)
+
+    def test_manual_number_excludes_self(self, tenant, seller):
+        from sales.models import Invoice
+        from tests.factories import InvoiceFactory
+        inv = InvoiceFactory(uniqueId='FV-009-2026')
+        assert Invoice.generate_unique_id(2026, manual_number=9, exclude_pk=inv.pk) == 'FV-009-2026'
+
+
+@pytest.mark.django_db(transaction=True)
 class TestServiceModel:
     def test_total_price_flat(self, tenant, seller):
         from tests.factories import ServiceFactory

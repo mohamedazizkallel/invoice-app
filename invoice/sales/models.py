@@ -546,9 +546,48 @@ class Invoice(models.Model):
         """Check if invoice has any retention"""
         return self.retenues.exists()
 
+    @classmethod
+    def generate_unique_id(cls, year, manual_number=None, exclude_pk=None):
+        """Return formatted uniqueId like 'FV-005-2026'.
+
+        If manual_number is given, validate range [1, 999] and check that no
+        other Invoice row uses that number for the given year. Excludes the
+        row identified by exclude_pk when provided (for edit flow).
+
+        If manual_number is None, return max(existing numeric suffix for year) + 1,
+        starting at 1 when no rows exist for that year.
+        """
+        year_str = str(year)
+        suffix = f'-{year_str}'
+
+        if manual_number is not None:
+            if not isinstance(manual_number, int) or manual_number < 1 or manual_number > 999:
+                raise ValueError('Numéro invalide (1–999)')
+            formatted = f'FV-{manual_number:03d}-{year_str}'
+            qs = cls.objects.filter(uniqueId=formatted)
+            if exclude_pk is not None:
+                qs = qs.exclude(pk=exclude_pk)
+            if qs.exists():
+                raise ValueError(f'Numéro {formatted} déjà utilisé')
+            return formatted
+
+        existing = cls.objects.filter(
+            uniqueId__startswith='FV-',
+            uniqueId__endswith=suffix,
+        )
+        max_num = 0
+        for inv in existing:
+            try:
+                n = int(inv.uniqueId.split('-')[1])
+            except (ValueError, IndexError):
+                continue
+            if n > max_num:
+                max_num = n
+        return f'FV-{max_num + 1:03d}-{year_str}'
+
     def save(self, *args, **kwargs):
         now = timezone.localtime(timezone.now())
-        
+
         # Auto-populate from Settings if not set
         if self.tva is None or self.timbre_fiscal is None:
             settings = Settings.objects.first()
