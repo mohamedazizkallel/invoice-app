@@ -643,8 +643,8 @@ class CreditNote(models.Model):
     description = models.TextField()
     amount_ht = models.DecimalField(max_digits=15, decimal_places=3)
     tva = models.DecimalField(max_digits=5, decimal_places=2, default=19.00)
-    date_created = models.DateTimeField(auto_now_add=True)
-    last_updated = models.DateTimeField(auto_now=True)
+    date_created = models.DateTimeField(blank=True, null=True)
+    last_updated = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         ordering = ['-date_created']
@@ -659,8 +659,11 @@ class CreditNote(models.Model):
         return self.amount_ht + self.calculate_tva_amount()
 
     def save(self, *args, **kwargs):
+        now = timezone.localtime(timezone.now())
+        if not self.date_created:
+            self.date_created = now
         if not self.uniqueId:
-            year = timezone.now().year
+            year = now.year
             last = CreditNote.objects.filter(
                 uniqueId__startswith='AV-',
                 uniqueId__endswith=f'-{year}'
@@ -675,6 +678,7 @@ class CreditNote(models.Model):
             self.uniqueId = f'AV-{num:03d}-{year}'
         if not self.slug:
             self.slug = slugify(self.uniqueId)
+        self.last_updated = now
         super().save(*args, **kwargs)
 
 
