@@ -21,6 +21,9 @@ from .views import (dashboard, delete_supplier, edit_supplier,
                     devis_list, devis_create, devis_detail, devis_update, devis_delete, devis_convert,
                     invoice_ngsign_submit, invoice_ngsign_check,
                     avoir_ngsign_submit, avoir_ngsign_check,
+                    invoice_elfatoora_submit, invoice_elfatoora_poll,
+                    avoir_elfatoora_submit, avoir_elfatoora_poll,
+                    elfatoora_settings,
                     ngsign_pending_api,
                     mark_all_notifications_read, dismiss_notification, notifications_page,
                     setup_wizard)
@@ -31,6 +34,7 @@ urlpatterns = [
     path('dashboard/', dashboard,name='dashboard'),
     path('logo/', company_logo, name='company_logo'),
     path('settings/', settings_view,name='settings_view'),
+    path('settings/elfatoora/', elfatoora_settings, name='elfatoora_settings'),
     path('clients/', clients,name='clients'),
     path('clients/<int:client_id>/edit/', edit_client,name='edit_client'),
     path('clients/<int:client_id>/transactions/', client_transactions, name='client_transactions'),
@@ -55,6 +59,8 @@ urlpatterns = [
     path('invoices/<int:invoice_id>/delete/', invoice_delete, name='invoice_delete'),
     path('invoices/<int:invoice_id>/ngsign/submit/', invoice_ngsign_submit, name='invoice-ngsign-submit'),
     path('invoices/<int:invoice_id>/ngsign/check/', invoice_ngsign_check, name='invoice-ngsign-check'),
+    path('invoices/<int:invoice_id>/elfatoora/submit/', invoice_elfatoora_submit, name='invoice-elfatoora-submit'),
+    path('invoices/<int:invoice_id>/elfatoora/poll/', invoice_elfatoora_poll, name='invoice-elfatoora-poll'),
 
     # Services
     path('Services/', service_view, name='services_list'),
@@ -90,6 +96,8 @@ urlpatterns = [
     path('avoirs/<int:avoir_id>/modal-data/', avoir_modal_data, name='avoir_modal_data'),
     path('avoirs/<int:avoir_id>/ngsign/submit/', avoir_ngsign_submit, name='avoir-ngsign-submit'),
     path('avoirs/<int:avoir_id>/ngsign/check/', avoir_ngsign_check, name='avoir-ngsign-check'),
+    path('avoirs/<int:avoir_id>/elfatoora/submit/', avoir_elfatoora_submit, name='avoir-elfatoora-submit'),
+    path('avoirs/<int:avoir_id>/elfatoora/poll/', avoir_elfatoora_poll, name='avoir-elfatoora-poll'),
 
     # NGSign API
     path('api/ngsign/pending/', ngsign_pending_api, name='ngsign-pending-api'),

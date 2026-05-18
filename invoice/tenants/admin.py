@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.db import connection
 from django_tenants.utils import get_public_schema_name
 
-from tenants.models import Tenant, Domain, TenantUser, NGSignClientAccount
+from tenants.models import Tenant, Domain, TenantUser, NGSignClientAccount, ElfatooraClientAccount
 
 
 @admin.register(Tenant)
@@ -77,5 +77,60 @@ class NGSignClientAccountAdmin(admin.ModelAdmin):
                     account.status = 'ACTIVE'
                     account.save()
                     self.message_user(request, f"{account.tenant.name}: connectivité OK")
+            except Exception as e:
+                self.message_user(request, f"{account.tenant.name}: erreur — {e}", level='error')
+
+
+@admin.register(ElfatooraClientAccount)
+class ElfatooraClientAccountAdmin(admin.ModelAdmin):
+    list_display = ('tenant', 'username', 'mf', 'status', 'last_verified_at')
+    readonly_fields = ('created_at', 'last_verified_at')
+    actions = ['verify_connectivity']
+    fields = ('tenant', 'username', 'password', 'mf', 'status', 'notes',
+              'created_at', 'last_verified_at')
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if 'password' in form.base_fields:
+            form.base_fields['password'].widget.attrs['placeholder'] = '********'
+            if obj and obj.pk:
+                form.base_fields['password'].required = False
+                form.base_fields['password'].help_text = 'Laisser vide pour conserver le mot de passe existant.'
+        return form
+
+    def save_model(self, request, obj, form, change):
+        connection.set_schema_to_public()
+        if change and not form.cleaned_data.get('password'):
+            obj.password = ElfatooraClientAccount.objects.get(pk=obj.pk).password
+        super().save_model(request, obj, form, change)
+
+    @admin.action(description='Vérifier la connectivité elfatoora')
+    def verify_connectivity(self, request, queryset):
+        from django.utils import timezone
+        from gov.elfatoora import client as efact_client
+        from gov.elfatoora.client import ElfatooraError
+        for account in queryset:
+            try:
+                # consultEfact with a non-existent ref: auth must pass; payload returns business error.
+                efact_client.consult_efact(
+                    account.username, account.password, account.mf,
+                    generated_ref='__CONNECTIVITY_TEST__',
+                )
+                account.status = 'ACTIVE'
+                account.last_verified_at = timezone.now()
+                account.save()
+                self.message_user(request, f"{account.tenant.name}: connectivité OK")
+            except ElfatooraError as e:
+                msg = str(e)
+                if 'Aucune donnée' in msg or 'critéres' in msg:
+                    # Business "not found" reply — auth passed
+                    account.status = 'ACTIVE'
+                    account.last_verified_at = timezone.now()
+                    account.save()
+                    self.message_user(request, f"{account.tenant.name}: connectivité OK")
+                else:
+                    account.status = 'ERROR'
+                    account.save()
+                    self.message_user(request, f"{account.tenant.name}: {msg}", level='error')
             except Exception as e:
                 self.message_user(request, f"{account.tenant.name}: erreur — {e}", level='error')

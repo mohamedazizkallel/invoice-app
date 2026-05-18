@@ -13,7 +13,7 @@ from io import BytesIO
 from django.conf import settings
 from django.utils import timezone
 from django.http import JsonResponse
-from .forms import ClientForm, InvoiceForm, SupplierForm, UserLoginForm, SettingsForm, ServiceForm, ClientTransactionForm, SupplierTransactionForm, SupplyForm, PurchaseForm
+from .forms import ClientForm, InvoiceForm, SupplierForm, UserLoginForm, SettingsForm, ServiceForm, ClientTransactionForm, SupplierTransactionForm, SupplyForm, PurchaseForm, ElfatooraAccountForm
 from .models import Client,Invoice,Settings,Service,InvoiceService,Supplier,ClientTransaction, SupplierTransaction, Supply, Purchase, PurchaseLine, InvoiceSupplyUsage, CreditNote, BonLivraison, BonLivraisonLine, Devis
 from payment.models import Retenu, PurchaseRetenu
 from django.contrib.auth.models import User
@@ -1729,6 +1729,65 @@ def settings_view(request):
     return render(request, 'sales/settings.html', {'form': form, 'settings': settings})
 
 
+@login_required
+def elfatoora_settings(request):
+    """Manage per-tenant elfatoora credentials. Account lives in public schema."""
+    from django.db import connection
+    from tenants.models import Tenant, ElfatooraClientAccount
+
+    current_schema = connection.schema_name
+    connection.set_schema_to_public()
+    try:
+        tenant = Tenant.objects.get(schema_name=current_schema)
+        account = ElfatooraClientAccount.objects.filter(tenant=tenant).first()
+    finally:
+        connection.set_schema(current_schema)
+
+    if request.method == 'POST':
+        form = ElfatooraAccountForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            connection.set_schema_to_public()
+            try:
+                if account:
+                    account.username = data['username']
+                    account.mf = data['mf']
+                    if data['password']:
+                        account.password = data['password']
+                    if account.status == 'ERROR':
+                        account.status = 'PENDING'
+                    account.save()
+                else:
+                    if not data['password']:
+                        form.add_error('password', 'Mot de passe requis pour créer le compte.')
+                        connection.set_schema(current_schema)
+                        return render(request, 'sales/elfatoora_settings.html',
+                                      {'form': form, 'account': None})
+                    account = ElfatooraClientAccount.objects.create(
+                        tenant=tenant,
+                        username=data['username'],
+                        password=data['password'],
+                        mf=data['mf'],
+                        status='PENDING',
+                    )
+            finally:
+                connection.set_schema(current_schema)
+            messages.success(request, 'Paramètres elfatoora mis à jour.')
+            return redirect('elfatoora_settings')
+        else:
+            messages.error(request, 'Veuillez corriger les erreurs ci-dessous.')
+    else:
+        initial = {}
+        if account:
+            initial = {'username': account.username, 'mf': account.mf}
+        form = ElfatooraAccountForm(initial=initial)
+
+    return render(request, 'sales/elfatoora_settings.html', {
+        'form': form,
+        'account': account,
+    })
+
+
 def company_logo(request):
     """Serve the company logo stored as a base64 data URL."""
     import base64 as _b64, re
@@ -2577,6 +2636,134 @@ def avoir_ngsign_check(request, avoir_id):
             'ttn_reference': result.get('ttnReference', ''),
         })
     except (NGSignAPIError, NGSignNotConfiguredError) as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def invoice_elfatoora_submit(request, invoice_id):
+    """Push signed XML of an invoice to TTN via elfatoora SOAP."""
+    from gov.models import GovInvoice
+    from gov.elfatoora.service import submit, ElfatooraNotReadyError, ElfatooraNotConfiguredError
+    from gov.elfatoora.client import ElfatooraError
+
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    gov_invoice = GovInvoice.objects.filter(invoice=invoice).first()
+
+    if not gov_invoice or not gov_invoice.signed_xml:
+        return JsonResponse({
+            'success': False,
+            'error': "Cette facture n'a pas encore été signée."
+        }, status=400)
+
+    if gov_invoice.elfatoora_generated_ref:
+        return JsonResponse({
+            'success': False,
+            'error': "Cette facture a déjà été transmise à TTN.",
+            'generated_ref': gov_invoice.elfatoora_generated_ref,
+        }, status=409)
+
+    try:
+        ref = submit(gov_invoice)
+        return JsonResponse({
+            'success': True,
+            'generated_ref': ref,
+            'elfatoora_status': gov_invoice.elfatoora_status,
+        })
+    except (ElfatooraError, ElfatooraNotReadyError, ElfatooraNotConfiguredError) as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def invoice_elfatoora_poll(request, invoice_id):
+    """Query TTN for acknowledgements of a previously submitted invoice."""
+    from gov.models import GovInvoice
+    from gov.elfatoora.service import poll, ElfatooraNotReadyError, ElfatooraNotConfiguredError
+    from gov.elfatoora.client import ElfatooraError
+
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    gov_invoice = GovInvoice.objects.filter(invoice=invoice).first()
+
+    if not gov_invoice or not gov_invoice.elfatoora_generated_ref:
+        return JsonResponse({
+            'success': False,
+            'error': "Cette facture n'a pas encore été transmise à TTN."
+        }, status=400)
+
+    try:
+        poll(gov_invoice)
+        return JsonResponse({
+            'success': True,
+            'elfatoora_status': gov_invoice.elfatoora_status,
+            'last_error': gov_invoice.elfatoora_last_error,
+        })
+    except (ElfatooraError, ElfatooraNotReadyError, ElfatooraNotConfiguredError) as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def avoir_elfatoora_submit(request, avoir_id):
+    """Push signed XML of a credit note to TTN via elfatoora SOAP."""
+    from gov.models import GovInvoice
+    from gov.elfatoora.service import submit, ElfatooraNotReadyError, ElfatooraNotConfiguredError
+    from gov.elfatoora.client import ElfatooraError
+    from sales.models import CreditNote
+
+    credit_note = get_object_or_404(CreditNote, id=avoir_id)
+    gov_invoice = GovInvoice.objects.filter(credit_note=credit_note).first()
+
+    if not gov_invoice or not gov_invoice.signed_xml:
+        return JsonResponse({
+            'success': False,
+            'error': "Cet avoir n'a pas encore été signé."
+        }, status=400)
+
+    if gov_invoice.elfatoora_generated_ref:
+        return JsonResponse({
+            'success': False,
+            'error': "Cet avoir a déjà été transmis à TTN.",
+            'generated_ref': gov_invoice.elfatoora_generated_ref,
+        }, status=409)
+
+    try:
+        ref = submit(gov_invoice)
+        return JsonResponse({
+            'success': True,
+            'generated_ref': ref,
+            'elfatoora_status': gov_invoice.elfatoora_status,
+        })
+    except (ElfatooraError, ElfatooraNotReadyError, ElfatooraNotConfiguredError) as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def avoir_elfatoora_poll(request, avoir_id):
+    """Query TTN for acknowledgements of a previously submitted credit note."""
+    from gov.models import GovInvoice
+    from gov.elfatoora.service import poll, ElfatooraNotReadyError, ElfatooraNotConfiguredError
+    from gov.elfatoora.client import ElfatooraError
+    from sales.models import CreditNote
+
+    credit_note = get_object_or_404(CreditNote, id=avoir_id)
+    gov_invoice = GovInvoice.objects.filter(credit_note=credit_note).first()
+
+    if not gov_invoice or not gov_invoice.elfatoora_generated_ref:
+        return JsonResponse({
+            'success': False,
+            'error': "Cet avoir n'a pas encore été transmis à TTN."
+        }, status=400)
+
+    try:
+        poll(gov_invoice)
+        return JsonResponse({
+            'success': True,
+            'elfatoora_status': gov_invoice.elfatoora_status,
+            'last_error': gov_invoice.elfatoora_last_error,
+        })
+    except (ElfatooraError, ElfatooraNotReadyError, ElfatooraNotConfiguredError) as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 

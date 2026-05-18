@@ -2,22 +2,17 @@ import pytest
 from lxml import etree
 from decimal import Decimal
 
-TEIF_NS = 'urn:teif'
-
-
+# TEIF elements live in no namespace (matches TTN 1.8.9 XSD).
 def _ns(tag):
-    return f'{{{TEIF_NS}}}{tag}'
+    return tag
 
 
 def _find(root, path):
-    """Find element using TEIF namespace."""
-    ns = {'t': TEIF_NS}
-    return root.find(path, ns)
+    return root.find(path.replace('t:', ''))
 
 
 def _findall(root, path):
-    ns = {'t': TEIF_NS}
-    return root.findall(path, ns)
+    return root.findall(path.replace('t:', ''))
 
 
 @pytest.mark.django_db(transaction=True)
@@ -110,9 +105,8 @@ class TestBuildUnsignedTeif:
         root = etree.fromstring(xml_bytes)
 
         # Find all Moa elements and check by amountTypeCode
-        ns = {'t': TEIF_NS}
-        moas = root.findall('.//t:InvoiceMoa//t:Moa', ns)
-        moa_map = {m.get('amountTypeCode'): m.find('t:Amount', ns).text for m in moas}
+        moas = root.findall('.//InvoiceMoa//Moa')
+        moa_map = {m.get('amountTypeCode'): m.find('Amount').text for m in moas}
 
         assert 'I-172' in moa_map  # Total HT
         assert 'I-176' in moa_map  # Total HT after discount
@@ -204,11 +198,10 @@ class TestBuildUnsignedTeifAvoir:
         xml_bytes = build_unsigned_teif_avoir(cn, seller)
         root = etree.fromstring(xml_bytes)
 
-        ns = {'t': TEIF_NS}
-        moas = root.findall('.//t:InvoiceMoa//t:Moa', ns)
+        moas = root.findall('.//InvoiceMoa//Moa')
         timbre = [m for m in moas if m.get('amountTypeCode') == 'I-179']
         assert len(timbre) == 1
-        assert timbre[0].find('t:Amount', ns).text == '0.000'
+        assert timbre[0].find('Amount').text == '0.000'
 
     def test_raises_valueerror_no_client(self, tenant, seller):
         from unittest.mock import PropertyMock, patch

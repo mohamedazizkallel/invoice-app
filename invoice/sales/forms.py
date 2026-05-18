@@ -226,3 +226,43 @@ class PurchaseForm(forms.ModelForm):
             'discount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
             'timbre_fiscal': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'placeholder': '1.000'}),
         }
+
+class ElfatooraAccountForm(forms.Form):
+    """In-app form for tenants to manage their elfatoora credentials.
+
+    Mapped to ElfatooraClientAccount which lives in the public schema, so the
+    view layer is responsible for the schema switch on save.
+    """
+    username = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Identifiant elfatoora (MAJUSCULES)',
+            'autocapitalize': 'characters',
+        }),
+        help_text='Identifiant fourni par elfatoora, en majuscules.',
+    )
+    password = forms.CharField(
+        max_length=200,
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': '********',
+            'autocomplete': 'new-password',
+        }),
+        help_text='Laisser vide pour conserver le mot de passe existant.',
+    )
+    mf = forms.CharField(
+        max_length=20,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Matricule fiscal',
+        }),
+        help_text='Matricule fiscal du contribuable.',
+    )
+
+    def clean_username(self):
+        return self.cleaned_data['username'].strip().upper()
+
+    def clean_mf(self):
+        return self.cleaned_data['mf'].strip()

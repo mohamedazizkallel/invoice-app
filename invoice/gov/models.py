@@ -40,6 +40,22 @@ class GovInvoice(models.Model):
         ]
     )
 
+    elfatoora_generated_ref = models.CharField(max_length=100, null=True, blank=True)
+    elfatoora_status = models.CharField(
+        max_length=30,
+        null=True,
+        blank=True,
+        choices=[
+            ('SUBMITTED', 'SUBMITTED'),
+            ('ACKNOWLEDGED', 'ACKNOWLEDGED'),
+            ('REJECTED', 'REJECTED'),
+            ('ERROR', 'ERROR'),
+        ],
+    )
+    elfatoora_submitted_at = models.DateTimeField(null=True, blank=True)
+    elfatoora_last_ack_at = models.DateTimeField(null=True, blank=True)
+    elfatoora_last_error = models.TextField(blank=True, default='')
+
     created_at = models.DateTimeField(auto_now_add=True)
     notes = models.TextField(blank=True, default='')
     submitted_at = models.DateTimeField(null=True, blank=True)

@@ -564,6 +564,23 @@
         <i class="bi bi-arrow-repeat me-1"></i> Statut
       </button>
       {% endif %}
+
+      {% if gov_invoice and gov_invoice.elfatoora_status %}
+      <span class="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill {% if gov_invoice.elfatoora_status == 'ACKNOWLEDGED' %}bg-success bg-opacity-10 text-success{% elif gov_invoice.elfatoora_status == 'REJECTED' or gov_invoice.elfatoora_status == 'ERROR' %}bg-danger bg-opacity-10 text-danger{% else %}bg-warning bg-opacity-10 text-warning{% endif %}" id="elfatoora-status-badge" style="font-size: 0.75rem; font-weight: 600;">
+        <i class="bi bi-circle-fill" style="font-size: 0.4rem;"></i> TTN {{ gov_invoice.elfatoora_status }}
+      </span>
+      {% endif %}
+
+      {% if gov_invoice and gov_invoice.signed_xml and not gov_invoice.elfatoora_generated_ref %}
+      <button type="button" class="btn btn-sm btn-outline-success" id="btn-elfatoora-submit" data-invoice-id="{{ invoice.id }}">
+        <i class="bi bi-send me-1"></i> Transmettre TTN
+      </button>
+      {% endif %}
+      {% if gov_invoice and gov_invoice.elfatoora_generated_ref %}
+      <button type="button" class="btn btn-sm btn-outline-info" id="btn-elfatoora-poll" data-invoice-id="{{ invoice.id }}">
+        <i class="bi bi-arrow-repeat me-1"></i> Statut TTN
+      </button>
+      {% endif %}
     </div>
   </div>
 
@@ -1178,6 +1195,65 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(err => {
           showToast('Erreur réseau : ' + err.message, 'error');
           checkBtn.disabled = false;
+        });
+    });
+  }
+
+  // Elfatoora (TTN delivery) — submit signed XML
+  function getCsrf() {
+    const c = document.cookie.split(';').map(s => s.trim()).find(c => c.startsWith('csrftoken='));
+    return c ? c.split('=')[1] : '';
+  }
+
+  const elfatSubmitBtn = document.getElementById('btn-elfatoora-submit');
+  if (elfatSubmitBtn) {
+    elfatSubmitBtn.addEventListener('click', function () {
+      const invoiceId = elfatSubmitBtn.dataset.invoiceId;
+      elfatSubmitBtn.disabled = true;
+      fetch(`/invoices/${invoiceId}/elfatoora/submit/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf() },
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            showToast('Transmis à TTN — Réf: ' + data.generated_ref, 'success');
+            setTimeout(() => window.location.reload(), 600);
+          } else {
+            showToast('Erreur : ' + data.error, 'error');
+            elfatSubmitBtn.disabled = false;
+          }
+        })
+        .catch(err => {
+          showToast('Erreur réseau : ' + err.message, 'error');
+          elfatSubmitBtn.disabled = false;
+        });
+    });
+  }
+
+  const elfatPollBtn = document.getElementById('btn-elfatoora-poll');
+  if (elfatPollBtn) {
+    elfatPollBtn.addEventListener('click', function () {
+      const invoiceId = elfatPollBtn.dataset.invoiceId;
+      elfatPollBtn.disabled = true;
+      fetch(`/invoices/${invoiceId}/elfatoora/poll/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf() },
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            const badge = document.getElementById('elfatoora-status-badge');
+            if (badge) badge.textContent = 'TTN ' + data.elfatoora_status;
+            showToast('Statut TTN : ' + data.elfatoora_status, 'info');
+          } else {
+            showToast('Erreur : ' + data.error, 'error');
+          }
+          elfatPollBtn.disabled = false;
+        })
+        .catch(err => {
+          showToast('Erreur réseau : ' + err.message, 'error');
+          elfatPollBtn.disabled = false;
         });
     });
   }

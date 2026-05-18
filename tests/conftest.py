@@ -93,6 +93,28 @@ def ngsign_account(tenant_setup, db):
     connection.set_schema(current)
 
 
+@pytest.fixture
+def elfatoora_account(tenant_setup, db):
+    """Create an ElfatooraClientAccount in the public schema for the test tenant."""
+    current = connection.schema_name
+    connection.set_schema_to_public()
+    from tenants.models import ElfatooraClientAccount
+    account, _ = ElfatooraClientAccount.objects.update_or_create(
+        tenant=tenant_setup,
+        defaults={
+            'username': 'TESTUSER',
+            'password': 'testpass',
+            'mf': '1234567TEST',
+            'status': 'ACTIVE',
+        },
+    )
+    connection.set_schema(current)
+    yield account
+    connection.set_schema_to_public()
+    account.delete()
+    connection.set_schema(current)
+
+
 @pytest.fixture(autouse=True)
 def clear_cache():
     """Clear Django cache before and after each test."""
