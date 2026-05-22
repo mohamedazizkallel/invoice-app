@@ -1,6 +1,9 @@
+import logging
+
 from django.apps import AppConfig
-from django.core.exceptions import ImproperlyConfigured
-from decouple import config, UndefinedValueError
+from decouple import config
+
+logger = logging.getLogger(__name__)
 
 
 class GovConfig(AppConfig):
@@ -8,10 +11,12 @@ class GovConfig(AppConfig):
     name = 'gov'
 
     def ready(self):
-        try:
-            config('NGSIGNE_API')
-        except UndefinedValueError:
-            raise ImproperlyConfigured(
-                "NGSIGNE_API environment variable is required for NGSign integration. "
-                "Add it to your .env file."
+        # NGSign needs a partner JWT, but a missing var must NOT take down the
+        # whole app at boot (it crashed every management command + gunicorn on
+        # prod). NGSign is configured per-tenant via NGSignClientAccount and the
+        # integration can be paused; warn instead of raising.
+        if not config('NGSIGNE_API', default=''):
+            logger.warning(
+                'NGSIGNE_API is not set — NGSign signing will be unavailable '
+                'until it is configured.'
             )
