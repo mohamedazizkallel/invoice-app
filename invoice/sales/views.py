@@ -2826,25 +2826,12 @@ def ngsign_pending_api(request):
     TO_SIGN = {'CREATED', 'CONFIGURED'}
     ERRORS = {'ERROR', 'TTN_REJECTED', 'TTN_NOTTRANSFERED'}
     STALE_SECONDS = 60
-    ACTIVE_SIGNING = {'CREATED', 'CONFIGURED', 'SIGNED', 'MIXED'}
 
-    # Refresh status from NGSign for documents currently being signed
-    try:
-        from gov.ngsign.service import check_status
-        from gov.ngsign.exceptions import NGSignAPIError, NGSignNotConfiguredError
-        to_refresh = list(
-            GovInvoice.objects
-            .filter(ngsign_status__in=ACTIVE_SIGNING)
-            .exclude(ngsign_invoice_uuid__isnull=True)
-            .exclude(ngsign_invoice_uuid='')
-        )
-        for gi in to_refresh:
-            try:
-                check_status(gi)
-            except (NGSignAPIError, NGSignNotConfiguredError, Exception):
-                pass
-    except Exception:
-        pass
+    # NOTE: This endpoint is polled by every client every 30s (see base.html).
+    # It MUST stay a cheap DB-only read. Refreshing status from NGSign here did
+    # synchronous external HTTP (TIMEOUT=30s) per in-flight invoice, which
+    # starved gunicorn workers and made the whole site slow on prod. Status
+    # refresh now lives in the `refresh_ngsign` management command (cron).
 
     gov_invoices = (
         GovInvoice.objects
