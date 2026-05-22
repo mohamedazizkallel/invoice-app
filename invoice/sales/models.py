@@ -1013,17 +1013,24 @@ class InvoiceService(models.Model):
     units_used = models.PositiveIntegerField(null=True, blank=True)
 
     unit_price = models.DecimalField(max_digits=15, decimal_places=3) # Strongly suggest Decimal here
+    quantity = models.DecimalField(
+        max_digits=15, decimal_places=3, default=Decimal('1'),
+        help_text="Quantity multiplier shown on the invoice line",
+    )
     has_fodec = models.BooleanField(default=False)
 
     def get_line_ht(self):
-        """Calculates Net Price based on the explicit usage field"""
+        """Net price = base unit price (per billing type) × quantity multiplier."""
         if self.service.billing_type == 'hour':
-            return self.unit_price * (self.hours_used or 1)
+            base = self.unit_price * (self.hours_used or 1)
         elif self.service.billing_type == 'day':
-            return self.unit_price * (self.days_used or 1)
+            base = self.unit_price * (self.days_used or 1)
         elif self.service.billing_type == 'unit':
-            return self.unit_price * (self.units_used or 1)
-        return self.unit_price
+            base = self.unit_price * (self.units_used or 1)
+        else:
+            base = self.unit_price
+        qty = self.quantity if self.quantity is not None else Decimal('1')
+        return base * qty
 
     def get_fodec_amount(self):
         if self.has_fodec:

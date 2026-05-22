@@ -663,6 +663,7 @@
               <th>Description</th>
               {% if total_fodec > 0 %}<th>FODEC</th>{% endif %}
               <th class="text-end">Prix unitaire HT</th>
+              <th class="text-end">Quantité</th>
               <th class="text-end">Montant HT</th>
             </tr>
           </thead>
@@ -681,12 +682,13 @@
                 </td>
                 {% endif %}
                 <td class="text-end">{{ item.service.currency|default:"TND" }} {{ item.unit_price|floatformat:3 }}</td>
+                <td class="text-end">{{ item.quantity|floatformat:"-3" }}</td>
                 <td class="text-end fw-bold">{{ item.service.currency|default:"TND" }} {{ item.line_total|floatformat:3 }}</td>
               </tr>
               {% endfor %}
             {% else %}
               <tr>
-                <td colspan="4" style="text-align:center; color:#9ca3af; padding:1.5rem;">Aucun service attribué à cette facture</td>
+                <td colspan="5" style="text-align:center; color:#9ca3af; padding:1.5rem;">Aucun service attribué à cette facture</td>
               </tr>
             {% endif %}
           </tbody>

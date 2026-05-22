@@ -1257,6 +1257,7 @@ def invoice_create(request):
             # Add services (if you have a Service model and InvoiceService model)
             fodec_flags = request.POST.getlist('has_fodec[]')
             unit_prices = request.POST.getlist('unit_price[]')
+            quantities = request.POST.getlist('quantity[]')
             for i, service_id in enumerate(service_ids):
                 if not service_id:
                     continue
@@ -1269,10 +1270,12 @@ def invoice_create(request):
                         price = Decimal(str(unit_prices[i]))
                     else:
                         price = service.price
+                    qty = Decimal(str(quantities[i])) if i < len(quantities) and quantities[i] else Decimal('1')
                     InvoiceService.objects.create(
                         invoice=invoice,
                         service=service,
                         unit_price=price,
+                        quantity=qty,
                         has_fodec=has_fodec
                     )
                 except Service.DoesNotExist:
@@ -1379,6 +1382,7 @@ def invoice_edit(request, invoice_id):
             # Add new services
             fodec_flags = request.POST.getlist('has_fodec[]')
             unit_prices = request.POST.getlist('unit_price[]')
+            quantities = request.POST.getlist('quantity[]')
             for i, service_id in enumerate(service_ids):
                 if not service_id:
                     continue
@@ -1390,10 +1394,12 @@ def invoice_edit(request, invoice_id):
                         price = Decimal(str(unit_prices[i]))
                     else:
                         price = service.price
+                    qty = Decimal(str(quantities[i])) if i < len(quantities) and quantities[i] else Decimal('1')
                     InvoiceService.objects.create(
                         invoice=invoice,
                         service=service,
                         unit_price=price,
+                        quantity=qty,
                         has_fodec=has_fodec
                     )
                 except Service.DoesNotExist:
@@ -1490,6 +1496,7 @@ def invoice_detail(request, invoice_id=None, slug=None):
         services_with_totals.append({
             'service': service,
             'unit_price': invoice_service.unit_price,
+            'quantity': invoice_service.quantity,
             'line_total': invoice_service.get_line_ht(),
             'has_fodec': invoice_service.has_fodec,
             'fodec_amount': invoice_service.get_fodec_amount(),
@@ -1554,6 +1561,7 @@ def invoice_modal_data(request, invoice_id):
         {
             'service_id': inv_svc.service_id,
             'unit_price': str(inv_svc.unit_price),
+            'quantity': str(inv_svc.quantity),
             'has_fodec': inv_svc.has_fodec,
         }
         for inv_svc in invoice.invoice_services.all()

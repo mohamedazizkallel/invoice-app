@@ -20,6 +20,22 @@ class TestInvoiceCalculations:
 
         assert invoice.calculate_discount_amount() == Decimal('100.000')
 
+    def test_quantity_multiplies_line_total(self, tenant, seller):
+        from tests.factories import InvoiceFactory, InvoiceServiceFactory
+        invoice = InvoiceFactory(discount=0, tva=0, timbre_fiscal=0)
+        line = InvoiceServiceFactory(
+            invoice=invoice, unit_price=Decimal('100.000'), quantity=Decimal('3'),
+        )
+        assert line.get_line_ht() == Decimal('300.000')
+        assert invoice.calculate_service_subtotal() == Decimal('300.000')
+
+    def test_quantity_defaults_to_one(self, tenant, seller):
+        from tests.factories import InvoiceFactory, InvoiceServiceFactory
+        invoice = InvoiceFactory(discount=0, tva=0, timbre_fiscal=0)
+        line = InvoiceServiceFactory(invoice=invoice, unit_price=Decimal('100.000'))
+        assert line.quantity == Decimal('1')
+        assert line.get_line_ht() == Decimal('100.000')
+
     def test_calculate_discount_zero(self, tenant, seller):
         from tests.factories import InvoiceFactory, InvoiceServiceFactory
         invoice = InvoiceFactory(discount=0, tva=19)
