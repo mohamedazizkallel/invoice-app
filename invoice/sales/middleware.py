@@ -18,7 +18,11 @@ class SetupRequiredMiddleware:
             exempt = path == '/' or any(
                 path.startswith(p) for p in ('/setup/', '/logout', '/admin/', '/api/')
             )
-            if not exempt and not _settings_complete():
+            # Redirect to the wizard only once per session. After the user has
+            # been prompted (or skipped), the dismissible banner in base.html is
+            # the ongoing reminder — don't force-redirect on every page.
+            if not exempt and not _settings_complete() and not request.session.get('setup_prompted'):
+                request.session['setup_prompted'] = True
                 return redirect('setup_wizard')
         return self.get_response(request)
 

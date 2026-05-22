@@ -43,6 +43,14 @@ class TestSetupRequiredMiddleware:
         assert resp.status_code == 302
         assert resp.url == '/setup/'
 
+    def test_setup_redirect_only_once_per_session(self, tenant, logged_in_client):
+        # First hit while incomplete -> prompted to the wizard.
+        first = logged_in_client.get('/dashboard/')
+        assert first.status_code == 302 and first.url == '/setup/'
+        # Subsequent hits must NOT force-redirect again (banner handles reminders).
+        second = logged_in_client.get('/dashboard/')
+        assert second.status_code == 200
+
     def test_complete_settings_passes_through(self, tenant, seller, logged_in_client):
         resp = logged_in_client.get('/dashboard/')
         assert resp.status_code == 200
