@@ -636,7 +636,7 @@
             </div>
             <div class="info-item">
               <small>Timbre Fiscal</small>
-              <strong>{{ invoice.timbre_fiscal|floatformat:3 }} DT</strong>
+              <strong>{{ invoice.timbre_fiscal|floatformat:3 }} {{ invoiceCurrency|default:"TND" }}</strong>
             </div>
             {% if invoice.discount > 0 %}
             <div class="info-item" style="grid-column: span 2;">
@@ -709,35 +709,35 @@
         <div class="totals-box">
           <div class="total-row">
             <span class="label">Sous-total HT</span>
-            <span class="value">{{ subtotal|floatformat:3 }} DT</span>
+            <span class="value">{{ subtotal|floatformat:3 }} {{ invoiceCurrency|default:"TND" }}</span>
           </div>
           {% if invoice.discount > 0 %}
           <div class="total-row">
             <span class="label">Réduction ({{ invoice.discount }}%)</span>
-            <span class="value" style="color:#dc2626;">-{{ discount_amount|floatformat:3 }} DT</span>
+            <span class="value" style="color:#dc2626;">-{{ discount_amount|floatformat:3 }} {{ invoiceCurrency|default:"TND" }}</span>
           </div>
           <div class="total-row">
             <span class="label">Sous-total après remise</span>
-            <span class="value">{{ subtotal_after_discount|floatformat:3 }} DT</span>
+            <span class="value">{{ subtotal_after_discount|floatformat:3 }} {{ invoiceCurrency|default:"TND" }}</span>
           </div>
           {% endif %}
           {% if total_fodec > 0 %}
           <div class="total-row">
             <span class="label">FODEC (1%)</span>
-            <span class="value">{{ total_fodec|floatformat:3 }} DT</span>
+            <span class="value">{{ total_fodec|floatformat:3 }} {{ invoiceCurrency|default:"TND" }}</span>
           </div>
           {% endif %}
           <div class="total-row">
             <span class="label">TVA ({{ invoice.tva }}%)</span>
-            <span class="value">{{ tva_amount|floatformat:3 }} DT</span>
+            <span class="value">{{ tva_amount|floatformat:3 }} {{ invoiceCurrency|default:"TND" }}</span>
           </div>
           <div class="total-row">
             <span class="label">Timbre Fiscal</span>
-            <span class="value">{{ invoice.timbre_fiscal|floatformat:3 }} DT</span>
+            <span class="value">{{ invoice.timbre_fiscal|floatformat:3 }} {{ invoiceCurrency|default:"TND" }}</span>
           </div>
           <div class="grand-total">
             <span class="label">Total TTC</span>
-            <span class="value">{{ total|floatformat:3 }} DT</span>
+            <span class="value">{{ total|floatformat:3 }} {{ invoiceCurrency|default:"TND" }}</span>
           </div>
         </div>
       </div>
@@ -1095,7 +1095,7 @@ document.addEventListener('DOMContentLoaded', function() {
         {% endif %}
         <p><strong>Numéro :</strong> {{ invoice.title|default:invoice.uniqueId }}</p>
         <p><strong>Client :</strong> {{ invoice.client.clientname|default:"—" }}</p>
-        <p><strong>Montant TTC :</strong> {{ total }} TND</p>
+        <p><strong>Montant TTC :</strong> {{ total }} {{ invoiceCurrency|default:"TND" }}</p>
         <p><strong>Date :</strong> {{ invoice.date_created|date:"d/m/Y" }}</p>
       </div>
       <div class="modal-footer">

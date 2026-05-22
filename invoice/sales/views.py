@@ -1190,15 +1190,15 @@ def invoice_create(request):
             tva_input = request.POST.get('tva', '').strip()
             if tva_input:
                 tva = float(tva_input)
-            elif settings and settings.tva:
+            elif settings and settings.tva is not None:
                 tva = float(settings.tva)
             else:
                 tva = 19.00
-            
+
             timbre_input = request.POST.get('timbre_fiscal', '').strip()
             if timbre_input:
                 timbre_fiscal = float(timbre_input)
-            elif settings and settings.dt:
+            elif settings and settings.dt is not None:
                 timbre_fiscal = float(settings.dt)
             else:
                 timbre_fiscal = 1.000
@@ -1478,11 +1478,9 @@ def invoice_detail(request, invoice_id=None, slug=None):
     total_fodec = invoice.calculate_total_fodec()
     tva_amount = invoice.calculate_tva_amount()
     total = invoice.calculate_total()
-    total_in_words = num2words_tnd_fr(Decimal(total))
     # Prepare services with line totals
     services_with_totals = []
     invoice_currency = 'TND'
-    
 
     for invoice_service in invoice_services:
         service = invoice_service.service
@@ -1496,6 +1494,9 @@ def invoice_detail(request, invoice_id=None, slug=None):
             'has_fodec': invoice_service.has_fodec,
             'fodec_amount': invoice_service.get_fodec_amount(),
         })
+
+    # Amount in words must match the invoice currency (computed above).
+    total_in_words = num2words_tnd_fr(Decimal(total), currency=invoice_currency)
 
     
     # Get all clients and services for edit modal
