@@ -1,0 +1,93 @@
+<?xml version='1.0' encoding='UTF-8'?><!-- Published by JAX-WS RI at http://jax-ws.dev.java.net. RI's version is JAX-WS RI 2.2.1-b01-. --><xs:schema xmlns:tns="http://services.elfatoura.tradenet.com.tn/" xmlns:xs="http://www.w3.org/2001/XMLSchema" version="1.0" targetNamespace="http://services.elfatoura.tradenet.com.tn/">
+
+<xs:element name="FaultBean" nillable="true" type="tns:faultBean" />
+
+<xs:element name="consultEfact" type="tns:consultEfact" />
+
+<xs:element name="consultEfactResponse" type="tns:consultEfactResponse" />
+
+<xs:element name="saveEfact" type="tns:saveEfact" />
+
+<xs:element name="saveEfactResponse" type="tns:saveEfactResponse" />
+
+<xs:complexType name="saveEfact">
+<xs:sequence>
+<xs:element name="arg0" type="xs:string" minOccurs="0" />
+<xs:element name="arg1" type="xs:string" minOccurs="0" />
+<xs:element name="arg2" type="xs:string" minOccurs="0" />
+<xs:element name="arg3" type="xs:base64Binary" nillable="true" minOccurs="0" />
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="saveEfactResponse">
+<xs:sequence>
+<xs:element name="return" type="xs:string" minOccurs="0" />
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="faultBean">
+<xs:sequence>
+<xs:element name="faultCode" type="xs:string" minOccurs="0" />
+<xs:element name="faultMessage" type="xs:string" minOccurs="0" />
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="consultEfact">
+<xs:sequence>
+<xs:element name="arg0" type="xs:string" minOccurs="0" />
+<xs:element name="arg1" type="xs:string" minOccurs="0" />
+<xs:element name="arg2" type="xs:string" minOccurs="0" />
+<xs:element name="arg3" type="tns:efactCriteria" minOccurs="0" />
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="efactCriteria">
+<xs:sequence>
+<xs:element name="amount" type="xs:decimal" minOccurs="0" />
+<xs:element name="amountTax" type="xs:decimal" minOccurs="0" />
+<xs:element name="clientCode" type="xs:string" minOccurs="0" />
+<xs:element name="dateDebutDocument" type="xs:dateTime" minOccurs="0" />
+<xs:element name="dateDebutProcess" type="xs:dateTime" minOccurs="0" />
+<xs:element name="dateDocument" type="xs:dateTime" minOccurs="0" />
+<xs:element name="dateFinDocument" type="xs:dateTime" minOccurs="0" />
+<xs:element name="dateFinProcess" type="xs:dateTime" minOccurs="0" />
+<xs:element name="dateProcess" type="xs:dateTime" minOccurs="0" />
+<xs:element name="documentNumber" type="xs:string" minOccurs="0" />
+<xs:element name="documentType" type="xs:string" minOccurs="0" />
+<xs:element name="generatedRef" type="xs:string" minOccurs="0" />
+<xs:element name="idSaveEfact" type="xs:long" minOccurs="0" />
+<xs:element name="listAcknowlegments" type="tns:acknowlegment" nillable="true" minOccurs="0" maxOccurs="unbounded" />
+<xs:element name="listAttachement" type="tns:attachement" nillable="true" minOccurs="0" maxOccurs="unbounded" />
+<xs:element name="xmlContent" type="xs:base64Binary" minOccurs="0" />
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="acknowlegment">
+<xs:sequence>
+<xs:element name="dateAck" type="xs:dateTime" minOccurs="0" />
+<xs:element name="errors" type="tns:error" nillable="true" minOccurs="0" maxOccurs="unbounded" />
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="error">
+<xs:sequence>
+<xs:element name="errorDescription" type="xs:string" minOccurs="0" />
+<xs:element name="errorId" type="xs:long" />
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="attachement">
+<xs:sequence>
+<xs:element name="dateAttach" type="xs:dateTime" minOccurs="0" />
+<xs:element name="fileoutContent" type="xs:base64Binary" minOccurs="0" />
+<xs:element name="idAttach" type="xs:long" />
+<xs:element name="nameAttach" type="xs:string" minOccurs="0" />
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="consultEfactResponse">
+<xs:sequence>
+<xs:element name="return" type="tns:efactCriteria" minOccurs="0" maxOccurs="unbounded" />
+</xs:sequence>
+</xs:complexType>
+</xs:schema>

@@ -1,234 +1,278 @@
 {% extends 'partials/base.html' %}
 {% load static %}
-{% load crispy_forms_tags %}
+
+{% block title %}Tableau de bord{% endblock %}
 
 {% block css %}
 <style>
-  .page-header {
-    background: white;
-    padding: 1.5rem;
-    border-radius: 0.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  .dash-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    transition: box-shadow .2s;
+    height: 100%;
   }
-  
-  .stats-card {
-    background: white;
-    border-radius: 0.5rem;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-  }
-  
-  .stats-card h3 {
-    font-size: 2rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-  }
-  
-  .stats-card p {
-    color: #6c757d;
-    margin-bottom: 0;
-  }
-  
-  .table-container {
-    background: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    padding: 1.5rem;
-  }
-  
-  .table-container h2 {
+  .dash-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+
+  .dash-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
     font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
+    flex-shrink: 0;
   }
-  
-  .status-badge {
-    padding: 0.35rem 0.75rem;
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
+
+  .dash-value { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
+  .dash-label { font-size: .82rem; color: #6c757d; margin: 0; }
+  .dash-sub { font-size: .78rem; color: #6c757d; }
+
+  .dash-highlight {
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,.15);
   }
-  
-  .status-current {
-    background-color: #d1ecf1;
-    color: #0c5460;
-  }
-  
-  .status-overdue {
-    background-color: #f8d7da;
-    color: #721c24;
-  }
-  
-  .status-paid {
-    background-color: #d4edda;
-    color: #155724;
-  }
-  
-  .invoice-row {
-    cursor: pointer;
-    transition: background-color 0.15s ease-in-out;
-  }
-  
-  .invoice-row:hover {
-    background-color: #f8f9fa;
-  }
+  .dash-highlight .dash-label,
+  .dash-highlight .dash-sub { color: rgba(255,255,255,.8); }
+  .dash-highlight .dash-value { color: #fff; }
+  .dash-highlight .dash-icon { background: rgba(255,255,255,.2) !important; color: #fff !important; }
+
+  .bg-grad-blue    { background: linear-gradient(135deg, #3498db, #2980b9); }
+  .bg-grad-orange  { background: linear-gradient(135deg, #e67e22, #d35400); }
+  .bg-grad-green   { background: linear-gradient(135deg, #27ae60, #229954); }
+  .bg-grad-red     { background: linear-gradient(135deg, #e74c3c, #c0392b); }
 </style>
 {% endblock %}
 
 {% block main %}
-<main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-  <!-- Page Header -->
-  <div class="page-header d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center">
-    <h1 class="h2 mb-0">Dashboard</h1>
-    <div class="btn-toolbar">
-      <div class="btn-group">
-        <button type="button" class="btn btn-outline-secondary">
-          <i class="bi bi-printer me-1"></i> Print
-        </button>
-        <button type="button" class="btn btn-outline-secondary">
-          <i class="bi bi-download me-1"></i> Export
-        </button>
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Tableau de bord</h1>
+    <p>Bienvenue ! Voici un aperçu de votre activité.</p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{% url 'invoices_list' %}" class="btn btn-modern-primary btn-modern">
+      <i class="bi bi-plus-circle me-2"></i>Nouvelle facture
+    </a>
+  </div>
+</div>
+
+<!-- Primary KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card dash-highlight bg-grad-blue">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:rgba(255,255,255,.2);">
+          <i class="bi bi-receipt text-white"></i>
+        </div>
+        <div>
+          <p class="dash-label">Factures</p>
+          <div class="dash-value">{{ total_invoices }}</div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Statistics Cards -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-4">
-      <div class="stats-card">
-        <p class="text-muted mb-1">Total Invoices</p>
-        <h3 class="mb-0">6</h3>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="stats-card">
-        <p class="text-muted mb-1">Total Outstanding</p>
-        <h3 class="mb-0">R4,020.00</h3>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="stats-card">
-        <p class="text-muted mb-1">Total Paid</p>
-        <h3 class="mb-0 text-success">R20,040.00</h3>
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card dash-highlight bg-grad-orange">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:rgba(255,255,255,.2);">
+          <i class="bi bi-clock-history text-white"></i>
+        </div>
+        <div>
+          <p class="dash-label">Montant en attente</p>
+          <div class="dash-value">{{ outstanding_amount|floatformat:3 }}</div>
+          <span class="dash-sub">{{ currency }} &middot; {{ outstanding_count }} facture{{ outstanding_count|pluralize:"s" }}</span>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Invoices Table -->
-  <div class="table-container">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h2 class="mb-0">Recent Invoices</h2>
-      <a href="{% url 'invoices_list' %}" class="btn btn-sm btn-link">View All</a>
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card dash-highlight bg-grad-green">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:rgba(255,255,255,.2);">
+          <i class="bi bi-check-circle text-white"></i>
+        </div>
+        <div>
+          <p class="dash-label">Payé ce mois</p>
+          <div class="dash-value">{{ paid_this_month_amount|floatformat:3 }}</div>
+          <span class="dash-sub">{{ currency }}</span>
+        </div>
+      </div>
     </div>
-    
-    <div class="table-responsive">
-      <table class="table table-hover mb-0">
-        <thead class="table-light">
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card dash-highlight bg-grad-red">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:rgba(255,255,255,.2);">
+          <i class="bi bi-exclamation-triangle text-white"></i>
+        </div>
+        <div>
+          <p class="dash-label">En retard</p>
+          <div class="dash-value">{{ overdue_count }}</div>
+          <span class="dash-sub">facture{{ overdue_count|pluralize:"s" }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Secondary Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:#eef2ff; color:#4f46e5;">
+          <i class="bi bi-file-earmark-text"></i>
+        </div>
+        <div class="flex-grow-1">
+          <p class="dash-label">Devis</p>
+          <div class="dash-value text-dark">{{ devis_total }}</div>
+        </div>
+      </div>
+      <div class="d-flex gap-3 mt-2 pt-2 border-top">
+        <span class="dash-sub"><span class="text-warning fw-semibold">{{ devis_pending }}</span> en attente</span>
+        <span class="dash-sub"><span class="text-success fw-semibold">{{ devis_accepted }}</span> acceptés</span>
+        <span class="dash-sub"><span class="text-danger fw-semibold">{{ devis_rejected }}</span> rejetés</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:#fef2f2; color:#dc2626;">
+          <i class="bi bi-arrow-return-left"></i>
+        </div>
+        <div class="flex-grow-1">
+          <p class="dash-label">Avoirs</p>
+          <div class="dash-value text-dark">{{ avoirs_count }}</div>
+        </div>
+      </div>
+      <div class="mt-2 pt-2 border-top">
+        <span class="dash-sub">Total TTC : <span class="fw-semibold text-dark">{{ avoirs_total_ttc|floatformat:3 }} {{ currency }}</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:#ecfdf5; color:#059669;">
+          <i class="bi bi-truck"></i>
+        </div>
+        <div class="flex-grow-1">
+          <p class="dash-label">Bons de livraison</p>
+          <div class="dash-value text-dark">{{ bl_total }}</div>
+        </div>
+      </div>
+      <div class="d-flex gap-3 mt-2 pt-2 border-top">
+        <span class="dash-sub"><span class="text-success fw-semibold">{{ bl_delivered }}</span> livrés</span>
+        <span class="dash-sub"><span class="text-info fw-semibold">{{ bl_sent }}</span> envoyés</span>
+        <span class="dash-sub"><span class="text-secondary fw-semibold">{{ bl_draft }}</span> brouillons</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="dash-card">
+      <div class="d-flex align-items-start gap-3">
+        <div class="dash-icon" style="background:#f3f4f6; color:#4b5563;">
+          <i class="bi bi-people"></i>
+        </div>
+        <div class="flex-grow-1">
+          <p class="dash-label">Clients</p>
+          <div class="dash-value text-dark">{{ clients_count }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Debtors -->
+{% if debtors %}
+<div class="modern-card mb-4">
+  <div class="d-flex justify-content-between align-items-center" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#debtorsCollapse" aria-expanded="false">
+    <h2 class="mb-0"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Clients avec solde impayé ({{ debtors|length }})</h2>
+    <i class="bi bi-chevron-down"></i>
+  </div>
+  <div class="collapse" id="debtorsCollapse">
+    <div class="table-responsive mt-3">
+      <table class="table modern-table mb-0">
+        <thead>
           <tr>
-            <th scope="col">Invoice #</th>
-            <th scope="col">Client</th>
-            <th scope="col">Description</th>
-            <th scope="col" class="text-end">Amount</th>
-            <th scope="col">Status</th>
-            <th scope="col" class="text-end">Actions</th>
+            <th>Client</th>
+            <th class="text-end">Montant dû</th>
           </tr>
         </thead>
         <tbody>
-          <tr class="invoice-row">
-            <td class="align-middle">1001</td>
-            <td class="align-middle">Sasol Mining</td>
-            <td class="align-middle">Generation of works related to the new project on Medupe</td>
-            <td class="align-middle text-end">R1,000.00</td>
-            <td class="align-middle">
-              <span class="status-badge status-current">Current</span>
-            </td>
-            <td class="align-middle text-end">
-              <button class="btn btn-sm btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-              </button>
-            </td>
+          {% for d in debtors %}
+          <tr>
+            <td>{{ d.client.clientname }}</td>
+            <td class="text-end text-danger fw-bold">{{ d.balance|floatformat:2 }} DA</td>
           </tr>
-          
-          <tr class="invoice-row">
-            <td class="align-middle">1002</td>
-            <td class="align-middle">Eskom</td>
-            <td class="align-middle">This was the realisation of dreaming chronicles on top of mount Sinai</td>
-            <td class="align-middle text-end">R3,020.00</td>
-            <td class="align-middle">
-              <span class="status-badge status-overdue">Overdue</span>
-            </td>
-            <td class="align-middle text-end">
-              <button class="btn btn-sm btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-              </button>
-            </td>
-          </tr>
-          
-          <tr class="invoice-row">
-            <td class="align-middle">1003</td>
-            <td class="align-middle">Tongaat Hullet</td>
-            <td class="align-middle">Building the website that was the rocking nations dream for centuries</td>
-            <td class="align-middle text-end">R10,020.00</td>
-            <td class="align-middle">
-              <span class="status-badge status-paid">Paid</span>
-            </td>
-            <td class="align-middle text-end">
-              <button class="btn btn-sm btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-              </button>
-            </td>
-          </tr>
-          
-          <tr class="invoice-row">
-            <td class="align-middle">1004</td>
-            <td class="align-middle">Sasol Mining</td>
-            <td class="align-middle">Generation of works related to the new project on Medupe</td>
-            <td class="align-middle text-end">R1,000.00</td>
-            <td class="align-middle">
-              <span class="status-badge status-current">Current</span>
-            </td>
-            <td class="align-middle text-end">
-              <button class="btn btn-sm btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-              </button>
-            </td>
-          </tr>
-          
-          <tr class="invoice-row">
-            <td class="align-middle">1005</td>
-            <td class="align-middle">Eskom</td>
-            <td class="align-middle">This was the realisation of dreaming chronicles on top of mount Sinai</td>
-            <td class="align-middle text-end">R3,020.00</td>
-            <td class="align-middle">
-              <span class="status-badge status-overdue">Overdue</span>
-            </td>
-            <td class="align-middle text-end">
-              <button class="btn btn-sm btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-              </button>
-            </td>
-          </tr>
-          
-          <tr class="invoice-row">
-            <td class="align-middle">1006</td>
-            <td class="align-middle">Tongaat Hullet</td>
-            <td class="align-middle">Building the website that was the rocking nations dream for centuries</td>
-            <td class="align-middle text-end">R10,020.00</td>
-            <td class="align-middle">
-              <span class="status-badge status-paid">Paid</span>
-            </td>
-            <td class="align-middle text-end">
-              <button class="btn btn-sm btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-              </button>
-            </td>
-          </tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>
+    <div class="mt-2">
+      <a href="{% url 'clients' %}" class="btn btn-sm btn-link text-decoration-none">
+        Voir tous les clients <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
   </div>
-</main>
+</div>
+{% endif %}
+
+<!-- Recent Invoices -->
+<div class="modern-card">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Factures récentes</h2>
+    <a href="{% url 'invoices_list' %}" class="btn btn-sm btn-link text-decoration-none">
+      Voir tout <i class="bi bi-arrow-right ms-1"></i>
+    </a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table modern-table mb-0">
+      <thead>
+        <tr>
+          <th>Facture n°</th>
+          <th>Client</th>
+          <th>Date</th>
+          <th>Statut</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for invoice in invoices %}
+        <tr>
+          <td><strong>#{{ invoice.uniqueId }}</strong></td>
+          <td>{{ invoice.client.clientname|default:"Aucun client" }}</td>
+          <td>{{ invoice.date_created|date:"d/m/Y"|default:"N/A" }}</td>
+          <td>
+            <span class="badge-modern {% if invoice.status == 'PAID' %}badge-success{% elif invoice.status == 'OVERDUE' %}badge-danger{% else %}badge-info{% endif %}">
+              {{ invoice.status }}
+            </span>
+          </td>
+          <td class="text-end">
+            <a href="{% url 'invoice_detail' invoice.id %}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center py-4 text-muted">
+            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+            Aucune facture pour le moment
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

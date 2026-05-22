@@ -1,0 +1,273 @@
+{% extends 'partials/base.html' %}
+{% load static %}
+{% block title %}Devis{% endblock %}
+
+{% block css %}
+<style>
+  .modal-content { animation: fadeSlide 0.25s ease-out; border: none; border-radius: 16px; }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .modal-body { overflow-y: auto !important; }
+  .modal-dialog-scrollable .modal-body { max-height: 70vh; }
+  #devisServiceRows .devis-service-row {
+    border-left: 3px solid #0d6efd;
+  }
+</style>
+{% endblock %}
+
+{% block main %}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Devis</h1>
+    <p>Gérer vos devis et estimations</p>
+  </div>
+  <div class="page-header-actions">
+    <button type="button" class="btn btn-modern-primary btn-modern"
+            data-bs-toggle="modal" data-bs-target="#createDevisModal">
+      <i class="bi bi-plus-circle me-2"></i>Créer un devis
+    </button>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="modern-card mb-3">
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">Rechercher</label>
+      <input type="text" class="form-control" name="search"
+             placeholder="N° devis, client, titre…" value="{{ search_query }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">Client</label>
+      <select class="form-select" name="client">
+        <option value="">Tous les clients</option>
+        {% for c in clients %}<option value="{{ c.id }}" {% if selected_client == c.id|stringformat:"d" %}selected{% endif %}>{{ c.clientname }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label fw-semibold">Statut</label>
+      <select class="form-select" name="status">
+        <option value="">Tous</option>
+        <option value="PENDING" {% if selected_status == "PENDING" %}selected{% endif %}>En attente</option>
+        <option value="ACCEPTED" {% if selected_status == "ACCEPTED" %}selected{% endif %}>Accepté</option>
+        <option value="REJECTED" {% if selected_status == "REJECTED" %}selected{% endif %}>Rejeté</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-modern-primary btn-modern w-100">
+        <i class="bi bi-funnel me-2"></i>Filtrer
+      </button>
+    </div>
+    {% if search_query or selected_client or selected_status %}
+    <div class="col-md-2">
+      <a href="{% url 'devis_list' %}" class="btn btn-light w-100">Effacer</a>
+    </div>
+    {% endif %}
+  </form>
+</div>
+
+<div class="modern-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Numéro</th>
+          <th>Client</th>
+          <th>Statut</th>
+          <th>Date</th>
+          <th>Facture liée</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in devis_list %}
+        <tr>
+          <td><strong>{{ d.uniqueId }}</strong></td>
+          <td>{{ d.client.clientname|default:"—" }}</td>
+          <td>
+            {% if d.status == 'ACCEPTED' %}<span class="badge bg-success">Accepté</span>
+            {% elif d.status == 'REJECTED' %}<span class="badge bg-danger">Rejeté</span>
+            {% else %}<span class="badge bg-warning text-dark">En attente</span>{% endif %}
+          </td>
+          <td>{{ d.date_created|date:"d/m/Y" }}</td>
+          <td>
+            {% if d.converted_invoice %}
+              <a href="{% url 'invoice_detail' d.converted_invoice.id %}">{{ d.converted_invoice.uniqueId }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-end">
+            <a href="{% url 'devis_detail' d.id %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+            <a href="{% url 'devis_delete' d.id %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-4">Aucun devis trouvé.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if devis_list.has_other_pages %}
+  <nav aria-label="Pagination devis" class="mt-4">
+    <ul class="pagination justify-content-center mb-0">
+      {% if devis_list.has_previous %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ devis_list.previous_page_number }}&search={{ search_query }}&client={{ selected_client }}&status={{ selected_status }}">Précédent</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">Précédent</span></li>
+      {% endif %}
+
+      {% for num in devis_list.paginator.page_range %}
+      {% if devis_list.number == num %}
+      <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+      {% else %}
+      <li class="page-item"><a class="page-link" href="?page={{ num }}&search={{ search_query }}&client={{ selected_client }}&status={{ selected_status }}">{{ num }}</a></li>
+      {% endif %}
+      {% endfor %}
+
+      {% if devis_list.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ devis_list.next_page_number }}&search={{ search_query }}&client={{ selected_client }}&status={{ selected_status }}">Suivant</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">Suivant</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+
+<!-- Create Modal -->
+<div class="modal fade" id="createDevisModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg rounded-4">
+      <form method="POST" action="{% url 'devis_create' %}">
+        {% csrf_token %}
+
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold">
+            <i class="bi bi-file-earmark-text me-2 text-primary"></i> Créer un nouveau devis
+          </h5>
+          <button class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body pt-2">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold mb-1">Client</label>
+              <select name="client" class="form-select form-select-sm" required>
+                <option value="">Sélectionner un client</option>
+                {% for c in clients %}<option value="{{ c.id }}">{{ c.clientname }}</option>{% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold mb-1">Titre</label>
+              <input type="text" name="title" class="form-control form-control-sm">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold mb-1">TVA (%)</label>
+              <input type="number" name="tva" class="form-control form-control-sm" step="0.01" value="{{ settings.tva|default:'19.00' }}">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold mb-1">Timbre Fiscal</label>
+              <input type="number" name="timbre_fiscal" class="form-control form-control-sm" step="0.001" value="{{ settings.dt|default:'1.000' }}">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold mb-1">Réduction (%)</label>
+              <input type="number" name="discount" class="form-control form-control-sm" step="0.01" value="0">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold mb-1">Remarques</label>
+              <textarea name="notes" class="form-control form-control-sm" rows="1"></textarea>
+            </div>
+
+            <div class="col-12">
+              <hr class="my-1">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-semibold mb-0"><i class="bi bi-briefcase me-2"></i>Ajouter des services</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="addDevisServiceBtn">
+                  <i class="bi bi-plus-circle me-1"></i>Ajouter un service
+                </button>
+              </div>
+              <div id="devisServiceRows"></div>
+            </div>
+          </div>
+
+          <template id="devisServiceRowTpl">
+            <div class="devis-service-row card shadow-sm p-2 mb-2">
+              <div class="row g-2 align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold mb-1 small">Service</label>
+                  <select name="service_id[]" class="form-select form-select-sm svc-select" required>
+                    <option value="">— Choisir —</option>
+                    {% for s in services %}
+                    <option value="{{ s.id }}" data-price="{{ s.price }}" data-billing="{{ s.billing_type }}" data-fodec="{{ s.apply_fodec|yesno:'1,0' }}">{{ s.title }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label fw-semibold mb-1 small">Prix unit.</label>
+                  <input type="number" name="unit_price[]" class="form-control form-control-sm" step="0.001" required>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label fw-semibold mb-1 small">Qté/Hrs/Jrs</label>
+                  <input type="number" name="hours_used[]" class="form-control form-control-sm hours-f" min="1">
+                  <input type="number" name="days_used[]"  class="form-control form-control-sm days-f d-none" min="1">
+                  <input type="number" name="units_used[]" class="form-control form-control-sm units-f d-none" min="1">
+                </div>
+                <div class="col-md-2">
+                  <div class="form-check mt-3">
+                    <input type="checkbox" name="has_fodec[]" value="1" class="form-check-input">
+                    <label class="form-check-label small">FODEC</label>
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <button type="button" class="btn btn-sm btn-outline-danger remove-row-btn"><i class="bi bi-x"></i></button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <div class="modal-footer border-0">
+          <button class="btn btn-light px-4" data-bs-dismiss="modal" type="button">Annuler</button>
+          <button class="btn btn-primary px-4" type="submit">
+            <i class="bi bi-check-circle me-1"></i> Créer le devis
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function wireRow(row) {
+  row.querySelector('.remove-row-btn').onclick = () => row.remove();
+  row.querySelector('.svc-select').onchange = function() {
+    const opt = this.options[this.selectedIndex];
+    row.querySelector('[name="unit_price[]"]').value = opt.dataset.price || '';
+    const b = opt.dataset.billing;
+    row.querySelector('.hours-f').classList.toggle('d-none', b !== 'hour');
+    row.querySelector('.days-f').classList.toggle('d-none', b !== 'day');
+    row.querySelector('.units-f').classList.toggle('d-none', b !== 'unit');
+    if (opt.dataset.fodec === '1') row.querySelector('[name="has_fodec[]"]').checked = true;
+  };
+}
+document.getElementById('addDevisServiceBtn').addEventListener('click', function() {
+  const clone = document.getElementById('devisServiceRowTpl').content.cloneNode(true);
+  const row = clone.querySelector('.devis-service-row');
+  document.getElementById('devisServiceRows').appendChild(clone);
+  wireRow(document.getElementById('devisServiceRows').lastElementChild);
+});
+</script>
+{% endblock %}

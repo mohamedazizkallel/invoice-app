@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Bash(python:*)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\httyd\\Desktop\\project\\invoice app service\\docs"
+    ]
+  }
+}

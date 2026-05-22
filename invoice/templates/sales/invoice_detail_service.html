@@ -1,0 +1,1245 @@
+{% extends 'partials/base.html' %}
+{% load static %}
+
+{% block title %}Facture #{{ invoice.uniqueId }}{% endblock %}
+
+{% block css %}
+<style>
+  /* Unstick the navbar on this page so it scrolls away */
+  .modern-header {
+    position: relative !important;
+  }
+
+  /* Make the edit modal body scrollable */
+  .modal-body { overflow-y: auto !important; }
+  .modal-dialog-scrollable .modal-body { max-height: 70vh; }
+
+  .invoice-wrapper {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .invoice-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .invoice-paper {
+    background: white;
+    border-radius: 0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    overflow: hidden;
+    min-height: 1122px; /* A4 ratio: 794 * 297/210 */
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .invoice-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 2px solid #0d6efd;
+    background: #eff6ff;
+  }
+
+  .header-content {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .entity-box {
+    background: white;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+  }
+
+  .entity-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #9ca3af;
+    margin-bottom: 0.5rem;
+  }
+
+  .entity-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.25rem;
+  }
+
+  .entity-details {
+    font-size: 0.7rem;
+    color: #6b7280;
+    line-height: 1.4;
+  }
+
+  .entity-details p { margin: 0.1rem 0; }
+
+  .invoice-center {
+    text-align: center;
+    padding: 0 1rem;
+    border-left: 1px dashed #d1d5db;
+    border-right: 1px dashed #d1d5db;
+  }
+
+  .invoice-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #0d6efd;
+    color: white;
+    padding: 0.3rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.75rem;
+  }
+
+  .invoice-number {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.25rem;
+  }
+
+  .invoice-date {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  .status-paid    { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+  .status-current { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+  .status-overdue { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+  .status-draft   { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+
+  /* Body */
+  .invoice-body { padding: 1.5rem 2rem; }
+
+  .info-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .info-box {
+    padding: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f9fafb;
+  }
+
+  .info-box-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px dashed #d1d5db;
+  }
+
+  .info-box-title i { color: #0d6efd; }
+
+  .info-box h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.35rem;
+  }
+
+  .info-box p {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin: 0.2rem 0;
+    line-height: 1.4;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .info-item {
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+  }
+
+  .info-item small {
+    display: block;
+    font-size: 0.65rem;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 0.15rem;
+  }
+
+  .info-item strong { font-size: 0.85rem; color: #111827; }
+
+  /* Items Table */
+  .items-section { margin-bottom: 1.5rem; }
+
+  .items-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .items-header h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+  }
+
+  .items-header h3 i { color: #0d6efd; }
+
+  .items-count {
+    background: #374151;
+    color: white;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+
+  .items-table thead { background: #374151; }
+
+  .items-table th {
+    padding: 0.75rem;
+    text-align: left;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: white;
+    border: 1px solid #374151;
+  }
+
+  .items-table td {
+    padding: 0.65rem 0.75rem;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    background: white;
+  }
+
+  .items-table tbody tr:nth-child(even) td { background: #f9fafb; }
+  .items-table .text-end { text-align: right; }
+
+  /* Summary */
+  .summary-section {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #d1d5db;
+  }
+
+  .notes-section h4 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .notes-section h4 i { color: #0d6efd; }
+
+  .notes-content {
+    font-size: 0.8rem;
+    color: #6b7280;
+    line-height: 1.5;
+    padding: 0.75rem;
+    background: #f9fafb;
+    border-radius: 6px;
+    border-left: 3px solid #0d6efd;
+  }
+
+  .totals-box {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: white;
+  }
+
+  .total-row:last-of-type { border-bottom: none; }
+  .total-row .label { color: #6b7280; }
+  .total-row .value { font-weight: 600; color: #374151; }
+
+  .grand-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #374151;
+    color: white;
+  }
+
+  .grand-total .label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .grand-total .value { font-size: 1.25rem; font-weight: 700; }
+
+  /* Signatures + Footer wrapper — pushed to bottom */
+  .invoice-bottom {
+    margin-top: auto;
+  }
+
+  /* Signatures */
+  .signatures-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    padding: 1.5rem 2rem 0 2rem;
+  }
+
+  .signature-box { text-align: center; }
+
+  .signature-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5.5rem;
+  }
+
+  .signature-line {
+    border-top: 1px solid #374151;
+    margin: 0 1.5rem;
+    padding-top: 0.5rem;
+    font-size: 0.65rem;
+    color: #9ca3af;
+  }
+
+  /* QR Code placeholder — above emetteur signature */
+  .qr-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100px;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Footer */
+  .invoice-footer {
+    padding: 1rem 2rem;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+    font-size: 0.75rem;
+    color: #6b7280;
+  }
+
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .footer-contact span { margin-right: 1rem; }
+  .footer-contact i { margin-right: 0.25rem; color: #9ca3af; }
+
+  .footer-legal {
+    text-align: center;
+    padding-top: 0.75rem;
+    margin-top: 0.75rem;
+    border-top: 1px dashed #d1d5db;
+    font-size: 0.7rem;
+    color: #9ca3af;
+  }
+
+  /* ============================================
+     PRINT STYLES
+     ============================================ */
+  @media print {
+    @page { size: A4; margin: 8mm; }
+
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body { background: white !important; font-size: 9pt; line-height: 1.3; }
+
+    /* Hide all base-template chrome */
+    header, nav, footer,
+    .modern-header, .modern-sidebar, .app-footer,
+    #sidebarMenu,
+    .invoice-actions, .no-print,
+    .modal, .modal-backdrop,
+    .toast-container {
+      display: none !important;
+    }
+
+    /* Make main content fill the full page */
+    .container-fluid > .row { display: block !important; }
+
+    .col-md-9, .col-lg-10, .main-content {
+      width: 100% !important;
+      max-width: 100% !important;
+      flex: 0 0 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    .invoice-wrapper { max-width: 100%; }
+
+    .invoice-paper { box-shadow: none; border-radius: 0; border: 1px solid #000; min-height: 100vh; display: flex; flex-direction: column; }
+
+    .invoice-header {
+      background: white !important;
+      border-bottom: 2px solid #000;
+      padding: 0.75rem 1rem;
+    }
+
+    .header-content {
+      display: grid !important;
+      grid-template-columns: 1fr auto 1fr !important;
+      gap: 0.75rem !important;
+    }
+
+    .invoice-center {
+      border-left: 1px solid #000 !important;
+      border-right: 1px solid #000 !important;
+      padding: 0 0.5rem !important;
+      min-width: 120px;
+    }
+
+    .entity-box { background: white !important; border: 1px solid #000; padding: 0.5rem 0.6rem; }
+
+    .entity-box img { max-width: 100% !important; max-height: 80px !important; filter: grayscale(100%) contrast(120%); }
+
+    .invoice-type { background: #000 !important; color: white !important; font-size: 0.5rem; padding: 0.15rem 0.4rem; margin-bottom: 0.4rem; }
+    .invoice-number { font-size: 0.8rem; }
+    .invoice-date { font-size: 0.6rem; }
+    .status-badge { background: white !important; border: 1px solid #000 !important; color: #000 !important; font-size: 0.5rem; }
+
+    .invoice-body { padding: 1rem 1.25rem; }
+
+    .info-row { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 1rem; margin-bottom: 1rem; padding-bottom: 1rem; }
+    .info-box { background: white !important; border: 1px solid #000; padding: 0.6rem; }
+    .info-box-title { font-size: 0.55rem; border-bottom: 1px dashed #000; margin-bottom: 0.5rem; }
+    .info-box-title i { color: #000 !important; }
+    .info-box h4 { font-size: 0.8rem; }
+    .info-box p { font-size: 0.65rem; }
+    .info-item { background: #f5f5f5 !important; border: 1px solid #ccc; padding: 0.35rem; }
+    .info-item small { font-size: 0.5rem; }
+    .info-item strong { font-size: 0.7rem; }
+
+    .items-section { margin-bottom: 1rem; }
+    .items-header h3 { font-size: 0.7rem; }
+    .items-header h3 i { color: #000 !important; }
+    .items-count { background: #000 !important; color: white !important; font-size: 0.55rem; padding: 0.15rem 0.4rem; }
+    .items-table { font-size: 0.7rem; }
+    .items-table thead { background: #000 !important; }
+    .items-table th { color: white !important; border: 1px solid #000 !important; padding: 0.5rem; font-size: 0.55rem; }
+    .items-table td { border: 1px solid #000 !important; background: white !important; padding: 0.4rem 0.5rem; }
+    .items-table tbody tr:nth-child(even) td { background: #f5f5f5 !important; }
+
+    .summary-section { display: grid !important; grid-template-columns: 1fr 280px !important; gap: 1rem; padding-top: 0.75rem; border-top: 1px dashed #000; page-break-inside: avoid; }
+    .notes-section h4 { font-size: 0.6rem; }
+    .notes-section h4 i { color: #000 !important; }
+    .notes-content { background: white !important; border-left: 2px solid #000; font-size: 0.6rem; padding: 0.5rem; }
+    .totals-box { border: 1px solid #000; border-radius: 0; }
+    .total-row { border-bottom: 1px solid #000; padding: 0.4rem 0.6rem; font-size: 0.7rem; }
+    .total-row .label, .total-row .value { color: #000; }
+    .grand-total { background: #000 !important; color: white !important; padding: 0.5rem 0.6rem; }
+    .grand-total .label { font-size: 0.6rem; }
+    .grand-total .value { font-size: 1rem; }
+
+    .signatures-section { margin-top: 1.5rem; padding-top: 1rem; }
+    .signature-label { margin-bottom: 3rem; color: #000; }
+    .signature-line { border-top: 1px solid #000; }
+
+    .invoice-footer { background: white !important; border-top: 1px solid #000; padding: 0.6rem 1rem; font-size: 0.6rem; }
+    .footer-contact i { color: #000 !important; }
+    .footer-legal { font-size: 0.55rem; border-top: 1px dashed #000; padding-top: 0.5rem; margin-top: 0.5rem; }
+
+    .invoice-header, .summary-section, .signatures-section, .invoice-footer { page-break-inside: avoid; }
+    .items-table { page-break-inside: auto; }
+    .items-table tr { page-break-inside: avoid; }
+  }
+
+  /* ============================================
+     RESPONSIVE
+     ============================================ */
+  @media screen and (max-width: 768px) {
+    .header-content { grid-template-columns: 1fr; gap: 1rem; }
+    .invoice-center { border-left: none; border-right: none; border-top: 1px dashed #d1d5db; border-bottom: 1px dashed #d1d5db; padding: 1rem 0; }
+    .info-row { grid-template-columns: 1fr; }
+    .summary-section { grid-template-columns: 1fr; }
+    .signatures-section { grid-template-columns: 1fr; gap: 2rem; }
+    .invoice-header { padding: 1rem; }
+    .invoice-body { padding: 1rem; }
+    .invoice-footer { padding: 0.75rem 1rem; }
+  }
+</style>
+{% endblock %}
+
+{% block main %}
+<div class="invoice-wrapper">
+
+  <!-- Action Buttons -->
+  <div class="invoice-actions no-print">
+    <a href="{% url 'invoices_list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-2"></i> Retour aux Factures
+    </a>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editInvoiceModal{{ invoice.id }}">
+        <i class="bi bi-pencil me-1"></i> Modifier
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteInvoiceModal">
+        <i class="bi bi-trash me-1"></i> Supprimer
+      </button>
+      <button onclick="window.print()" class="btn btn-sm btn-primary">
+        <i class="bi bi-printer me-1"></i> Imprimer
+      </button>
+
+      {% if gov_invoice and gov_invoice.ngsign_status %}
+      <span class="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill {% if gov_invoice.ngsign_status == 'SIGNED' or gov_invoice.ngsign_status == 'TTN_SIGNED' %}bg-success bg-opacity-10 text-success{% elif gov_invoice.ngsign_status == 'ERROR' or gov_invoice.ngsign_status == 'TTN_REJECTED' %}bg-danger bg-opacity-10 text-danger{% else %}bg-warning bg-opacity-10 text-warning{% endif %}" id="ngsign-status-badge" style="font-size: 0.75rem; font-weight: 600;">
+        <i class="bi bi-circle-fill" style="font-size: 0.4rem;"></i> {{ gov_invoice.ngsign_status }}
+      </span>
+      {% endif %}
+
+      {# NGSign / TTN integration temporarily disabled — pending NGSign signer authorization + TTN test env XSD. #}
+      <button type="button" class="btn btn-sm btn-outline-primary" disabled title="Bientôt disponible">
+        <i class="bi bi-pen me-1"></i> NGSign
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-success" disabled title="Bientôt disponible">
+        <i class="bi bi-send me-1"></i> Transmettre TTN
+      </button>
+    </div>
+  </div>
+
+  <!-- Invoice Paper -->
+  <div class="invoice-paper">
+
+    <!-- Header -->
+    <div class="invoice-header">
+      <div class="header-content">
+
+        <!-- Left: Logo -->
+        <div class="entity-box" style="display:flex; align-items:center; justify-content:center; min-height:120px; padding:0; overflow:hidden;">
+          {% if p_settings and p_settings.clientLogo %}
+            <img src="{% url 'company_logo' %}?v={{ p_settings.last_updated|date:'U' }}" alt="{{ p_settings.clientname }}" style="width:100%; height:120px; object-fit:cover;">
+          {% else %}
+            <img src="{% static 'assets/img/logo.png' %}" alt="Logo" style="width:100%; height:120px; object-fit:cover;">
+          {% endif %}
+        </div>
+
+        <!-- Center: Invoice Info -->
+        <div class="invoice-center">
+          <div class="invoice-type">
+            <i class="bi bi-briefcase"></i> Facture
+          </div>
+          <div class="invoice-number">N° {{ invoice.uniqueId }}</div>
+          <div class="invoice-date">{{ invoice.date_created|date:"d/m/Y" }}</div>
+        </div>
+
+        <!-- Right: Company -->
+        <div class="entity-box">
+          <div class="entity-label">De: (Émetteur)</div>
+          <div class="entity-name">{{ p_settings.clientname|default:"Votre Société" }}</div>
+          <div class="entity-details">
+            <p>{{ p_settings.adress|default:"Adresse non spécifiée" }}</p>
+            <p>MF: {{ p_settings.mf|default:"-" }}</p>
+            {% if p_settings.phone %}<p>Tél: {{ p_settings.phone }}</p>{% endif %}
+            {% if p_settings.rib %}<p>RIB: {{ p_settings.rib }}</p>{% endif %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Invoice Body -->
+    <div class="invoice-body">
+
+      <!-- Info Row -->
+      <div class="info-row">
+        <div class="info-box">
+          <div class="info-box-title"><i class="bi bi-person"></i> Client</div>
+          <h4>{{ invoice.client.clientname }}</h4>
+          <p>{{ invoice.client.adress|default:"Adresse non spécifiée" }}</p>
+          <p>MF: {{ invoice.client.mf|default:"-" }}</p>
+          {% if invoice.client.emailAddress %}<p><i class="bi bi-envelope"></i> {{ invoice.client.emailAddress }}</p>{% endif %}
+        </div>
+
+        <div class="info-box">
+          <div class="info-box-title"><i class="bi bi-file-text"></i> Détails</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <small>N° Facture</small>
+              <strong>{{ invoice.uniqueId }}</strong>
+            </div>
+            <div class="info-item">
+              <small>Date</small>
+              <strong>{{ invoice.date_created|date:"d/m/Y" }}</strong>
+            </div>
+            <div class="info-item">
+              <small>TVA</small>
+              <strong>{{ invoice.tva }}%</strong>
+            </div>
+            <div class="info-item">
+              <small>Timbre Fiscal</small>
+              <strong>{{ invoice.timbre_fiscal|floatformat:3 }} DT</strong>
+            </div>
+            {% if invoice.discount > 0 %}
+            <div class="info-item" style="grid-column: span 2;">
+              <small>Réduction</small>
+              <strong>{{ invoice.discount }}%</strong>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Items Table -->
+      <div class="items-section">
+        <div class="items-header">
+          <h3><i class="bi bi-briefcase"></i> Services</h3>
+          {% if services_with_totals %}
+          <span class="items-count">{{ services_with_totals|length }} service{{ services_with_totals|length|pluralize:"s" }}</span>
+          {% endif %}
+        </div>
+
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              {% if total_fodec > 0 %}<th>FODEC</th>{% endif %}
+              <th class="text-end">Prix unitaire HT</th>
+              <th class="text-end">Montant HT</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if services_with_totals %}
+              {% for item in services_with_totals %}
+              <tr>
+                <td>{{ item.service.title }}</td>
+                {% if total_fodec > 0 %}
+                <td>
+                  {% if item.has_fodec %}
+                  <span style="font-size:0.7rem; background:#dbeafe; color:#1e40af; padding:0.15rem 0.4rem; border-radius:4px; font-weight:600;">FODEC 1%</span>
+                  {% else %}
+                  <span style="font-size:0.7rem; color:#9ca3af;">—</span>
+                  {% endif %}
+                </td>
+                {% endif %}
+                <td class="text-end">{{ item.service.currency|default:"TND" }} {{ item.unit_price|floatformat:3 }}</td>
+                <td class="text-end fw-bold">{{ item.service.currency|default:"TND" }} {{ item.line_total|floatformat:3 }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="4" style="text-align:center; color:#9ca3af; padding:1.5rem;">Aucun service attribué à cette facture</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Summary Section -->
+      <div class="summary-section">
+        <div class="notes-section">
+          <h4><i class="bi bi-sticky"></i> Arrêté</h4>
+          <div class="notes-content">
+            Arrêté la présente facture à la somme de {{ total_in_words|default:"Arrêtée la présente facture à la somme de —" }}
+          </div>
+          {% if invoice.notes %}
+          <h4 class="mt-3"><i class="bi bi-chat-left-text"></i> Remarques</h4>
+          <div class="notes-content">{{ invoice.notes }}</div>
+          {% endif %}
+        </div>
+
+        <div class="totals-box">
+          <div class="total-row">
+            <span class="label">Sous-total HT</span>
+            <span class="value">{{ subtotal|floatformat:3 }} DT</span>
+          </div>
+          {% if invoice.discount > 0 %}
+          <div class="total-row">
+            <span class="label">Réduction ({{ invoice.discount }}%)</span>
+            <span class="value" style="color:#dc2626;">-{{ discount_amount|floatformat:3 }} DT</span>
+          </div>
+          <div class="total-row">
+            <span class="label">Sous-total après remise</span>
+            <span class="value">{{ subtotal_after_discount|floatformat:3 }} DT</span>
+          </div>
+          {% endif %}
+          {% if total_fodec > 0 %}
+          <div class="total-row">
+            <span class="label">FODEC (1%)</span>
+            <span class="value">{{ total_fodec|floatformat:3 }} DT</span>
+          </div>
+          {% endif %}
+          <div class="total-row">
+            <span class="label">TVA ({{ invoice.tva }}%)</span>
+            <span class="value">{{ tva_amount|floatformat:3 }} DT</span>
+          </div>
+          <div class="total-row">
+            <span class="label">Timbre Fiscal</span>
+            <span class="value">{{ invoice.timbre_fiscal|floatformat:3 }} DT</span>
+          </div>
+          <div class="grand-total">
+            <span class="label">Total TTC</span>
+            <span class="value">{{ total|floatformat:3 }} DT</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Signatures + Footer — pushed to bottom of page -->
+    <div class="invoice-bottom">
+      <div class="signatures-section">
+        <div class="signature-box">
+          <div class="qr-placeholder" id="invoice-qrcode">
+          </div>
+          <div class="signature-label">Signature de l'emetteur</div>
+          <div class="signature-line">Nom et cachet</div>
+        </div>
+        <div class="signature-box">
+          <div class="qr-placeholder" style="visibility: hidden;">
+          </div>
+          <div class="signature-label">Signature du client</div>
+          <div class="signature-line">Nom et cachet</div>
+        </div>
+      </div>
+
+      <div class="invoice-footer">
+        <div class="footer-row">
+          <div>
+            {% if p_settings.rib %}<div><strong>RIB:</strong> {{ p_settings.rib }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="footer-legal">
+          {{ p_settings.clientname|default:"Votre Société" }} | {{ p_settings.adress|default:"Adresse" }} |
+          MF: {{ p_settings.mf|default:"XXXXXXX" }} | Document généré le {% now "d/m/Y" %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade no-print" id="editInvoiceModal{{ invoice.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg rounded-4">
+      <form action="{% url 'invoice_edit' invoice.id %}" method="post" id="editInvoiceForm{{ invoice.id }}">
+        {% csrf_token %}
+        <input type="hidden" name="services_data" id="edit_services_data_{{ invoice.id }}">
+
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold">
+            <i class="bi bi-pencil me-2 text-secondary"></i> Modifier la facture
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body pt-2">
+          {% if form.errors %}
+          <div class="alert alert-danger rounded-3" role="alert">
+            <strong><i class="bi bi-exclamation-triangle me-2"></i> Veuillez corriger les erreurs suivantes :</strong>
+            <ul class="mt-2 mb-0">
+              {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                <li>{{ field }}: {{ error }}</li>
+                {% endfor %}
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Client</label>
+              <select class="form-select ts-select" name="client" required>
+                {% for client in clients %}
+                <option value="{{ client.id }}" {% if invoice.client.id == client.id %}selected{% endif %}>
+                  {{ client.clientname }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Statut</label>
+              <select class="form-select" name="status">
+                <option value="CURRENT" {% if invoice.status == "CURRENT" %}selected{% endif %}>Actuel</option>
+                <option value="OVERDUE" {% if invoice.status == "OVERDUE" %}selected{% endif %}>En retard</option>
+                <option value="PAID"    {% if invoice.status == "PAID"    %}selected{% endif %}>Payée</option>
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">TVA (%)</label>
+              <input type="number" step="0.01" class="form-control" name="tva" value="{{ invoice.tva|default:19.00 }}">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Timbre Fiscal</label>
+              <input type="number" step="0.001" class="form-control" name="timbre_fiscal" value="{{ invoice.timbre_fiscal|default:1.000 }}">
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Réduction (%)</label>
+              <input type="number" step="0.01" class="form-control" name="discount" value="{{ invoice.discount|default:0.00 }}">
+            </div>
+
+            {% if not invoice.is_locked and invoice.status != 'PAID' %}
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Date (optionnel)</label>
+              <input type="date" class="form-control" name="invoice_date" value="{{ invoice.date_created|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-semibold">Numéro (optionnel)</label>
+              <input type="number" min="1" max="999" class="form-control" name="invoice_number" placeholder="Auto si vide">
+            </div>
+            {% endif %}
+
+            <div class="col-12">
+              <label class="form-label fw-semibold">Remarques</label>
+              <textarea class="form-control" name="notes" rows="2">{{ invoice.notes }}</textarea>
+            </div>
+
+            <div class="col-12">
+              <hr class="my-3">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0 fw-semibold">
+                  <i class="bi bi-briefcase me-2"></i> Ajouter / Modifier des services
+                </h6>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="addEditServiceRow_{{ invoice.id }}">
+                  <i class="bi bi-plus-circle me-1"></i> Ajouter un service
+                </button>
+              </div>
+
+              <div id="editServicesContainer_{{ invoice.id }}">
+                {% for inv_service in invoice.invoice_services.all %}
+                <div class="card mb-2 service-row" data-row="{{ forloop.counter0 }}">
+                  <div class="card-body p-3">
+                    <div class="row g-2 align-items-end">
+                      <div class="col-md-5">
+                        <label class="form-label small mb-1">Service</label>
+                        <select name="service_id[]" class="form-select form-select-sm service-select" data-row="{{ forloop.counter0 }}">
+                          {% for p in all_services %}
+                          <option value="{{ p.id }}"
+                                  data-price="{{ p.price }}"
+                                  data-currency="{{ p.currency|default:'TND' }}"
+                                  data-fodec="{{ p.apply_fodec|yesno:'true,false' }}"
+                                  {% if p.id == inv_service.service.id %}selected{% endif %}>
+                            {{ p.title }} - {{ p.currency|default:"TND" }} {{ p.price }}
+                          </option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label small mb-1">FODEC</label>
+                        <input type="hidden" name="has_fodec[]" value="{% if inv_service.has_fodec %}1{% else %}0{% endif %}" class="fodec-hidden">
+                        <button type="button" class="btn btn-sm w-100 fodec-toggle {% if inv_service.has_fodec %}btn-success{% else %}btn-outline-secondary{% endif %}">
+                          FODEC 1%
+                        </button>
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label small mb-1">Total</label>
+                        <input type="number" step="0.001" name="unit_price[]" class="form-control form-control-sm line-total" data-row="{{ forloop.counter0 }}" value="{{ inv_service.unit_price }}">
+                      </div>
+                      <div class="col-md-1">
+                        <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-service">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+
+              <div class="alert alert-info mt-3" role="alert">
+                <small><i class="bi bi-info-circle me-1"></i> Cliquez sur « Ajouter un service » pour ajouter des services à cette facture.</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-check-circle me-1"></i> Enregistrer les modifications
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade no-print" id="deleteInvoiceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg rounded-4">
+      <form action="{% url 'invoice_delete' invoice.id %}" method="post">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold text-danger">
+            <i class="bi bi-trash me-2"></i> Supprimer la Facture
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body pt-2">
+          <div class="alert alert-danger rounded-3">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>Attention !</strong> Cette action est irréversible.
+          </div>
+          <p class="mb-0">Êtes-vous sûr de vouloir supprimer la facture <strong>#{{ invoice.uniqueId }}</strong> ?</p>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger px-4">
+            <i class="bi bi-trash me-1"></i> Supprimer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const invoiceId = '{{ invoice.id }}';
+  const container = document.getElementById(`editServicesContainer_${invoiceId}`);
+  const addButton = document.getElementById(`addEditServiceRow_${invoiceId}`);
+  const form      = document.getElementById(`editInvoiceForm${invoiceId}`);
+
+  let rowCounter = {{ invoice.invoice_services.all|length }};
+
+  const availableServices = [
+    {% for p in all_services %}
+    {
+      id: '{{ p.id }}',
+      title: '{{ p.title|escapejs }}',
+      price: parseFloat('{{ p.price }}'),
+      currency: '{{ p.currency|default:"TND" }}',
+      apply_fodec: {{ p.apply_fodec|yesno:"true,false" }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  function setFodec(card, enabled) {
+    const btn    = card.querySelector('.fodec-toggle');
+    const hidden = card.querySelector('.fodec-hidden');
+    hidden.value = enabled ? '1' : '0';
+    btn.classList.toggle('btn-success', enabled);
+    btn.classList.toggle('btn-outline-secondary', !enabled);
+  }
+
+  function wireRow(card) {
+    const select    = card.querySelector('.service-select');
+    const total     = card.querySelector('.line-total');
+    const fodecBtn  = card.querySelector('.fodec-toggle');
+    const removeBtn = card.querySelector('.remove-service');
+
+    if (select) {
+      select.addEventListener('change', () => {
+        const opt = select.options[select.selectedIndex];
+        if (opt && opt.dataset.price) {
+          total.value = parseFloat(opt.dataset.price).toFixed(3);
+          setFodec(card, opt.dataset.fodec === 'true');
+        }
+      });
+    }
+
+    if (fodecBtn) {
+      fodecBtn.addEventListener('click', () => {
+        const hidden = card.querySelector('.fodec-hidden');
+        setFodec(card, hidden.value !== '1');
+      });
+    }
+
+    if (removeBtn) removeBtn.addEventListener('click', () => card.remove());
+  }
+
+  // Wire existing rows
+  container.querySelectorAll('.service-row').forEach(row => wireRow(row));
+
+  // Add new row
+  addButton.addEventListener('click', function() {
+    const card = document.createElement('div');
+    card.className = 'card mb-2 service-row';
+    card.dataset.row = rowCounter;
+    card.innerHTML = `
+      <div class="card-body p-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-5">
+            <label class="form-label small mb-1">Service</label>
+            <select name="service_id[]" class="form-select form-select-sm service-select" data-row="${rowCounter}">
+              <option value="">Sélectionner un service</option>
+              ${availableServices.map(s => `
+                <option value="${s.id}" data-price="${s.price}" data-currency="${s.currency}" data-fodec="${s.apply_fodec}">
+                  ${s.title} - ${s.currency} ${s.price}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small mb-1">FODEC</label>
+            <input type="hidden" name="has_fodec[]" value="0" class="fodec-hidden">
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100 fodec-toggle">FODEC 1%</button>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">Total</label>
+            <input type="number" step="0.001" name="unit_price[]" class="form-control form-control-sm line-total" data-row="${rowCounter}">
+          </div>
+          <div class="col-md-1">
+            <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-service">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+    wireRow(card);
+    rowCounter++;
+  });
+
+  // Form validation
+  form.addEventListener('submit', function(e) {
+    const rows = container.querySelectorAll('.service-row');
+    if (rows.length === 0) {
+      e.preventDefault();
+      alert('Veuillez ajouter au moins un service à la facture.');
+      return;
+    }
+    let hasValid = false;
+    rows.forEach(row => {
+      const sel = row.querySelector('.service-select');
+      if (sel && sel.value) hasValid = true;
+    });
+    if (!hasValid) {
+      e.preventDefault();
+      alert('Veuillez sélectionner au moins un service.');
+    }
+  });
+});
+</script>
+
+<!-- NGSign Submit Confirmation Modal -->
+<div class="modal fade" id="ngsignSubmitModal" tabindex="-1" aria-labelledby="ngsignSubmitModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ngsignSubmitModalLabel">Soumettre à NGSign</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {% if gov_invoice and gov_invoice.ngsign_status %}
+        <div class="alert alert-warning">
+          Cette facture a déjà été soumise à NGSign (statut : <strong>{{ gov_invoice.ngsign_status }}</strong>).
+          Voulez-vous la soumettre à nouveau ?
+        </div>
+        {% endif %}
+        <p><strong>Numéro :</strong> {{ invoice.title|default:invoice.uniqueId }}</p>
+        <p><strong>Client :</strong> {{ invoice.client.clientname|default:"—" }}</p>
+        <p><strong>Montant TTC :</strong> {{ total }} TND</p>
+        <p><strong>Date :</strong> {{ invoice.date_created|date:"d/m/Y" }}</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btn-ngsign-confirm">
+          {% if gov_invoice and gov_invoice.ngsign_status %}Soumettre quand même{% else %}Soumettre{% endif %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const confirmBtn = document.getElementById('btn-ngsign-confirm');
+  if (!confirmBtn) return;
+
+  confirmBtn.addEventListener('click', function () {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Envoi en cours...';
+
+    const csrfToken = document.cookie.split(';')
+      .map(c => c.trim())
+      .find(c => c.startsWith('csrftoken='));
+    const token = csrfToken ? csrfToken.split('=')[1] : '';
+
+    fetch('{% url "invoice-ngsign-submit" invoice.id %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': token },
+    })
+      .then(r => r.json())
+      .then(data => {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('ngsignSubmitModal'));
+        if (modal) modal.hide();
+        if (data.success) {
+          showToast(data.message, 'success');
+          if (typeof fetchNotifications === 'function') fetchNotifications();
+        } else {
+          showToast('Erreur : ' + data.error, 'error');
+        }
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Soumettre';
+      })
+      .catch(err => {
+        showToast('Erreur réseau : ' + err.message, 'error');
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Soumettre';
+      });
+  });
+
+  // TTN status check
+  const checkBtn = document.getElementById('btn-ngsign-check');
+  if (checkBtn) {
+    checkBtn.addEventListener('click', function () {
+      const invoiceId = checkBtn.dataset.invoiceId;
+      checkBtn.disabled = true;
+
+      const csrfToken = document.cookie.split(';')
+        .map(c => c.trim())
+        .find(c => c.startsWith('csrftoken='));
+      const token = csrfToken ? csrfToken.split('=')[1] : '';
+
+      fetch(`/invoices/${invoiceId}/ngsign/check/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': token },
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            const badge = document.getElementById('ngsign-status-badge');
+            if (badge) badge.textContent = data.ngsign_status;
+            showToast('Statut : ' + data.ngsign_status + (data.ttn_reference ? ' — Réf: ' + data.ttn_reference : ''), 'info');
+            if (typeof fetchNotifications === 'function') fetchNotifications();
+          } else {
+            showToast('Erreur : ' + data.error, 'error');
+          }
+          checkBtn.disabled = false;
+        })
+        .catch(err => {
+          showToast('Erreur réseau : ' + err.message, 'error');
+          checkBtn.disabled = false;
+        });
+    });
+  }
+
+  // Elfatoora (TTN delivery) — submit signed XML
+  function getCsrf() {
+    const c = document.cookie.split(';').map(s => s.trim()).find(c => c.startsWith('csrftoken='));
+    return c ? c.split('=')[1] : '';
+  }
+
+  const elfatSubmitBtn = document.getElementById('btn-elfatoora-submit');
+  if (elfatSubmitBtn) {
+    elfatSubmitBtn.addEventListener('click', function () {
+      const invoiceId = elfatSubmitBtn.dataset.invoiceId;
+      elfatSubmitBtn.disabled = true;
+      fetch(`/invoices/${invoiceId}/elfatoora/submit/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf() },
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            showToast('Transmis à TTN — Réf: ' + data.generated_ref, 'success');
+            setTimeout(() => window.location.reload(), 600);
+          } else {
+            showToast('Erreur : ' + data.error, 'error');
+            elfatSubmitBtn.disabled = false;
+          }
+        })
+        .catch(err => {
+          showToast('Erreur réseau : ' + err.message, 'error');
+          elfatSubmitBtn.disabled = false;
+        });
+    });
+  }
+
+  const elfatPollBtn = document.getElementById('btn-elfatoora-poll');
+  if (elfatPollBtn) {
+    elfatPollBtn.addEventListener('click', function () {
+      const invoiceId = elfatPollBtn.dataset.invoiceId;
+      elfatPollBtn.disabled = true;
+      fetch(`/invoices/${invoiceId}/elfatoora/poll/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf() },
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            const badge = document.getElementById('elfatoora-status-badge');
+            if (badge) badge.textContent = 'TTN ' + data.elfatoora_status;
+            showToast('Statut TTN : ' + data.elfatoora_status, 'info');
+          } else {
+            showToast('Erreur : ' + data.error, 'error');
+          }
+          elfatPollBtn.disabled = false;
+        })
+        .catch(err => {
+          showToast('Erreur réseau : ' + err.message, 'error');
+          elfatPollBtn.disabled = false;
+        });
+    });
+  }
+})();
+</script>
+
+{% endblock %}

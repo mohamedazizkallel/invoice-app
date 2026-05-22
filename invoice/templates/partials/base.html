@@ -1,117 +1,1215 @@
 {% load static %}
-
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Invoicing System">
+    <meta name="description" content="Modern Invoicing System">
     <meta name="author" content="Swift Technology">
-    <title>Invoice Online</title>
+    <title>{% block title %}Facture Swift{% endblock %}</title>
 
+    <link rel="shortcut icon" href="{% static 'assets/img/logo1.png' %}">
     <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
-    <link href="{% static 'assets/css/dashboard.css' %}" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-
+    <link href="{% static 'assets/css/bootstrap-icons.css' %}" rel="stylesheet">
+    <link href="{% static 'assets/css/tom-select.bootstrap5.min.css' %}" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     {% block css %}{% endblock %}
 
     <style>
+      /* Tom Select — ensure dropdown appears above Bootstrap modal backdrop */
+      .ts-dropdown { z-index: 9999 !important; }
+      :root {
+        --primary-gradient: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        --primary-color: #2c3e50;
+        --primary-light: #3498db;
+        --sidebar-bg: #1a1d29;
+        --sidebar-hover: #2d3142;
+        --sidebar-active: #3498db;
+        --text-muted: #a0a0b8;
+      }
+
+      * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+
+      body {
+        background: #f8f9fc;
+        overflow-x: hidden;
+      }
+
+      /* Modern Header */
+      .modern-header {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        backdrop-filter: blur(10px);
+        border: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .modern-header .navbar-brand {
+        font-weight: 700;
+        font-size: 1.4rem;
+        letter-spacing: -0.5px;
+        color: white !important;
+        padding: 0 1.5rem;
+        flex-shrink: 0;
+        gap: 0.5rem;
+      }
+
+      .modern-header .navbar-brand i {
+        font-size: 1.5rem;
+      }
+
+      .navbar-toggler {
+        padding: 0.5rem 1rem;
+        margin-right: 1rem;
+      }
+
+      .modern-header .nav-link {
+        color: rgba(255, 255, 255, 0.9) !important;
+        font-weight: 500;
+        transition: all 0.3s;
+      }
+
+      .modern-header .nav-link:hover {
+        color: white !important;
+        transform: translateY(-1px);
+      }
+
+      .user-profile {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.5rem 1rem;
+        color: white;
+      }
+
+      .user-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+      }
+
+      /* Notification Bell */
+      .notification-wrapper {
+        position: relative;
+      }
+
+      .notification-bell {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 1.25rem;
+        padding: 0.4rem 0.6rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        position: relative;
+      }
+
+      .notification-bell:hover {
+        color: white;
+        transform: translateY(-1px);
+      }
+
+      .notification-badge {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        background: #e74c3c;
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 700;
+        min-width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+        line-height: 1;
+      }
+
+      .notification-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 340px;
+        max-height: 420px;
+        overflow-y: auto;
+        background: #1a1d29;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
+        z-index: 2100;
+        padding: 0;
+      }
+
+      .notification-dropdown.show { display: block; }
+
+      .notification-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .notification-header-title {
+        color: white;
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+
+      .notification-group-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 10px 14px 4px;
+      }
+
+      .notification-group-label.to-sign { color: #f39c12; }
+      .notification-group-label.errors { color: #e74c3c; }
+      .notification-group-label.in-progress { color: #2ecc71; }
+
+      .notification-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 14px;
+        margin: 0 8px 4px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 6px;
+      }
+
+      .notification-item-info {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .notification-item-number {
+        color: white;
+        font-weight: 500;
+        font-size: 0.8rem;
+      }
+
+      .notification-item-client {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.7rem;
+      }
+
+      .notification-item-action {
+        border: none;
+        border-radius: 4px;
+        padding: 4px 10px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .notification-item-action.sign { background: #3498db; color: white; }
+      .notification-item-action.view { background: rgba(255,255,255,0.15); color: white; }
+      .notification-item-action.check { background: rgba(255,255,255,0.15); color: white; }
+
+      .notification-empty {
+        padding: 24px;
+        text-align: center;
+        color: rgba(255, 255, 255, 0.4);
+        font-size: 0.8rem;
+      }
+
+      .notification-spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255,255,255,0.2);
+        border-top-color: #3498db;
+        border-radius: 50%;
+        animation: notif-spin 0.8s linear infinite;
+      }
+
+      @keyframes notif-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .notification-item.read { opacity: 0.6; }
+
+      .notification-item-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .notification-dismiss {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.3);
+        font-size: 0.75rem;
+        cursor: pointer;
+        padding: 2px 4px;
+        line-height: 1;
+        transition: color 0.2s;
+      }
+
+      .notification-dismiss:hover { color: #e74c3c; }
+
+      .notification-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .notification-footer a,
+      .notification-footer button {
+        font-size: 0.7rem;
+        color: #3498db;
+        text-decoration: none;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .notification-footer a:hover,
+      .notification-footer button:hover { text-decoration: underline; }
+
+      /* Modern Sidebar */
+      .modern-sidebar {
+        background: var(--sidebar-bg);
+        min-height: calc(100vh - 70px);
+        padding: 0;
+        box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 70px;
+      }
+
+      .sidebar-wrapper {
+        padding: 0.75rem 0;
+      }
+
+      .sidebar-section {
+        margin-bottom: 0.75rem;
+      }
+
+      .sidebar-heading {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-muted);
+        padding: 0 1.5rem;
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+      }
+
+      .modern-sidebar .nav-link {
+        color: rgba(255, 255, 255, 0.7);
+        padding: 0.6rem 1.5rem;
+        border-left: 3px solid transparent;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 500;
+        margin-bottom: 0;
+      }
+
+      .modern-sidebar .nav-link i {
+        font-size: 1.1rem;
+        width: 20px;
+        text-align: center;
+      }
+
+      .modern-sidebar .nav-link:hover {
+        background: var(--sidebar-hover);
+        color: white;
+        border-left-color: var(--sidebar-active);
+        transform: translateX(2px);
+      }
+
+      .modern-sidebar .nav-link.active {
+        background: rgba(52, 152, 219, 0.15);
+        color: white;
+        border-left-color: var(--sidebar-active);
+      }
+
+      .modern-sidebar .nav {
+        margin-bottom: 0;
+      }
+
+      /* Fix for sidebar dividers */
+      .sidebar-divider {
+        border-color: rgba(255, 255, 255, 0.1);
+        margin: 0;
+        opacity: 1;
+      }
+
+      /* Main Content */
+      .main-content {
+        padding: 2rem;
+        min-height: calc(100vh - 70px);
+      }
+
+      /* Toast Notifications */
       .toast-container {
         z-index: 2000;
       }
+
+      .modern-toast {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(10px);
+        overflow: hidden;
+      }
+
+      .modern-toast .toast-body {
+        padding: 1rem 1.25rem;
+        font-weight: 500;
+      }
+
+      .modern-toast.toast-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      }
+
+      .modern-toast.toast-error {
+        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+      }
+
+      .modern-toast.toast-warning {
+        background: linear-gradient(135deg, #ffc107 0%, #ffaa00 100%);
+        color: #000 !important;
+      }
+
+      .modern-toast.toast-info {
+        background: linear-gradient(135deg, #17a2b8 0%, #00bcd4 100%);
+      }
+
+      /* Search Bar */
+      .search-bar {
+        max-width: 400px;
+        flex: 1;
+        margin: 0 2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .search-bar i {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 1.1rem;
+      }
+
+      .search-bar input {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: 0.6rem 1rem;
+        border-radius: 25px;
+        transition: all 0.3s;
+        width: 100%;
+      }
+
+      .search-bar input::placeholder {
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      .search-bar input:focus {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.4);
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .modern-sidebar {
+          position: fixed;
+          top: 70px;
+          left: -100%;
+          width: 280px;
+          z-index: 1050;
+          transition: left 0.3s ease;
+        }
+
+        .modern-sidebar.show {
+          left: 0;
+        }
+
+        .main-content {
+          padding: 1rem;
+        }
+      }
+
+      /* Animations */
+      @keyframes slideInRight {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      .modern-toast {
+        animation: slideInRight 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      }
+
+      /* Modern Page Header */
+      .page-header {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.04);
+      }
+
+      .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1a1d29;
+        margin-bottom: 0.5rem;
+      }
+
+      .page-header p {
+        color: #6c757d;
+        margin: 0;
+      }
+
+      .page-header-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+      }
+
+      /* Modern Cards */
+      .modern-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(0, 0, 0, 0.04);
+        transition: all 0.3s ease;
+      }
+
+      .modern-card:hover {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+      }
+
+      .modern-card h2, .modern-card h3 {
+        font-weight: 600;
+        color: #1a1d29;
+        margin-bottom: 1rem;
+      }
+
+      /* Stats Cards */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+      }
+
+      .stat-card {
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        color: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        transform: translate(30%, -30%);
+      }
+
+      .stat-card .stat-icon {
+        font-size: 2rem;
+        opacity: 0.3;
+        position: absolute;
+        right: 1.5rem;
+        top: 1.5rem;
+      }
+
+      .stat-card h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: white;
+      }
+
+      .stat-card p {
+        margin: 0;
+        opacity: 0.9;
+        font-weight: 500;
+      }
+
+      /* Modern Buttons */
+      .btn-modern {
+        padding: 0.65rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+      }
+
+      .btn-modern-primary {
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        color: white;
+      }
+
+      .btn-modern-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+        color: white;
+      }
+
+      /* Modern Table */
+      .modern-table {
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .modern-table thead {
+        background: #f8f9fc;
+      }
+
+      .modern-table thead th {
+        font-weight: 600;
+        color: #1a1d29;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        padding: 1rem 1.5rem;
+        border: none;
+      }
+
+      .modern-table tbody tr {
+        border-bottom: 1px solid #f0f0f0;
+        transition: background 0.2s;
+      }
+
+      .modern-table tbody tr:hover {
+        background: #f8f9fc;
+      }
+
+      .modern-table tbody td {
+        padding: 1rem 1.5rem;
+        vertical-align: middle;
+      }
+
+      /* Modern Badges */
+      .badge-modern {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        letter-spacing: 0.3px;
+      }
+
+      .badge-success { background: #d4edda; color: #155724; }
+      .badge-danger { background: #f8d7da; color: #721c24; }
+      .badge-warning { background: #fff3cd; color: #856404; }
+      .badge-info { background: #d1ecf1; color: #0c5460; }
+      .badge-secondary { background: #e2e3e5; color: #383d41; }
+
+      /* Fixed Footer */
+      .app-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 42px;
+        background: white;
+        border-top: 1px solid #e9ecef;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 1.5rem;
+        z-index: 1000;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.04);
+      }
+
+      /* Offset footer past the sidebar on md+ screens */
+      @media (min-width: 768px) {
+        .app-footer { left: 25%; }           /* col-md-3 */
+      }
+      @media (min-width: 992px) {
+        .app-footer { left: 16.6667%; }      /* col-lg-2 */
+      }
+
+      /* Push page content above the footer */
+      .main-content {
+        padding-bottom: 58px;
+      }
+
+      /* Empty State */
+      .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+      }
+
+      .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+      }
+
+      .empty-state h3 {
+        color: #6c757d;
+        font-weight: 400;
+        margin-bottom: 1rem;
+      }
+
+      .empty-state p {
+        color: #adb5bd;
+      }
     </style>
+    <script src="{% static 'assets/js/bootstrap.bundle.min.js' %}"></script>
   </head>
-  <body>
 
-<header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
-  <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="#"> Invoice App</a>
-  <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
-    <span class="navbar-toggler-icon"></span>
-  </button>
-  <input class="form-control form-control-dark w-100" type="text" placeholder="Search">
-  <div class="navbar-nav">
-    <div class="nav-item text-nowrap">
-      <a class="nav-link px-3" href="{% url 'logout' %}">Log Out</a>
-    </div>
-  </div>
-</header>
+<body>
+  <!-- Modern Header -->
+  <header class="navbar modern-header sticky-top p-0">
+    <a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
+      <i class="bi bi-receipt-cutoff"></i>
+      <span>Swift Invoice</span>
+    </a>
 
-<div class="container-fluid">
-  <div class="row">
-    <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
-      <div class="position-sticky pt-3">
-        <ul class="nav flex-column">
-          <li class="nav-item"><a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'invoices_list' %}">Invoices</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'products_list' %}">Products / Services</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'clients' %}">Clients</a></li>
-          <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted"> 
-            <span>Settings</span> 
-            <a class="link-secondary" href="#" aria-label="Add a new report"> 
-              <span data-feather="plus-circle"></span> 
-            </a> 
-          </h6> 
-          <ul class="nav flex-column mb-2"> 
-            <li class="nav-item"> <a class="nav-link" href="{% url 'settings_view' %}"> 
-              <span data-feather="file-text"></span> Company </a> 
-            </li> 
-            <li class="nav-item"> <a class="nav-link" href="#"> 
-              <span data-feather="file-text"></span> SMTP </a> 
-            </li> 
-          </ul>
-        </ul>
-      </div>
-    </nav>
-
-    <!-- TOAST NOTIFICATIONS -->
-    {% if messages %}
-    <div aria-live="polite" aria-atomic="true" class="position-relative">
-      <div class="toast-container position-fixed top-0 end-0 p-3">
-        {% for message in messages %}
-          <div class="toast align-items-center border-0 mb-2
-            {% if message.tags == 'success' %} bg-success text-white
-            {% elif message.tags == 'error' %} bg-danger text-white
-            {% elif message.tags == 'warning' %} bg-warning text-dark
-            {% else %} bg-info text-white
-            {% endif %}"
-            role="alert" data-bs-delay="3000">
-            
-            <div class="d-flex">
-              <div class="toast-body">
-                {% if message.tags == 'success' %}<i class="bi bi-check-circle-fill me-2"></i>
-                {% elif message.tags == 'error' %}<i class="bi bi-x-circle-fill me-2"></i>
-                {% elif message.tags == 'warning' %}<i class="bi bi-exclamation-triangle-fill me-2"></i>
-                {% else %}<i class="bi bi-info-circle-fill me-2"></i>{% endif %}
-                {{ message }}
-              </div>
-              <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    <div class="d-flex align-items-center gap-2">
+      <button class="navbar-toggler d-md-none text-white border-0 p-2" type="button" onclick="toggleSidebar()">
+        <i class="bi bi-list fs-4"></i>
+      </button>
+      {% if user.is_authenticated %}
+      <div class="notification-wrapper">
+        <button class="notification-bell" id="notificationBell" type="button" aria-label="Notifications">
+          <i class="bi bi-bell"></i>
+          <span class="notification-badge" id="notificationBadge" style="display: none;"></span>
+        </button>
+        <div class="notification-dropdown" id="notificationDropdown">
+          <div class="notification-header">
+            <span class="notification-header-title">Documents NGSign</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div id="notificationBadges"></div>
+              <button type="button" id="markAllReadBtn" style="display:none;font-size:0.65rem;color:#3498db;background:none;border:none;cursor:pointer;" onclick="markAllRead()">Tout lire</button>
             </div>
           </div>
-        {% endfor %}
+          <div id="notificationContent">
+            <div class="notification-empty">Chargement...</div>
+          </div>
+          <div class="notification-footer">
+            <a href="/notifications/">Voir tout</a>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      <div class="user-profile d-none d-md-flex">
+        <div class="user-avatar">
+          <i class="bi bi-person-fill"></i>
+        </div>
+        <span class="d-none d-lg-block">{{ user.username|default:"Admin" }}</span>
+      </div>
+      <a class="nav-link px-3 d-flex align-items-center gap-2" href="{% url 'logout' %}">
+        <i class="bi bi-box-arrow-right"></i>
+        <span class="d-none d-lg-inline">Déconnexion</span>
+      </a>
+    </div>
+  </header>
+  {% if user.is_authenticated and not settings_complete %}
+  <div style="background:#f59e0b;padding:9px 16px;display:flex;align-items:center;gap:10px;">
+    <i class="bi bi-exclamation-triangle-fill" style="color:#0f172a;font-size:0.9rem;"></i>
+    <span style="font-size:0.85rem;color:#0f172a;font-weight:500;">Votre entreprise n'est pas encore configurée.</span>
+    <a href="{% url 'setup_wizard' %}" style="font-size:0.85rem;color:#0f172a;font-weight:700;text-decoration:underline;">Compléter la configuration →</a>
+  </div>
+  {% endif %}
+
+  <div class="container-fluid p-0">
+    <div class="row g-0">
+      <nav id="sidebarMenu" class="col-md-3 col-lg-2 modern-sidebar">
+        <div class="sidebar-wrapper d-flex flex-column h-100">
+
+          <!-- Dashboard -->
+          <div class="sidebar-section">
+            <ul class="nav flex-column">
+              <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                  <i class="bi bi-speedometer2"></i>
+                  <span>Tableau de bord</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Ventes -->
+          <div class="sidebar-section">
+            <div class="sidebar-heading">Facturation</div>
+            <ul class="nav flex-column">
+              <li class="nav-item">
+                <a class="nav-link {% if 'invoice' in request.path %}active{% endif %}" href="{% url 'invoices_list' %}">
+                  <i class="bi bi-receipt"></i>
+                  <span>Ventes</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if 'avoirs' in request.path %}active{% endif %}" href="{% url 'avoirs_list' %}">
+                  <i class="bi bi-arrow-return-left"></i>
+                  <span>Avoirs</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if 'devis' in request.path %}active{% endif %}" href="{% url 'devis_list' %}">
+                  <i class="bi bi-file-earmark-text me-2"></i>
+                  <span>Devis</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if 'bons-livraison' in request.path %}active{% endif %}" href="{% url 'bons_livraison_list' %}">
+                  <i class="bi bi-box-seam"></i>
+                  <span>Bons de Livraison</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if 'clients' in request.path %}active{% endif %}" href="{% url 'clients' %}">
+                  <i class="bi bi-people"></i>
+                  <span>Clients</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Catalogue -->
+          <div class="sidebar-section">
+            <div class="sidebar-heading">Catalogue</div>
+            <ul class="nav flex-column">
+              <li class="nav-item">
+                <a class="nav-link {% if 'service' in request.path %}active{% endif %}" href="{% url 'services_list' %}">
+                  <i class="bi bi-briefcase"></i>
+                  <span>Services</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if 'supplies' in request.path %}active{% endif %}" href="{% url 'supplies_list' %}">
+                  <i class="bi bi-box-seam"></i>
+                  <span>Produits</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Achats -->
+          <div class="sidebar-section">
+            <div class="sidebar-heading">Achats</div>
+            <ul class="nav flex-column">
+              <li class="nav-item">
+                <a class="nav-link {% if 'supplier' in request.path %}active{% endif %}" href="{% url 'suppliers' %}">
+                  <i class="bi bi-truck"></i>
+                  <span>Fournisseurs</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if 'purchase' in request.path %}active{% endif %}" href="{% url 'purchases_list' %}">
+                  <i class="bi bi-cart"></i>
+                  <span>Commandes</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Paramètres -->
+          <div class="sidebar-section">
+            <div class="sidebar-heading">Paramètres</div>
+            <ul class="nav flex-column">
+              <li class="nav-item">
+                <a class="nav-link {% if 'settings' in request.path %}active{% endif %}" href="{% url 'settings_view' %}">
+                  <i class="bi bi-gear"></i>
+                  <span>Entreprise</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+
+        </div>
+      </nav>
+      
+      <!-- Main Content Area -->
+      <div class="col-md-9 col-lg-10 main-content">
+        {% block main %}{% endblock %}
       </div>
     </div>
-    {% endif %}
-    <!-- END TOAST -->
+  </div>
 
-    {% block main %}{% endblock %}
+  <!-- Fixed footer -->
+  <footer class="app-footer">
+    <span class="text-muted small">Made with ❤️ <strong>Swift Technology</strong></span>
+    <span class="d-flex gap-3 text-muted small">
+      <a href="tel:+21625056604" class="text-muted text-decoration-none">
+        <i class="bi bi-telephone me-1"></i>+216 25 056 604
+      </a>
+      <a href="mailto:ak@swifttechcorp.com" class="text-muted text-decoration-none">
+        <i class="bi bi-envelope me-1"></i>ak@swifttechcorp.com
+      </a>
+    </span>
+  </footer>
+
+
+  <!-- Toast Notifications -->
+  {% if messages %}
+  <div aria-live="polite" aria-atomic="true">
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+      {% for message in messages %}
+        <div class="toast modern-toast align-items-center border-0 mb-2 text-white
+          {% if message.tags == 'success' %} toast-success
+          {% elif message.tags == 'error' %} toast-error
+          {% elif message.tags == 'warning' %} toast-warning
+          {% else %} toast-info
+          {% endif %}"
+          role="alert" data-bs-delay="4000">
+          <div class="d-flex">
+            <div class="toast-body">
+              {% if message.tags == 'success' %}<i class="bi bi-check-circle-fill me-2"></i>
+              {% elif message.tags == 'error' %}<i class="bi bi-x-circle-fill me-2"></i>
+              {% elif message.tags == 'warning' %}<i class="bi bi-exclamation-triangle-fill me-2"></i>
+              {% else %}<i class="bi bi-info-circle-fill me-2"></i>{% endif %}
+              {{ message }}
+            </div>
+            <button type="button" class="btn-close {% if message.tags != 'warning' %}btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast"></button>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+
+  <script>
+    // Auto-show toasts
+    document.addEventListener("DOMContentLoaded", function() {
+      document.querySelectorAll('.toast').forEach(toastEl => {
+        new bootstrap.Toast(toastEl).show();
+      });
+    });
+
+    // Sidebar toggle for mobile
+    function toggleSidebar() {
+      document.getElementById('sidebarMenu').classList.toggle('show');
+    }
+
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', function(e) {
+      const sidebar = document.getElementById('sidebarMenu');
+      const toggler = document.querySelector('.navbar-toggler');
+
+      if (window.innerWidth < 768 && sidebar.classList.contains('show')) {
+        if (!sidebar.contains(e.target) && !toggler.contains(e.target)) {
+          sidebar.classList.remove('show');
+        }
+      }
+    });
+  </script>
+
+  {% if user.is_authenticated %}
+  <script>
+(function() {
+  const bell = document.getElementById('notificationBell');
+  const dropdown = document.getElementById('notificationDropdown');
+  const badge = document.getElementById('notificationBadge');
+  const content = document.getElementById('notificationContent');
+  const badges = document.getElementById('notificationBadges');
+  const markAllBtn = document.getElementById('markAllReadBtn');
+  if (!bell) return;
+
+  let pollInterval = null;
+
+  // CSRF helper
+  function getCSRFToken() {
+    const c = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='));
+    return c ? c.split('=')[1] : '';
+  }
+
+  // Toast helper
+  window.showToast = function(message, type) {
+    type = type || 'info';
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+      const wrapper = document.createElement('div');
+      wrapper.setAttribute('aria-live', 'polite');
+      wrapper.setAttribute('aria-atomic', 'true');
+      container = document.createElement('div');
+      container.className = 'toast-container position-fixed top-0 end-0 p-3';
+      wrapper.appendChild(container);
+      document.body.appendChild(wrapper);
+    }
+    const iconMap = {
+      success: 'bi-check-circle-fill',
+      error: 'bi-x-circle-fill',
+      warning: 'bi-exclamation-triangle-fill',
+      info: 'bi-info-circle-fill',
+    };
+    const toastEl = document.createElement('div');
+    toastEl.className = 'toast modern-toast align-items-center border-0 mb-2 text-white toast-' + type;
+    toastEl.setAttribute('role', 'alert');
+    toastEl.setAttribute('data-bs-delay', '4000');
+    toastEl.innerHTML =
+      '<div class="d-flex">' +
+        '<div class="toast-body"><i class="bi ' + (iconMap[type] || iconMap.info) + ' me-2"></i>' + message + '</div>' +
+        '<button type="button" class="btn-close ' + (type !== 'warning' ? 'btn-close-white' : '') + ' me-2 m-auto" data-bs-dismiss="toast"></button>' +
+      '</div>';
+    container.appendChild(toastEl);
+    new bootstrap.Toast(toastEl).show();
+    toastEl.addEventListener('hidden.bs.toast', function() { toastEl.remove(); });
+  };
+
+  // Toggle dropdown
+  bell.addEventListener('click', function(e) {
+    e.stopPropagation();
+    dropdown.classList.toggle('show');
+  });
+
+  // Close on outside click
+  document.addEventListener('click', function(e) {
+    if (!dropdown.contains(e.target) && !bell.contains(e.target)) {
+      dropdown.classList.remove('show');
+    }
+  });
+
+  function renderNotifications(data) {
+    // Update badge with unread count
+    if (data.unread_count > 0) {
+      badge.textContent = data.unread_count;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+
+    // Show/hide mark all read button
+    markAllBtn.style.display = data.unread_count > 0 ? 'inline' : 'none';
+
+    // Header badges
+    let badgeHtml = '';
+    if (data.to_sign.length) badgeHtml += '<span style="background:#f39c12;color:#000;border-radius:10px;padding:2px 7px;font-size:0.65rem;margin-left:4px;">' + data.to_sign.length + '</span>';
+    if (data.errors.length) badgeHtml += '<span style="background:#e74c3c;color:#fff;border-radius:10px;padding:2px 7px;font-size:0.65rem;margin-left:4px;">' + data.errors.length + '</span>';
+    if (data.in_progress.length) badgeHtml += '<span style="background:#2ecc71;color:#000;border-radius:10px;padding:2px 7px;font-size:0.65rem;margin-left:4px;">' + data.in_progress.length + '</span>';
+    badges.innerHTML = badgeHtml;
+
+    if (data.total === 0) {
+      content.innerHTML = '<div class="notification-empty">Aucun document en cours.</div>';
+      stopPolling();
+      return;
+    }
+
+    let html = '';
+
+    if (data.to_sign.length) {
+      html += '<div class="notification-group-label to-sign">A signer (' + data.to_sign.length + ')</div>';
+      data.to_sign.forEach(function(item) {
+        html += renderItem(item, 'sign');
+      });
+    }
+
+    if (data.errors.length) {
+      html += '<div class="notification-group-label errors">Erreurs (' + data.errors.length + ')</div>';
+      data.errors.forEach(function(item) {
+        html += renderItem(item, 'error');
+      });
+    }
+
+    if (data.in_progress.length) {
+      html += '<div class="notification-group-label in-progress">En cours (' + data.in_progress.length + ')</div>';
+      data.in_progress.forEach(function(item) {
+        if (item.status === 'SUBMITTING') {
+          html += renderItem(item, 'spinner');
+        } else {
+          html += renderItem(item, 'check');
+        }
+      });
+    }
+
+    content.innerHTML = html;
+    startPolling();
+  }
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function renderItem(item, actionType) {
+    let actionHtml = '';
+    if (actionType === 'sign' && item.pds_url) {
+      actionHtml = '<button class="notification-item-action sign" onclick="window.open(\'' + item.pds_url + '\', \'_blank\')">Signer</button>';
+    } else if (actionType === 'error') {
+      actionHtml = '<button class="notification-item-action view" onclick="showErrorModal(' + JSON.stringify(item.doc_type) + ', ' + JSON.stringify(item.doc_number) + ', ' + JSON.stringify(item.client_name) + ', ' + JSON.stringify(item.notes) + ')">Détails</button>';
+    } else if (actionType === 'check') {
+      actionHtml = '<button class="notification-item-action check" onclick="ngsignCheck(\'' + item.detail_url + '\')">Check</button>';
+    } else if (actionType === 'spinner') {
+      actionHtml = '<span class="notification-spinner"></span>';
+    }
+
+    var readClass = item.is_read ? ' read' : '';
+
+    return '<div class="notification-item' + readClass + '" data-gov-id="' + item.id + '">' +
+      '<div class="notification-item-info">' +
+        '<span class="notification-item-number">' + escapeHtml(item.doc_number) + '</span>' +
+        '<span class="notification-item-client">' + escapeHtml(item.client_name) + '</span>' +
+      '</div>' +
+      '<div class="notification-item-actions">' +
+        actionHtml +
+        '<button class="notification-dismiss" onclick="dismissNotification(' + item.id + ', this)" title="Masquer">&times;</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  // Dismiss a single notification
+  window.dismissNotification = function(govInvoiceId, btnEl) {
+    var itemEl = btnEl.closest('.notification-item');
+    if (itemEl) itemEl.style.opacity = '0.3';
+
+    fetch('/api/ngsign/notifications/' + govInvoiceId + '/dismiss/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCSRFToken() },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function() { fetchNotifications(); })
+    .catch(function() {
+      if (itemEl) itemEl.style.opacity = '';
+    });
+  };
+
+  // Mark all as read
+  window.markAllRead = function() {
+    fetch('/api/ngsign/notifications/read/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCSRFToken() },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      badge.style.display = 'none';
+      markAllBtn.style.display = 'none';
+      fetchNotifications();
+    })
+    .catch(function() {});
+  };
+
+  // Show error detail modal
+  window.showErrorModal = function(docType, docNumber, clientName, notes) {
+    document.getElementById('notifErrorModalTitle').textContent = docType + ' ' + docNumber + ' \u2014 ' + clientName;
+    document.getElementById('notifErrorModalBody').textContent = notes || 'Aucun détail disponible.';
+    new bootstrap.Modal(document.getElementById('notifErrorModal')).show();
+  };
+
+  window.fetchNotifications = function() {
+    fetch('/api/ngsign/pending/')
+      .then(function(r) { return r.json(); })
+      .then(function(data) { renderNotifications(data); })
+      .catch(function() {});
+  };
+
+  function startPolling() {
+    if (pollInterval) return;
+    pollInterval = setInterval(function() {
+      if (document.hidden) return;
+      fetchNotifications();
+    }, 30000);
+  }
+
+  function stopPolling() {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+  }
+
+  // Pause/resume on tab visibility
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden && badge.style.display !== 'none') {
+      fetchNotifications();
+    }
+  });
+
+  // Check button action from dropdown
+  window.ngsignCheck = function(detailUrl) {
+    window.location.href = detailUrl;
+  };
+
+  // Initial fetch
+  document.addEventListener('DOMContentLoaded', function() {
+    fetchNotifications();
+  });
+})();
+</script>
+<!-- Error Detail Modal -->
+<div class="modal fade" id="notifErrorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:#1a1d29;border:1px solid rgba(255,255,255,0.1);color:white;">
+      <div class="modal-header border-bottom" style="border-color:rgba(255,255,255,0.1) !important;">
+        <h6 class="modal-title" id="notifErrorModalTitle">Détails de l'erreur</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="notifErrorModalBody" style="white-space:pre-wrap;font-size:0.85rem;color:rgba(255,255,255,0.8);"></p>
+      </div>
+      <div class="modal-footer border-top" style="border-color:rgba(255,255,255,0.1) !important;">
+        <button type="button" class="btn btn-sm btn-outline-light" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
   </div>
 </div>
+  {% endif %}
 
-<script src="{% static 'assets/js/bootstrap.bundle.min.js' %}"></script>
-<script src="https://cdn.jsdelivr.net/npm/feather-icons@4.28.0/dist/feather.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
-<script src="{% static 'assets/js/dashboard.js' %}"></script>
+  {% block scripts %}{% endblock %}
 
-<script>
-  // Auto-show all toasts
-  document.addEventListener("DOMContentLoaded", function() {
-    document.querySelectorAll('.toast').forEach(toastEl => {
-      new bootstrap.Toast(toastEl).show();
+  <script src="{% static 'assets/js/tom-select.complete.min.js' %}"></script>
+  <script>
+    function initTomSelects(container) {
+      container.querySelectorAll('select.ts-select').forEach(function (el) {
+        if (!el.tomselect) {
+          new TomSelect(el, { allowEmptyOption: false });
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      // Selects outside modals — initialize immediately
+      document.querySelectorAll('select.ts-select').forEach(function (el) {
+        if (!el.closest('.modal') && !el.tomselect) {
+          new TomSelect(el, { allowEmptyOption: false });
+        }
+      });
+
+      // Selects inside modals — initialize when the modal opens
+      document.querySelectorAll('.modal').forEach(function (modal) {
+        modal.addEventListener('show.bs.modal', function () {
+          initTomSelects(this);
+        });
+      });
     });
-  });
-</script>
-
-{% block scripts %}{% endblock %}
-
+  </script>
 </body>
 </html>

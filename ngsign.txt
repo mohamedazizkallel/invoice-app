@@ -1,0 +1,55 @@
+Concepts communs
+Les concepts suivants sont commun aux divers services API de NGSign.
+
+Authentification API
+Pour accéder aux services web protégés (/protected), l'utilisateur doit fournir un jeton JSON Web Token (JWT) obtenu depuis l'espace Développeur de l'application Web NGSign. Ce jeton doit être inclus dans l'en-tête HTTP Authorization en utilisant le schéma d'authentification Bearer :
+
+Authorization: Bearer <votre-token-partenaire>
+
+Quel jeton utiliser ?
+Le jeton API à utiliser dans vos appels doit correspondre au compte de l'utilisateur qui va signer la facture ou à un utilisateur appartenant à son organisation.
+
+Signature par le partenaire : Si la facture est signée directement par vous (le partenaire), vous pouvez utiliser le jeton de votre propre compte.
+Signature par le client final : Si la facture est signée par votre client, vous devez impérativement utiliser le jeton API de ce client.
+TIP Vous pouvez automatiser la récupération des jetons de vos clients via la Partner API.
+
+Cette approche permet une intégration sécurisée des services protégés de NGSign dans des flux de travail automatisés et des systèmes tiers sans maintenir une authentification basée sur une session.
+
+Page de Signature
+Une fois qu'une transaction de signature est créée dans NGSign pour une ou plusieurs factures, l'application appelante doit rediriger le signataire vers la PDS (Page de Signature) en utilisant l'URL :
+
+https://sandbox.ng-sign.com/pds/#/teif/invoice/{uuid de la transaction}
+Cette redirection n'est pas nécessaire lors de l'utilisation d'un certificat "cachet" (fait automatiquement).
+
+Callbacks
+Vous avez la possibilité de configurer des URLs de callback pour recevoir des notifications automatiques lors du traitement de vos factures. Chaque facture peut avoir ses propres URLs de callback spécifiques.
+
+Configuration dans l'appel
+Les URLs de callback peuvent être définies individuellement pour chaque facture via l'objet callbackUrl qui contient :
+
+successUrl : URL appelée en cas de succès du traitement
+failureUrl : URL appelée en cas d'échec du traitement
+Configuration côté NGSign
+L'utilisation des callbacks nécessite une activation par NGSign pour votre organisation. L'activation nécessite la déclaration d'une white liste de noms de domaines autorisés. Un token API peut également être enregistré pour les appels callbacks. Merci de contacter le support si vous voulez utiliser les callbacks.
+
+Données transmises
+À chaque appel de callback, les données sont envoyées dans un payload JSON avec la structure suivante :
+
+Champ	Type	Description
+uuid	string	UUID de la facture
+invoiceNumber	string	Numéro de facture
+ttnReference	string	Référence générée par TTN (peut être null si pas encore générée)
+twoDocImage	string	Image 2D-Doc encodée en base64 (peut être null si pas encore récupérée)
+pdfBase64	string	PDF encodé en base64 (peut être null si le PDF n'a pas été reçu par API)
+xmlBase64	string	XML signé encodé en base64
+Exemple de payload :
+
+{
+  "uuid": "123e4567-e89b-12d3-a456-426614174000",
+  "invoiceNumber": "INV-2024-001",
+  "ttnReference": "TTN-REF-12345",
+  "twoDocImage": "iVBORw0KGgoAAAANSUhEUgAA...",
+  "pdfBase64": "JVBERi0xLjQKJeLjz9MKMSAw...",
+  "xmlBase64": "PD94bWwgdmVyc2lvbj0iMS4w..."
+}
+Ces données vous permettent de mettre à jour vos systèmes en temps réel avec les informations de facturation signées et validées.

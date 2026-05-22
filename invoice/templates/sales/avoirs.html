@@ -1,0 +1,483 @@
+{% extends 'partials/base.html' %}
+{% load static %}
+
+{% block title %}Avoirs{% endblock %}
+
+{% block css %}
+<style>
+  .modal-content { animation: fadeSlide 0.25s ease-out; border: none; border-radius: 16px; }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .modal-body { overflow-y: auto !important; }
+  .modal-dialog-scrollable .modal-body { max-height: 70vh; }
+  #tvaPreview, #totalPreview { font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block main %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Avoirs</h1>
+    <p>Gérer vos factures d'avoir</p>
+  </div>
+  <div class="page-header-actions">
+    <button type="button" class="btn btn-modern-primary btn-modern"
+            data-bs-toggle="modal" data-bs-target="#createAvoirModal">
+      <i class="bi bi-plus-circle me-2"></i>Créer un avoir
+    </button>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="modern-card mb-3">
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">Rechercher</label>
+      <input type="text" class="form-control" name="search"
+             placeholder="N° avoir, client, description…" value="{{ search_query }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">Client</label>
+      <select class="form-select" name="client">
+        <option value="">Tous les clients</option>
+        {% for c in clients %}<option value="{{ c.id }}" {% if selected_client == c.id|stringformat:"d" %}selected{% endif %}>{{ c.clientname }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-modern-primary btn-modern w-100">
+        <i class="bi bi-funnel me-2"></i>Filtrer
+      </button>
+    </div>
+    {% if search_query or selected_client %}
+    <div class="col-md-2">
+      <a href="{% url 'avoirs_list' %}" class="btn btn-light w-100">Effacer</a>
+    </div>
+    {% endif %}
+  </form>
+</div>
+
+{% if avoirs %}
+<!-- Avoirs Table -->
+<div class="modern-card">
+  <div class="table-responsive">
+    <table class="table modern-table mb-0">
+      <thead>
+        <tr>
+          <th>N° Avoir</th>
+          <th>Client</th>
+          <th>Facture liée</th>
+          <th>Description</th>
+          <th class="text-end">HT</th>
+          <th class="text-end">TVA %</th>
+          <th class="text-end">Total TTC</th>
+          <th>Date</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for avoir in avoirs %}
+        <tr>
+          <td>
+            <a href="{% url 'avoir_detail' avoir.id %}" class="text-decoration-none fw-bold text-primary">
+              {{ avoir.uniqueId }}
+            </a>
+          </td>
+          <td>{{ avoir.client.clientname }}</td>
+          <td>
+            {% if avoir.invoice %}
+              <a href="{% url 'invoice_detail' avoir.invoice.id %}" class="text-decoration-none text-muted small">
+                #{{ avoir.invoice.uniqueId }}
+              </a>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td style="max-width:220px;">
+            <span class="text-truncate d-inline-block" style="max-width:210px;" title="{{ avoir.description }}">
+              {{ avoir.description }}
+            </span>
+          </td>
+          <td class="text-end">{{ avoir.amount_ht|floatformat:3 }}</td>
+          <td class="text-end">{{ avoir.tva|floatformat:2 }}%</td>
+          <td class="text-end fw-semibold">{{ avoir.calculate_total|floatformat:3 }}</td>
+          <td>{{ avoir.date_created|date:"d/m/Y" }}</td>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm">
+              <a href="{% url 'avoir_detail' avoir.id %}" class="btn btn-outline-primary" title="Voir">
+                <i class="bi bi-eye"></i>
+              </a>
+              <button type="button" class="btn btn-outline-secondary"
+                      data-bs-toggle="modal" data-bs-target="#editAvoirModal"
+                      data-avoir-id="{{ avoir.id }}"
+                      data-modal-url="{% url 'avoir_modal_data' avoir.id %}"
+                      data-edit-url="{% url 'avoir_edit' avoir.id %}"
+                      title="Modifier">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button type="button" class="btn btn-outline-danger" title="Supprimer"
+                      data-bs-toggle="modal" data-bs-target="#deleteAvoirModal"
+                      data-avoir-id="{{ avoir.id }}"
+                      data-avoir-num="{{ avoir.uniqueId }}"
+                      data-delete-url="{% url 'avoir_delete' avoir.id %}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if avoirs.has_other_pages %}
+  <nav aria-label="Pagination avoirs" class="mt-4">
+    <ul class="pagination justify-content-center mb-0">
+      {% if avoirs.has_previous %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ avoirs.previous_page_number }}&search={{ search_query }}&client={{ selected_client }}">Précédent</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">Précédent</span></li>
+      {% endif %}
+
+      {% for num in avoirs.paginator.page_range %}
+      {% if avoirs.number == num %}
+      <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+      {% else %}
+      <li class="page-item"><a class="page-link" href="?page={{ num }}&search={{ search_query }}&client={{ selected_client }}">{{ num }}</a></li>
+      {% endif %}
+      {% endfor %}
+
+      {% if avoirs.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ avoirs.next_page_number }}&search={{ search_query }}&client={{ selected_client }}">Suivant</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">Suivant</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+
+{% else %}
+<!-- Empty State -->
+<div class="table-container">
+  <div class="empty-state">
+    <div class="row justify-content-center">
+      <div class="col-lg-6 text-center">
+        <h3>Aucun avoir trouvé</h3>
+        <p class="text-muted">Créez votre premier avoir en cliquant sur le bouton ci-dessus.</p>
+        <div class="mt-4">
+          <button type="button" class="btn btn-primary btn-lg"
+                  data-bs-toggle="modal" data-bs-target="#createAvoirModal">
+            <i class="bi bi-plus-circle me-2"></i>Créer un avoir
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+
+<!-- ===================== CREATE MODAL ===================== -->
+<div class="modal fade" id="createAvoirModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg rounded-4">
+      <form action="{% url 'avoir_create' %}" method="post" id="createAvoirForm">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold">
+            <i class="bi bi-arrow-return-left me-2 text-primary"></i>Créer un avoir
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body pt-3">
+          <div class="row g-3">
+
+            <!-- Client -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Client <span class="text-danger">*</span></label>
+              <select class="form-select ts-select" name="client" id="createClientSelect" required>
+                <option value="">— Sélectionner un client —</option>
+                {% for client in clients %}
+                <option value="{{ client.id }}">{{ client.clientname }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Linked Invoice -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Facture liée <span class="text-muted small">(optionnel)</span></label>
+              <select class="form-select" name="invoice_id" id="createInvoiceSelect" disabled>
+                <option value="">— Sélectionner une facture —</option>
+              </select>
+            </div>
+
+            <!-- Description -->
+            <div class="col-12">
+              <label class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
+              <textarea class="form-control" name="description" id="createDescription" rows="3"
+                        placeholder="Motif de l'avoir..." required></textarea>
+            </div>
+
+            <!-- Amount HT -->
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Montant HT <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" class="form-control" name="amount_ht" id="createAmountHt"
+                       step="0.001" min="0.001" placeholder="0.000" required>
+                <span class="input-group-text">TND</span>
+              </div>
+            </div>
+
+            <!-- TVA -->
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">TVA %</label>
+              <input type="number" class="form-control" name="tva" id="createTva"
+                     step="0.01" min="0" value="{{ settings_obj.tva|default:'19.00' }}">
+            </div>
+
+            <!-- Date (optional) -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Date <span class="text-muted small">(optionnel)</span></label>
+              <input type="date" class="form-control" name="invoice_date" placeholder="Aujourd'hui si vide">
+            </div>
+
+            <!-- Numero (optional) -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Numéro <span class="text-muted small">(optionnel)</span></label>
+              <input type="number" min="1" max="999" class="form-control" name="invoice_number" placeholder="Auto si vide">
+            </div>
+
+            <!-- Live preview -->
+            <div class="col-md-4">
+              <label class="form-label fw-semibold text-muted">Aperçu</label>
+              <div class="p-2 rounded bg-light small">
+                <div class="d-flex justify-content-between">
+                  <span>Montant TVA :</span>
+                  <span id="createTvaAmount" class="text-muted">0.000 TND</span>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                  <span class="fw-bold">Total TTC :</span>
+                  <span id="createTotalTtc" class="fw-bold text-primary">0.000 TND</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Créer l'avoir
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===================== EDIT MODAL ===================== -->
+<div class="modal fade" id="editAvoirModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg rounded-4">
+      <form method="post" id="editAvoirForm" action="">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="list">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold">
+            <i class="bi bi-pencil me-2 text-secondary"></i>Modifier l'avoir
+            <span id="editAvoirNum" class="text-muted fw-normal small ms-2"></span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body pt-3">
+          <div class="row g-3">
+
+            <!-- Linked Invoice (client is fixed) -->
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Facture liée <span class="text-muted small">(optionnel)</span></label>
+              <select class="form-select" name="invoice_id" id="editInvoiceSelect">
+                <option value="">— Aucune —</option>
+              </select>
+            </div>
+
+            <div class="col-md-6"></div>
+
+            <!-- Description -->
+            <div class="col-12">
+              <label class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
+              <textarea class="form-control" name="description" id="editDescription" rows="3" required></textarea>
+            </div>
+
+            <!-- Amount HT -->
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Montant HT <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" class="form-control" name="amount_ht" id="editAmountHt"
+                       step="0.001" min="0.001" placeholder="0.000" required>
+                <span class="input-group-text">TND</span>
+              </div>
+            </div>
+
+            <!-- TVA -->
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">TVA %</label>
+              <input type="number" class="form-control" name="tva" id="editTva" step="0.01" min="0">
+            </div>
+
+            <!-- Live preview -->
+            <div class="col-md-4">
+              <label class="form-label fw-semibold text-muted">Aperçu</label>
+              <div class="p-2 rounded bg-light small">
+                <div class="d-flex justify-content-between">
+                  <span>Montant TVA :</span>
+                  <span id="editTvaAmount" class="text-muted">0.000 TND</span>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                  <span class="fw-bold">Total TTC :</span>
+                  <span id="editTotalTtc" class="fw-bold text-primary">0.000 TND</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===================== DELETE MODAL ===================== -->
+<div class="modal fade" id="deleteAvoirModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg rounded-4">
+      <form method="post" id="deleteAvoirForm" action="">
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold text-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>Supprimer l'avoir
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>Êtes-vous sûr de vouloir supprimer l'avoir <strong id="deleteAvoirNum"></strong> ?</p>
+          <p class="text-muted small">Cette action créera une entrée de débit dans le grand livre du client.</p>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-trash me-1"></i>Supprimer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ---- Live TVA preview (create) ----
+function updateCreatePreview() {
+  const ht = parseFloat(document.getElementById('createAmountHt').value) || 0;
+  const tva = parseFloat(document.getElementById('createTva').value) || 0;
+  const tvaAmt = ht * tva / 100;
+  const total = ht + tvaAmt;
+  document.getElementById('createTvaAmount').textContent = tvaAmt.toFixed(3) + ' TND';
+  document.getElementById('createTotalTtc').textContent = total.toFixed(3) + ' TND';
+}
+document.getElementById('createAmountHt').addEventListener('input', updateCreatePreview);
+document.getElementById('createTva').addEventListener('input', updateCreatePreview);
+
+// ---- Live TVA preview (edit) ----
+function updateEditPreview() {
+  const ht = parseFloat(document.getElementById('editAmountHt').value) || 0;
+  const tva = parseFloat(document.getElementById('editTva').value) || 0;
+  const tvaAmt = ht * tva / 100;
+  const total = ht + tvaAmt;
+  document.getElementById('editTvaAmount').textContent = tvaAmt.toFixed(3) + ' TND';
+  document.getElementById('editTotalTtc').textContent = total.toFixed(3) + ' TND';
+}
+document.getElementById('editAmountHt').addEventListener('input', updateEditPreview);
+document.getElementById('editTva').addEventListener('input', updateEditPreview);
+
+// ---- Load client invoices when client changes (create) ----
+document.getElementById('createClientSelect').addEventListener('change', function () {
+  const clientId = this.value;
+  const invoiceSelect = document.getElementById('createInvoiceSelect');
+  invoiceSelect.innerHTML = '<option value="">— Sélectionner une facture —</option>';
+  invoiceSelect.disabled = !clientId;
+  if (!clientId) return;
+
+  fetch(`/clients/${clientId}/all-invoices/`)
+    .then(r => r.json())
+    .then(data => {
+      data.forEach(inv => {
+        const opt = document.createElement('option');
+        opt.value = inv.id;
+        opt.textContent = `#${inv.uniqueId} — ${inv.date}`;
+        invoiceSelect.appendChild(opt);
+      });
+    });
+});
+
+// ---- Populate edit modal via AJAX ----
+document.getElementById('editAvoirModal').addEventListener('show.bs.modal', function (event) {
+  const btn = event.relatedTarget;
+  const modalUrl = btn.getAttribute('data-modal-url');
+  const editUrl = btn.getAttribute('data-edit-url');
+  const clientId = btn.closest('tr').querySelector('td:nth-child(2)') ? null : null; // fallback
+
+  // Set form action
+  document.getElementById('editAvoirForm').action = editUrl;
+
+  fetch(modalUrl)
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('editAvoirNum').textContent = data.uniqueId;
+      document.getElementById('editDescription').value = data.description;
+      document.getElementById('editAmountHt').value = data.amount_ht;
+      document.getElementById('editTva').value = data.tva;
+
+      // Load invoices for this client then set selected
+      const invoiceSelect = document.getElementById('editInvoiceSelect');
+      invoiceSelect.innerHTML = '<option value="">— Aucune —</option>';
+
+      fetch(`/clients/${data.client_id}/all-invoices/`)
+        .then(r => r.json())
+        .then(invoices => {
+          invoices.forEach(inv => {
+            const opt = document.createElement('option');
+            opt.value = inv.id;
+            opt.textContent = `#${inv.uniqueId} — ${inv.date}`;
+            if (String(inv.id) === String(data.invoice_id)) opt.selected = true;
+            invoiceSelect.appendChild(opt);
+          });
+        });
+
+      updateEditPreview();
+    });
+});
+
+// ---- Populate delete modal ----
+document.getElementById('deleteAvoirModal').addEventListener('show.bs.modal', function (event) {
+  const btn = event.relatedTarget;
+  document.getElementById('deleteAvoirNum').textContent = btn.getAttribute('data-avoir-num');
+  document.getElementById('deleteAvoirForm').action = btn.getAttribute('data-delete-url');
+});
+</script>
+{% endblock %}

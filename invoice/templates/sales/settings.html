@@ -3,50 +3,42 @@
 
 {% block css %}
 <style>
-  .page-header {
-    background: white;
-    padding: 1.5rem;
-    border-radius: 0.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-  }
-  
-  .settings-container {
-    background: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    padding: 2rem;
-    max-width: 800px;
-    margin: 0 auto;
-  }
-  
-  .logo-preview {
-    max-width: 200px;
-    margin-top: 1rem;
+  #logoPreviewBox {
+    width: 180px;
+    height: 100px;
     border: 2px dashed #dee2e6;
-    padding: 1rem;
     border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #f8f9fa;
   }
-  
-  .logo-preview img {
+  #logoPreviewBox img {
     max-width: 100%;
-    height: auto;
+    max-height: 100%;
+    object-fit: contain;
+  }
+  #logoPreviewBox .placeholder-text {
+    font-size: 0.75rem;
+    color: #adb5bd;
+    text-align: center;
+    padding: 0.5rem;
   }
 </style>
 {% endblock %}
 
 {% block main %}
-<main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-  <!-- Page Header -->
-  <div class="page-header">
-    <h1 class="h2 mb-0">
-      <i class="bi bi-gear me-2"></i> Company Settings
-    </h1>
-    <p class="text-muted mb-0 mt-2">Manage your company information and invoice defaults</p>
+<!-- Page Header -->
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+      <h1>Paramètres de l'entreprise</h1>
+      <p>Gérer les informations de votre entreprise et les paramètres de facture par défaut.</p>
+    </div>
   </div>
 
   <!-- Settings Form -->
-  <div class="settings-container">
+  <div class="modern-card">
     <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
       
@@ -61,7 +53,7 @@
 
       {% if form.errors %}
       <div class="alert alert-danger rounded-3" role="alert">
-        <strong><i class="bi bi-exclamation-triangle me-2"></i> Please correct the following errors:</strong>
+        <strong><i class="bi bi-exclamation-triangle me-2"></i> Veuillez corriger les erreurs suivantes :</strong>
         <ul class="mt-2 mb-0">
           {% for field, errors in form.errors.items %}
             {% for error in errors %}
@@ -106,48 +98,166 @@
           {% endif %}
         </div>
 
+        <!-- R.I.B -->
+        <div class="col-12">
+          <label for="{{ form.rib.id_for_label }}" class="form-label fw-semibold">
+            {{ form.rib.label }}
+          </label>
+          {{ form.rib }}
+          {% if form.rib.help_text %}
+          <small class="form-text text-muted">{{ form.rib.help_text }}</small>
+          {% endif %}
+        </div>
+
+        <!-- Phone -->
+        <div class="col-md-6">
+          <label for="{{ form.phone.id_for_label }}" class="form-label fw-semibold">
+            {{ form.phone.label }}
+          </label>
+          {{ form.phone }}
+        </div>
+
+        <!-- Email -->
+        <div class="col-md-6">
+          <label for="{{ form.emailAddress.id_for_label }}" class="form-label fw-semibold">
+            {{ form.emailAddress.label }}
+          </label>
+          {{ form.emailAddress }}
+          <small class="form-text text-muted">Utilisé comme email signataire pour NGSign</small>
+        </div>
+
+        <!-- Status -->
+        <div class="col-12">
+          <label for="{{ form.status.id_for_label }}" class="form-label fw-semibold">
+            {{ form.status.label }}
+          </label>
+          {{ form.status }}
+          {% if form.status.help_text %}
+          <small class="form-text text-muted">{{ form.status.help_text }}</small>
+          {% endif %}
+        </div>
+
+        <!-- TVA -->
+        <div class="col-12">
+          <label for="{{ form.tva.id_for_label }}" class="form-label fw-semibold">
+            {{ form.tva.label }}
+          </label>
+          {{ form.tva }}
+          {% if form.tva.help_text %}
+          <small class="form-text text-muted">{{ form.tva.help_text }}</small>
+          {% endif %}
+        </div>
+
+        <!-- DT -->
+        <div class="col-12">
+          <label for="{{ form.dt.id_for_label }}" class="form-label fw-semibold">
+            {{ form.dt.label }}
+          </label>
+          {{ form.dt }}
+          {% if form.dt.help_text %}
+          <small class="form-text text-muted">{{ form.dt.help_text }}</small>
+          {% endif %}
+        </div>
+
+        <!-- Retenu par défaut -->
+        <div class="col-12">
+          <label for="{{ form.default_retenu_rate.id_for_label }}" class="form-label fw-semibold">
+            {{ form.default_retenu_rate.label }}
+          </label>
+          {{ form.default_retenu_rate }}
+          <small class="form-text text-muted">
+            Appliqué automatiquement aux factures clients &gt; 1 000 D — base = total TTC − DT. Laisser vide pour désactiver.
+          </small>
+        </div>
+
         <!-- Company Logo -->
         <div class="col-12">
-          <label for="{{ form.clientLogo.id_for_label }}" class="form-label fw-semibold">
-            {{ form.clientLogo.label }}
-          </label>
-          {{ form.clientLogo }}
-          {% if form.clientLogo.help_text %}
-          <small class="form-text text-muted">{{ form.clientLogo.help_text }}</small>
-          {% endif %}
-          
-          {% if settings and settings.clientLogo %}
-          <div class="logo-preview">
-            <p class="text-muted small mb-2">Current Logo:</p>
-            <img src="{{ settings.clientLogo.url }}" alt="Company Logo">
+          <label class="form-label fw-semibold">{{ form.logo_upload.label }}</label>
+          <div class="d-flex align-items-start gap-3 flex-wrap">
+            <!-- Preview box -->
+            <div id="logoPreviewBox">
+              {% if settings and settings.clientLogo %}
+                <img id="logoPreviewImg" src="{% url 'company_logo' %}?v={{ settings.last_updated|date:'U' }}" alt="Logo">
+              {% else %}
+                <span class="placeholder-text" id="logoPlaceholder">Aucun logo</span>
+                <img id="logoPreviewImg" src="" alt="Logo" style="display:none;">
+              {% endif %}
+            </div>
+
+            <!-- Controls -->
+            <div class="d-flex flex-column gap-2">
+              {{ form.logo_upload }}
+              <small class="text-muted">{{ form.logo_upload.help_text }}</small>
+
+              {% if settings and settings.clientLogo %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="clear_logo" id="clearLogoCheck" value="1">
+                <label class="form-check-label text-danger small" for="clearLogoCheck">
+                  <i class="bi bi-trash me-1"></i>Supprimer le logo
+                </label>
+              </div>
+              {% endif %}
+            </div>
           </div>
-          {% endif %}
         </div>
       </div>
 
       <!-- Invoice Defaults Information -->
       <div class="alert alert-info mt-4" role="alert">
         <h6 class="alert-heading">
-          <i class="bi bi-info-circle me-2"></i> Invoice Defaults
+          <i class="bi bi-info-circle me-2"></i> Paramètres de facture par défaut
         </h6>
         <p class="mb-0 small">
-          Default values for new invoices:
+          Valeurs par défaut pour les nouvelles factures :
         </p>
         <ul class="mb-0 mt-2 small">
-          <li><strong>TVA (Tax):</strong> 19.00% (modifiable per invoice)</li>
-          <li><strong>Timbre Fiscal (D):</strong> 1.000 TND (modifiable per invoice)</li>
-          <li><strong>Discount (DT):</strong> 0.00% (modifiable per invoice)</li>
+          <li><strong>TVA (Taxe) :</strong> 19,00 % (modifiable par facture)</li>
+          <li><strong>Timbre Fiscal (D) :</strong> 1,000 TND (modifiable par facture)</li>
+          <li><strong>Réduction (DT) :</strong> 0,00 % (modifiable par facture)</li>
         </ul>
       </div>
 
       <!-- Action Buttons -->
       <div class="d-flex gap-2 justify-content-end mt-4">
-        <a href="{% url 'dashboard' %}" class="btn btn-light px-4">Cancel</a>
+        <a href="{% url 'dashboard' %}" class="btn btn-light px-4">Annuler</a>
         <button type="submit" class="btn btn-primary px-4">
-          <i class="bi bi-check-circle me-1"></i> Save Settings
+          <i class="bi bi-check-circle me-1"></i> Enregistrer les paramètres
         </button>
       </div>
     </form>
+
+    <!-- Integrations -->
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-body">
+        <h5 class="card-title mb-3">
+          <i class="bi bi-plug me-2"></i> Intégrations
+        </h5>
+        <div class="list-group list-group-flush">
+          <a href="{% url 'elfatoora_settings' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0">
+            <div>
+              <div class="fw-semibold">elfatoora (TTN)</div>
+              <small class="text-muted">Identifiants pour la transmission électronique des factures signées.</small>
+            </div>
+            <i class="bi bi-chevron-right text-muted"></i>
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
-</main>
+
+<script>
+document.getElementById('logoUploadInput')?.addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const img = document.getElementById('logoPreviewImg');
+    const placeholder = document.getElementById('logoPlaceholder');
+    img.src = e.target.result;
+    img.style.display = '';
+    if (placeholder) placeholder.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+});
+</script>
 {% endblock %}

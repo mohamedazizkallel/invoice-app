@@ -1,0 +1,124 @@
+import pytest
+from unittest.mock import patch
+from django.db import connection
+
+
+@pytest.fixture(scope='session')
+def tenant_setup(django_db_setup, django_db_blocker):
+    """Create a test tenant and switch to its schema. Runs once per test session."""
+    with django_db_blocker.unblock():
+        from tenants.models import Tenant, Domain
+        tenant = Tenant(schema_name='test_tenant', name='Test Tenant')
+        tenant.save()
+        Domain.objects.create(domain='test.localhost', tenant=tenant, is_primary=True)
+        connection.set_schema('test_tenant')
+    yield tenant
+    with django_db_blocker.unblock():
+        connection.set_schema_to_public()
+        tenant.delete(force_drop=True)
+
+
+@pytest.fixture
+def tenant(tenant_setup, db):
+    """Per-test fixture that ensures tenant schema is active."""
+    connection.set_schema('test_tenant')
+    return tenant_setup
+
+
+@pytest.fixture
+def user(tenant):
+    """Create a test user in the public schema with a TenantUser link.
+
+    Users and TenantUser live in the public schema (shared apps).
+    We switch schemas temporarily to create them, then restore the tenant schema.
+    Uses get_or_create to be safe with transaction=True tests (no auto-rollback).
+    """
+    from django.contrib.auth.models import User
+    from tenants.models import TenantUser
+
+    current_schema = connection.schema_name
+    connection.set_schema_to_public()
+    try:
+        user_obj, _ = User.objects.get_or_create(
+            username='testuser',
+            defaults={'is_active': True},
+        )
+        user_obj.set_password('testpass123')
+        user_obj.save(update_fields=['password'])
+
+        TenantUser.objects.get_or_create(user=user_obj, defaults={'tenant': tenant})
+    finally:
+        connection.set_schema(current_schema)
+
+    return user_obj
+
+
+@pytest.fixture
+def logged_in_client(user):
+    """Return an authenticated Django test client."""
+    from django.test import Client
+    client = Client()
+    client.login(username='testuser', password='testpass123')
+    return client
+
+
+@pytest.fixture
+def seller(tenant):
+    """Create a Settings (seller) instance.
+    Mocks _sync_ngsign_org to prevent real NGSign API calls on Settings.save()."""
+    from tests.factories import SettingsFactory
+    with patch('sales.models._sync_ngsign_org'):
+        return SettingsFactory()
+
+
+@pytest.fixture
+def ngsign_account(tenant_setup, db):
+    """Create an NGSignClientAccount in the public schema for the test tenant."""
+    current = connection.schema_name
+    connection.set_schema_to_public()
+    from tenants.models import NGSignClientAccount
+    account, _ = NGSignClientAccount.objects.update_or_create(
+        tenant=tenant_setup,
+        defaults={
+            'org_uuid': 'test-org-uuid',
+            'org_jwt': 'test-org-jwt-token',
+            'signer_email': 'signer@test.com',
+            'status': 'ACTIVE',
+        },
+    )
+    connection.set_schema(current)
+    yield account
+    connection.set_schema_to_public()
+    account.delete()
+    connection.set_schema(current)
+
+
+@pytest.fixture
+def elfatoora_account(tenant_setup, db):
+    """Create an ElfatooraClientAccount in the public schema for the test tenant."""
+    current = connection.schema_name
+    connection.set_schema_to_public()
+    from tenants.models import ElfatooraClientAccount
+    account, _ = ElfatooraClientAccount.objects.update_or_create(
+        tenant=tenant_setup,
+        defaults={
+            'username': 'TESTUSER',
+            'password': 'testpass',
+            'mf': '1234567TEST',
+            'status': 'ACTIVE',
+        },
+    )
+    connection.set_schema(current)
+    yield account
+    connection.set_schema_to_public()
+    account.delete()
+    connection.set_schema(current)
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    """Clear Django cache before and after each test."""
+    from django.core.cache import cache
+    cache.clear()
+    yield
+    cache.clear()

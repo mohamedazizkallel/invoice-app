@@ -1,0 +1,174 @@
+<?xml version='1.0' encoding='utf-8'?>
+<teif:TEIF
+  xmlns:teif="urn:teif"
+  xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
+  version="1.0"
+  controlingAgency="DGI">
+
+  <teif:InvoiceHeader>
+    <teif:MessageSenderIdentifier type="I-01">1234567A/B/C/000</teif:MessageSenderIdentifier>
+    <teif:MessageRecieverIdentifier type="I-01">9876543D/E/F/111</teif:MessageRecieverIdentifier>
+  </teif:InvoiceHeader>
+
+  <teif:InvoiceBody>
+
+    <teif:Bgm>
+      <teif:DocumentIdentifier>FV-001-2026</teif:DocumentIdentifier>
+      <teif:DocumentType code="I-11">Facture</teif:DocumentType>
+    </teif:Bgm>
+
+    <teif:Dtm>
+      <teif:DateText functionCode="I-31" format="ddMMyy">130326</teif:DateText>
+    </teif:Dtm>
+
+    <teif:PartnerSection>
+
+      <!-- Supplier (fournisseur) -->
+      <teif:PartnerDetails functionCode="I-62">
+        <teif:Nad>
+          <teif:PartnerIdentifier type="I-01">1234567A/B/C/000</teif:PartnerIdentifier>
+          <teif:PartnerName nameType="Physical">Swift Tech Corp</teif:PartnerName>
+          <teif:PartnerAdresses>
+            <teif:AdressDescription>12 Rue de la République, Tunis</teif:AdressDescription>
+            <teif:Country codeList="ISO_3166-1">TN</teif:Country>
+          </teif:PartnerAdresses>
+        </teif:Nad>
+      </teif:PartnerDetails>
+
+      <!-- Client (acheteur) -->
+      <teif:PartnerDetails functionCode="I-64">
+        <teif:Nad>
+          <teif:PartnerIdentifier type="I-01">9876543D/E/F/111</teif:PartnerIdentifier>
+          <teif:PartnerName nameType="Physical">Société Exemple SARL</teif:PartnerName>
+          <teif:PartnerAdresses>
+            <teif:AdressDescription>45 Avenue Habib Bourguiba, Sfax</teif:AdressDescription>
+            <teif:Country codeList="ISO_3166-1">TN</teif:Country>
+          </teif:PartnerAdresses>
+        </teif:Nad>
+      </teif:PartnerDetails>
+
+    </teif:PartnerSection>
+
+    <teif:LinSection>
+
+      <!-- Line 1: Flat-rate service -->
+      <teif:Lin>
+        <teif:ItemIdentifier>1</teif:ItemIdentifier>
+        <teif:LinImd>Développement application web</teif:LinImd>
+        <teif:LinQty>
+          <teif:Quantity measurementUnit="C62">1</teif:Quantity>
+        </teif:LinQty>
+        <teif:LinTax>
+          <teif:TaxTypeName code="I-1602"/>
+          <teif:TaxDetails>
+            <teif:TaxRate>19.00</teif:TaxRate>
+          </teif:TaxDetails>
+        </teif:LinTax>
+        <teif:LinMoa>
+          <teif:MoaDetails>
+            <teif:Moa currencyCodeList="ISO_4217" amountTypeCode="I-180">
+              <teif:Amount currencyIdentifier="TND">1500.000</teif:Amount>
+            </teif:Moa>
+          </teif:MoaDetails>
+        </teif:LinMoa>
+      </teif:Lin>
+
+      <!-- Line 2: Hourly service -->
+      <teif:Lin>
+        <teif:ItemIdentifier>2</teif:ItemIdentifier>
+        <teif:LinImd>Maintenance et support technique</teif:LinImd>
+        <teif:LinQty>
+          <teif:Quantity measurementUnit="HUR">8</teif:Quantity>
+        </teif:LinQty>
+        <teif:LinTax>
+          <teif:TaxTypeName code="I-1602"/>
+          <teif:TaxDetails>
+            <teif:TaxRate>19.00</teif:TaxRate>
+          </teif:TaxDetails>
+        </teif:LinTax>
+        <teif:LinMoa>
+          <teif:MoaDetails>
+            <teif:Moa currencyCodeList="ISO_4217" amountTypeCode="I-180">
+              <teif:Amount currencyIdentifier="TND">200.000</teif:Amount>
+            </teif:Moa>
+          </teif:MoaDetails>
+        </teif:LinMoa>
+      </teif:Lin>
+
+    </teif:LinSection>
+
+    <!-- Discount section (optional — include only if discount > 0) -->
+    <teif:InvoiceAlc>
+      <teif:AllowanceDetails>
+        <teif:Alc allowanceCode="I-151"/>
+        <teif:Moa currencyCodeList="ISO_4217" amountTypeCode="I-151">
+          <teif:Amount currencyIdentifier="TND">85.000</teif:Amount>
+        </teif:Moa>
+        <teif:Ftx>
+          <teif:FreeTextDetail subjectCode="I-41">
+            <teif:FreeTexts>Remise de 5%</teif:FreeTexts>
+          </teif:FreeTextDetail>
+        </teif:Ftx>
+      </teif:AllowanceDetails>
+    </teif:InvoiceAlc>
+
+    <!-- Tax summary (mandatory) -->
+    <teif:InvoiceTax>
+      <teif:InvoiceTaxDetails>
+        <teif:Tax>
+          <teif:TaxTypeName code="I-1602">TVA</teif:TaxTypeName>
+          <teif:TaxDetails>
+            <teif:TaxRate>19.00</teif:TaxRate>
+          </teif:TaxDetails>
+          <teif:AmountDetails>
+            <teif:MoaDetails>
+              <teif:Moa currencyCodeList="ISO_4217" amountTypeCode="I-171">
+                <teif:Amount currencyIdentifier="TND">1615.000</teif:Amount>
+              </teif:Moa>
+            </teif:MoaDetails>
+            <teif:MoaDetails>
+              <teif:Moa currencyCodeList="ISO_4217" amountTypeCode="I-176">
+                <teif:Amount currencyIdentifier="TND">306.850</teif:Amount>
+              </teif:Moa>
+            </teif:MoaDetails>
+          </teif:AmountDetails>
+        </teif:Tax>
+      </teif:InvoiceTaxDetails>
+    </teif:InvoiceTax>
+
+    <!-- Invoice totals -->
+    <teif:InvoiceMoa>
+      <teif:AmountDetails>
+        <!-- Total HT before discount (I-172) -->
+        <teif:MoaDetails>
+          <teif:Moa currencyCodeList="ISO_4217" amountTypeCode="I-172">
+            <teif:Amount currencyIdentifier="TND">1700.000</teif:Amount>
+          </teif:Moa>
+        </teif:MoaDetails>
+        <!-- TVA amount (I-176) -->
+        <teif:MoaDetails>
+          <teif:Moa currencyCodeList="ISO_4217" amountTypeCode="I-176">
+            <teif:Amount currencyIdentifier="TND">306.850</teif:Amount>
+          </teif:Moa>
+        </teif:MoaDetails>
+        <!-- Timbre fiscal (I-177) -->
+        <teif:MoaDetails>
+          <teif:Moa currencyCodeList="ISO_4217" amountTypeCode="I-177">
+            <teif:Amount currencyIdentifier="TND">1.000</teif:Amount>
+          </teif:Moa>
+        </teif:MoaDetails>
+        <!-- Total TTC (I-180) -->
+        <teif:MoaDetails>
+          <teif:Moa currencyCodeList="ISO_4217" amountTypeCode="I-180">
+            <teif:Amount currencyIdentifier="TND">1922.850</teif:Amount>
+          </teif:Moa>
+        </teif:MoaDetails>
+      </teif:AmountDetails>
+    </teif:InvoiceMoa>
+
+  </teif:InvoiceBody>
+
+  <!-- TTN validation placeholder (required, empty) -->
+  <teif:RefTtnVal/>
+
+</teif:TEIF>

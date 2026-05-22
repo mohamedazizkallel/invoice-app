@@ -1,0 +1,232 @@
+{% extends 'partials/base.html' %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block css %}
+<style>
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  .status-badge.to-sign { background: rgba(243,156,18,0.15); color: #f39c12; }
+  .status-badge.error { background: rgba(231,76,60,0.15); color: #e74c3c; }
+  .status-badge.in-progress { background: rgba(46,204,113,0.15); color: #2ecc71; }
+  .status-badge.done { background: rgba(149,165,166,0.15); color: #95a5a6; }
+
+  .notif-row.is-read { opacity: 0.6; }
+  .notif-row.is-dismissed { opacity: 0.4; text-decoration: line-through; }
+
+  .tab-pills .nav-link {
+    color: rgba(255,255,255,0.6);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  .tab-pills .nav-link.active {
+    background: var(--accent-blue);
+    color: white;
+  }
+  .tab-pills .nav-link:hover:not(.active) {
+    color: white;
+  }
+  .tab-count {
+    font-size: 0.65rem;
+    background: rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 1px 6px;
+    margin-left: 4px;
+  }
+</style>
+{% endblock %}
+
+{% block main %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Notifications</h1>
+    <p>Historique des documents NGSign</p>
+  </div>
+  <div class="page-header-actions">
+    <button type="button" class="btn btn-modern-primary btn-modern btn-sm" onclick="markAllReadPage()">
+      <i class="bi bi-check2-all me-1"></i>Tout marquer comme lu
+    </button>
+  </div>
+</div>
+
+<!-- Filter Tabs -->
+<div class="modern-card mb-3">
+  <ul class="nav tab-pills gap-2 flex-wrap">
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'all' %}active{% endif %}" href="?tab=all">
+        Tous <span class="tab-count">{{ tab_counts.all }}</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'to_sign' %}active{% endif %}" href="?tab=to_sign">
+        A signer <span class="tab-count">{{ tab_counts.to_sign }}</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'errors' %}active{% endif %}" href="?tab=errors">
+        Erreurs <span class="tab-count">{{ tab_counts.errors }}</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'in_progress' %}active{% endif %}" href="?tab=in_progress">
+        En cours <span class="tab-count">{{ tab_counts.in_progress }}</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if active_tab == 'done' %}active{% endif %}" href="?tab=done">
+        Terminés <span class="tab-count">{{ tab_counts.done }}</span>
+      </a>
+    </li>
+  </ul>
+</div>
+
+{% if page_obj %}
+<div class="modern-card">
+  <div class="table-responsive">
+    <table class="table modern-table mb-0">
+      <thead>
+        <tr>
+          <th>Statut</th>
+          <th>Type</th>
+          <th>N° Document</th>
+          <th>Client</th>
+          <th>Date</th>
+          <th style="max-width:200px;">Notes</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in page_obj %}
+        <tr class="notif-row{% if item.is_read %} is-read{% endif %}{% if item.is_dismissed %} is-dismissed{% endif %}" id="notif-row-{{ item.id }}">
+          <td>
+            {% if item.status == 'CREATED' or item.status == 'CONFIGURED' %}
+              <span class="status-badge to-sign"><i class="bi bi-circle-fill" style="font-size:0.35rem;"></i> {{ item.status }}</span>
+            {% elif item.status == 'ERROR' or item.status == 'TTN_REJECTED' or item.status == 'TTN_NOTTRANSFERED' %}
+              <span class="status-badge error"><i class="bi bi-circle-fill" style="font-size:0.35rem;"></i> {{ item.status }}</span>
+            {% elif item.status == 'TTN_SIGNED' or item.status == 'TTN_TRANSFERED' or item.status == 'CANCELLED' %}
+              <span class="status-badge done"><i class="bi bi-circle-fill" style="font-size:0.35rem;"></i> {{ item.status }}</span>
+            {% else %}
+              <span class="status-badge in-progress"><i class="bi bi-circle-fill" style="font-size:0.35rem;"></i> {{ item.status }}</span>
+            {% endif %}
+          </td>
+          <td>{{ item.doc_type }}</td>
+          <td class="fw-bold">{{ item.doc_number }}</td>
+          <td>{{ item.client_name }}</td>
+          <td>{{ item.date|date:"d/m/Y H:i" }}</td>
+          <td style="max-width:200px;">
+            {% if item.notes %}
+              <span class="text-truncate d-inline-block" style="max-width:190px;" title="{{ item.notes }}">{{ item.notes }}</span>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm">
+              <a href="{{ item.detail_url }}" class="btn btn-outline-primary" title="Voir document">
+                <i class="bi bi-eye"></i>
+              </a>
+              {% if item.status == 'ERROR' or item.status == 'TTN_REJECTED' or item.status == 'TTN_NOTTRANSFERED' %}
+              <button type="button" class="btn btn-outline-warning" title="Détails erreur"
+                      onclick="showErrorModal('{{ item.doc_type|escapejs }}', '{{ item.doc_number|escapejs }}', '{{ item.client_name|escapejs }}', '{{ item.notes|escapejs }}')">
+                <i class="bi bi-exclamation-triangle"></i>
+              </button>
+              {% endif %}
+              {% if not item.is_dismissed %}
+              <button type="button" class="btn btn-outline-secondary" title="Masquer"
+                      onclick="dismissFromPage({{ item.id }})">
+                <i class="bi bi-x-lg"></i>
+              </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="d-flex justify-content-center py-3">
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?tab={{ active_tab }}&page={{ page_obj.previous_page_number }}">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+          {% if page_obj.number == num %}
+          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+          {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+          <li class="page-item">
+            <a class="page-link" href="?tab={{ active_tab }}&page={{ num }}">{{ num }}</a>
+          </li>
+          {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?tab={{ active_tab }}&page={{ page_obj.next_page_number }}">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<div class="modern-card">
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-bell-slash fs-1 mb-3 d-block"></i>
+    <p>Aucune notification.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getCSRFToken() {
+  var c = document.cookie.split(';').map(function(c) { return c.trim(); }).find(function(c) { return c.startsWith('csrftoken='); });
+  return c ? c.split('=')[1] : '';
+}
+
+function markAllReadPage() {
+  fetch('/api/ngsign/notifications/read/', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCSRFToken() },
+  })
+  .then(function(r) { return r.json(); })
+  .then(function() { location.reload(); })
+  .catch(function() { showToast('Erreur lors du marquage', 'error'); });
+}
+
+function dismissFromPage(govInvoiceId) {
+  var row = document.getElementById('notif-row-' + govInvoiceId);
+  if (row) row.style.opacity = '0.3';
+
+  fetch('/api/ngsign/notifications/' + govInvoiceId + '/dismiss/', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCSRFToken() },
+  })
+  .then(function(r) { return r.json(); })
+  .then(function() { location.reload(); })
+  .catch(function() {
+    if (row) row.style.opacity = '';
+    showToast('Erreur lors du masquage', 'error');
+  });
+}
+</script>
+{% endblock %}

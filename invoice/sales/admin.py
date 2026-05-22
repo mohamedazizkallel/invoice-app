@@ -1,8 +1,3 @@
-from django.contrib import admin
-from .models import Client,Product,Settings,Invoice
-
-# Register your models here.
-admin.site.register(Client)
-admin.site.register(Product)
-admin.site.register(Settings)
-admin.site.register(Invoice)
+# Tenant models are browsed via pgAdmin (schema-level access).
+# Registering them here causes issues with django-tenants' TenantSyncRouter
+# when the admin runs in the public schema context.

@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=invoice.settings
+    volumes:
+      - media_data:/app/invoice/media
+      - static_data:/app/invoice/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dokploy-network
+      - default
+
+
+networks:
+  dokploy-network:
+    external: true
+
+volumes:
+  postgres_data:
+    name: invoice_postgres_data
+  media_data:
+    name: invoice_media_data
+  static_data:
+    name: invoice_static_data

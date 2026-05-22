@@ -1,0 +1,107 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configuration — Swift Invoice</title>
+  <link rel="shortcut icon" href="{% static 'assets/img/logo1.png' %}">
+  <link href="{% static 'assets/css/bootstrap.min.css' %}" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background: #0f172a; color: #f1f5f9; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; padding: 2rem 1rem; }
+    .wizard-brand { font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; color: #64748b; margin-bottom: 6px; }
+    .wizard-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+    .wizard-subtitle { font-size: 0.875rem; color: #64748b; margin-bottom: 2rem; }
+    .wizard-card { background: #1e293b; border-radius: 12px; padding: 2rem; width: 100%; max-width: 520px; }
+    .step-title { font-size: 0.95rem; font-weight: 600; color: #f59e0b; margin-bottom: 1.25rem; }
+    .progress-row { display: flex; align-items: center; gap: 8px; margin-bottom: 1.5rem; }
+    .step-circle { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+    .step-circle.active { background: #3b82f6; color: #fff; }
+    .step-circle.done { background: #22c55e; color: #fff; }
+    .step-circle.pending { background: #334155; color: #64748b; }
+    .step-line { flex: 1; height: 3px; border-radius: 2px; }
+    .step-line.done { background: #22c55e; }
+    .step-line.pending { background: #334155; }
+    .form-label { font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; }
+    .form-control, .form-select { background: #0f172a; border: 1px solid #334155; color: #f1f5f9; border-radius: 6px; }
+    .form-control:focus, .form-select:focus { background: #0f172a; color: #f1f5f9; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+    .form-control::placeholder { color: #475569; }
+    .required-star { color: #f87171; margin-left: 2px; }
+    .invalid-feedback { font-size: 0.75rem; }
+    .btn-primary { background: #3b82f6; border-color: #3b82f6; }
+    .btn-primary:hover { background: #2563eb; border-color: #2563eb; }
+    .btn-outline-secondary { border-color: #475569; color: #94a3b8; }
+    .btn-outline-secondary:hover { border-color: #64748b; color: #cbd5e1; background: transparent; }
+  </style>
+</head>
+<body>
+  <div class="text-center mb-2">
+    <div class="wizard-brand">Swift Invoice</div>
+    {% if step == 1 %}
+    <div class="wizard-title">Bienvenue &#128075;</div>
+    <div class="wizard-subtitle">Configurez votre entreprise pour commencer</div>
+    {% endif %}
+  </div>
+
+  <div class="wizard-card">
+    <!-- Progress indicator -->
+    <div class="progress-row">
+      <div class="step-circle {% if step == 1 %}active{% else %}done{% endif %}">
+        {% if step > 1 %}<i class="bi bi-check"></i>{% else %}1{% endif %}
+      </div>
+      <div class="step-line {% if step > 1 %}done{% else %}pending{% endif %}"></div>
+      <div class="step-circle {% if step == 2 %}active{% elif step > 2 %}done{% else %}pending{% endif %}">
+        {% if step > 2 %}<i class="bi bi-check"></i>{% else %}2{% endif %}
+      </div>
+      <div class="step-line {% if step > 2 %}done{% else %}pending{% endif %}"></div>
+      <div class="step-circle {% if step == 3 %}active{% else %}pending{% endif %}">3</div>
+      <span style="font-size:0.75rem;color:#64748b;margin-left:8px;white-space:nowrap;">&#201;tape {{ step }} / 3</span>
+    </div>
+
+    <!-- Step title -->
+    <div class="step-title">
+      {% if step == 1 %}&#127962; Informations entreprise
+      {% elif step == 2 %}&#129518; Informations fiscales
+      {% else %}&#127974; Banque &amp; Logo <span style="font-size:0.75rem;font-weight:400;color:#64748b;">(optionnel)</span>
+      {% endif %}
+    </div>
+
+    <!-- Form -->
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      <div class="row g-3">
+        {% for field in form %}
+        <div class="col-md-6">
+          <label class="form-label" for="{{ field.id_for_label }}">
+            {{ field.label }}
+            {% if field.field.required %}<span class="required-star">*</span>{% endif %}
+          </label>
+          {{ field }}
+          {% if field.errors %}
+          <div class="invalid-feedback d-block">{{ field.errors|join:", " }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        {% if step == 3 %}
+        <button type="submit" name="action" value="skip" class="btn btn-outline-secondary btn-sm px-4">
+          Passer
+        </button>
+        <button type="submit" name="action" value="next" class="btn btn-primary btn-sm px-4">
+          Terminer <i class="bi bi-check2"></i>
+        </button>
+        {% else %}
+        <button type="submit" name="action" value="next" class="btn btn-primary btn-sm px-4">
+          Suivant <i class="bi bi-arrow-right"></i>
+        </button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  <script src="{% static 'assets/js/bootstrap.bundle.min.js' %}"></script>
+</body>
+</html>
