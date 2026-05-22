@@ -31,6 +31,10 @@ def switch_schema(request):
             messages.success(request, f'Schéma actif : {schema}. L’admin édite désormais ce client.')
         else:
             messages.error(request, f'Schéma introuvable : {schema}')
+        # Return to wherever the switch was triggered (e.g. the admin page).
+        nxt = request.POST.get('next') or ''
+        if nxt.startswith('/'):
+            return redirect(nxt)
         return redirect('switch_schema')
 
     current = request.session.get('admin_schema', 'public')

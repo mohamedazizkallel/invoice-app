@@ -1,0 +1,58 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% comment %}
+Override of admin/base_site.html (extends admin/base.html to avoid self-recursion).
+Replicates Django's default branding blocks and adds a tenant-schema banner +
+inline switcher so a superuser always sees and can change which client's data
+they edit. Backed by tenants.views.switch_schema (session['admin_schema']).
+{% endcomment %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<style>
+  #tenant-switch-bar {
+    background: {% if tenant_admin_current and tenant_admin_current != 'public' %}#1d4ed8{% else %}#475569{% endif %};
+    color: #fff; padding: 8px 16px; display: flex; align-items: center;
+    gap: 12px; flex-wrap: wrap; font-size: 13px;
+  }
+  #tenant-switch-bar select { padding: 4px 8px; border-radius: 4px; border: 0; font-size: 13px; }
+  #tenant-switch-bar button {
+    padding: 4px 12px; border: 0; border-radius: 4px; cursor: pointer;
+    background: #fff; color: #1d4ed8; font-weight: 600; font-size: 13px;
+  }
+  #tenant-switch-bar .pill {
+    background: rgba(255,255,255,.2); padding: 2px 8px; border-radius: 10px; font-weight: 700;
+  }
+</style>
+{% endblock %}
+
+{% block messages %}
+{% if user.is_superuser %}
+<div id="tenant-switch-bar">
+  <span>Client actif&nbsp;: <span class="pill">{{ tenant_admin_current|default:"public" }}</span></span>
+  <form method="post" action="{% url 'switch_schema' %}" style="display:flex; gap:8px; align-items:center; margin:0;">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <select name="schema">
+      <option value="public" {% if tenant_admin_current == 'public' or not tenant_admin_current %}selected{% endif %}>public (partagé)</option>
+      {% for t in tenant_admin_list %}
+        <option value="{{ t.schema_name }}" {% if tenant_admin_current == t.schema_name %}selected{% endif %}>{{ t.name }} — {{ t.schema_name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Changer de client</button>
+  </form>
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}

@@ -68,3 +68,18 @@ class TestSwitchSchema:
     def test_anonymous_denied(self, tenant):
         resp = Client().get(reverse('switch_schema'))
         assert resp.status_code == 302
+
+    def test_admin_shows_tenant_banner(self, tenant, super_client):
+        resp = super_client.get('/admin/')
+        assert resp.status_code == 200
+        assert b'tenant-switch-bar' in resp.content
+        assert b'Client actif' in resp.content
+
+    def test_post_with_next_redirects_back(self, tenant, super_client):
+        resp = super_client.post(
+            reverse('switch_schema'),
+            data={'schema': 'test_tenant', 'next': '/admin/'},
+        )
+        assert resp.status_code == 302
+        assert resp.url == '/admin/'
+        assert super_client.session.get('admin_schema') == 'test_tenant'

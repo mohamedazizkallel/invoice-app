@@ -64,6 +64,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'sales.middleware.settings_context',
+                'tenants.context_processors.tenant_admin',
             ],
         },
     },
