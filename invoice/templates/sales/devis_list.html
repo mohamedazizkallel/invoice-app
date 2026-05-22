@@ -173,12 +173,12 @@
 
             <div class="col-md-3">
               <label class="form-label fw-semibold mb-1">TVA (%)</label>
-              <input type="number" name="tva" class="form-control form-control-sm" step="0.01" value="{{ settings.tva|default:'19.00' }}">
+              <input type="number" name="tva" class="form-control form-control-sm" step="0.01" value="{{ settings.tva|default_if_none:'19.00' }}">
             </div>
 
             <div class="col-md-3">
               <label class="form-label fw-semibold mb-1">Timbre Fiscal</label>
-              <input type="number" name="timbre_fiscal" class="form-control form-control-sm" step="0.001" value="{{ settings.dt|default:'1.000' }}">
+              <input type="number" name="timbre_fiscal" class="form-control form-control-sm" step="0.001" value="{{ settings.dt|default_if_none:'1.000' }}">
             </div>
 
             <div class="col-md-3">
