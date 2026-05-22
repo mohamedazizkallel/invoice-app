@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.template.defaultfilters import slugify
 from django.conf import settings
 from uuid import uuid4
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 
 category = [("Person Physique","PP"),("Person Moral","PM")]
@@ -507,8 +507,11 @@ class Invoice(models.Model):
         tva_base = subtotal_after_discount + fodec
         tva = (tva_base * self.get_tva()) / Decimal('100')
         timbre = self.get_timbre_fiscal()
-        return tva_base + tva + timbre
-    
+        total = tva_base + tva + timbre
+        # Money is in millimes (3 dp). Division above can yield extra precision;
+        # quantize so totals match the 3-dp amount fields and the displayed value.
+        return total.quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+
     def get_total_retenue(self):
         """Total retenue à la source"""
         return self.retenues.aggregate(
