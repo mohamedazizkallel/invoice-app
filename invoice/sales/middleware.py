@@ -2,9 +2,17 @@ from django.shortcuts import redirect
 
 
 def _settings_complete():
-    """Returns True if the current tenant's Settings has all required fields."""
+    """Returns True if the current tenant's Settings has all required fields.
+
+    Resilient to running in the public schema (e.g. a superuser using the schema
+    switcher), where the tenant-only `sales_settings` table doesn't exist —
+    return False instead of letting the query crash the page.
+    """
     from sales.models import Settings
-    s = Settings.get_cached()
+    try:
+        s = Settings.get_cached()
+    except Exception:
+        return False
     return bool(s and s.clientname and s.mf and s.adress and s.emailAddress)
 
 
@@ -16,7 +24,7 @@ class SetupRequiredMiddleware:
         if request.user.is_authenticated:
             path = request.path
             exempt = path == '/' or any(
-                path.startswith(p) for p in ('/setup/', '/logout', '/admin/', '/api/')
+                path.startswith(p) for p in ('/setup/', '/logout', '/admin/', '/api/', '/switch-schema/')
             )
             # Redirect to the wizard only once per session. After the user has
             # been prompted (or skipped), the dismissible banner in base.html is

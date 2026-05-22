@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Changer de schéma (admin)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #1a202c; }
+    .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    h1 { font-size: 1.3rem; margin-top: 0; }
+    .current { background: #ebf8ff; border-left: 4px solid #3182ce; padding: 10px 14px; border-radius: 6px; margin: 16px 0; }
+    select, button { font-size: 1rem; padding: 8px 12px; border-radius: 6px; }
+    select { width: 100%; border: 1px solid #cbd5e0; margin-bottom: 16px; }
+    button { background: #3182ce; color: #fff; border: 0; cursor: pointer; }
+    button:hover { background: #2c5282; }
+    .msg { padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; }
+    .msg.success { background: #f0fff4; color: #276749; }
+    .msg.error { background: #fff5f5; color: #c53030; }
+    a { color: #3182ce; }
+    .warn { font-size: .85rem; color: #718096; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Changer de schéma — Admin</h1>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="msg {{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="current">
+      Schéma actif : <strong>{{ current }}</strong>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <label for="schema">Sélectionner le client (schéma) :</label>
+      <select name="schema" id="schema">
+        <option value="public" {% if current == 'public' %}selected{% endif %}>public (partagé)</option>
+        {% for t in tenants %}
+          <option value="{{ t.schema_name }}" {% if current == t.schema_name %}selected{% endif %}>
+            {{ t.name }} — {{ t.schema_name }}
+          </option>
+        {% endfor %}
+      </select>
+      <button type="submit">Appliquer</button>
+    </form>
+
+    <p class="warn">
+      Une fois un client sélectionné, l’<a href="/admin/">interface admin</a> édite les
+      données de ce client. Revenez ici pour changer. En schéma « public », les modèles
+      propres aux clients (factures, etc.) ne sont pas disponibles.
+    </p>
+  </div>
+</body>
+</html>

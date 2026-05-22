@@ -22,13 +22,25 @@ class SessionTenantMiddleware:
             if tenant:
                 connection.set_tenant(tenant)
         else:
-            try:
-                tenant = request.user.tenant_user.tenant
-                connection.set_tenant(tenant)
-            except Exception:
-                if request.user.is_superuser:
-                    connection.set_schema_to_public()
+            # Superuser schema override: lets an admin point the active schema at
+            # any tenant via /switch-schema/ to browse/edit tenant data in admin.
+            admin_schema = request.session.get('admin_schema') if request.user.is_superuser else None
+            if admin_schema:
+                connection.set_schema_to_public()
+                t = Tenant.objects.filter(schema_name=admin_schema).first()
+                if t:
+                    connection.set_tenant(t)
                 else:
-                    return HttpResponseForbidden("No tenant assigned to this user.")
+                    connection.set_schema_to_public()
+                    request.session.pop('admin_schema', None)
+            else:
+                try:
+                    tenant = request.user.tenant_user.tenant
+                    connection.set_tenant(tenant)
+                except Exception:
+                    if request.user.is_superuser:
+                        connection.set_schema_to_public()
+                    else:
+                        return HttpResponseForbidden("No tenant assigned to this user.")
 
         return self.get_response(request)
