@@ -278,6 +278,7 @@
               MF: {{ seller.mf }}
               {% if seller.phone %}<br>T&eacute;l: {{ seller.phone }}{% endif %}
               {% if seller.rib %}<br>RIB: {{ seller.rib }}{% endif %}
+              {% if seller.iban %}<br>IBAN: {{ seller.iban }}{% endif %}
             </div>
           </div>
         </div>
@@ -380,6 +381,7 @@
 
     <div class="invoice-footer">
       {% if seller.rib %}<div class="footer-rib"><strong>RIB:</strong> {{ seller.rib }}</div>{% endif %}
+      {% if seller.iban %}<div class="footer-rib"><strong>IBAN:</strong> {{ seller.iban }}</div>{% endif %}
       {{ seller.clientname }} | {{ seller.adress }} | MF: {{ seller.mf }}
     </div>
   </div>

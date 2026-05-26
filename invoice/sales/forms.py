@@ -44,7 +44,7 @@ class SettingsForm(forms.ModelForm):
 
     class Meta:
         model = Settings
-        fields = ['clientname', 'adress', 'mf', 'tva', 'dt', 'status', 'rib', 'phone', 'emailAddress', 'default_retenu_rate']
+        fields = ['clientname', 'adress', 'mf', 'tva', 'dt', 'status', 'rib', 'iban', 'phone', 'emailAddress', 'default_retenu_rate']
         labels = {
             'clientname': 'Nom de l\'entreprise',
             'adress': 'Adresse',
@@ -52,6 +52,7 @@ class SettingsForm(forms.ModelForm):
             'tva': 'Taxe sur la Valeur Ajoutée (TVA)',
             'dt': 'Droit de Timbre (DT)',
             'rib': 'R.I.B',
+            'iban': 'IBAN',
             'phone': 'Téléphone',
             'emailAddress': 'Email',
             'status': "Classification d'individu ou société",
@@ -64,6 +65,7 @@ class SettingsForm(forms.ModelForm):
             'mf': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Numéro MF'}),
             'tva': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'TVA (%)'}),
             'rib': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'RIB'}),
+            'iban': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'IBAN (ex: TN59 1000 ...)', 'maxlength': '34'}),
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Numéro de téléphone'}),
             'emailAddress': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'email@exemple.com'}),
             'dt': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'DT (D)'}),

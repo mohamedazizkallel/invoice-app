@@ -724,6 +724,7 @@ class Settings(models.Model):
     status = models.CharField(null=True, blank=True, choices=category,max_length=200)
     mf = models.CharField(null=True, blank=True, max_length=100)
     rib = models.CharField(null=True, blank=True, max_length=100, help_text="RIB")
+    iban = models.CharField(null=True, blank=True, max_length=34, help_text="IBAN (International)")
     phone = models.CharField(null=True, blank=True, max_length=50)
     emailAddress = models.EmailField(null=True, blank=True)
     

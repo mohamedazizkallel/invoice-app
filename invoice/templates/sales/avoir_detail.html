@@ -423,6 +423,7 @@
             <p>MF: {{ settings_obj.mf|default:"-" }}</p>
             {% if settings_obj.phone %}<p>Tel: {{ settings_obj.phone }}</p>{% endif %}
             {% if settings_obj.rib %}<p>RIB: {{ settings_obj.rib }}</p>{% endif %}
+            {% if settings_obj.iban %}<p>IBAN: {{ settings_obj.iban }}</p>{% endif %}
           </div>
           {% else %}
           <div class="entity-name">Votre Societe</div>
@@ -531,6 +532,7 @@
         <div class="footer-row">
           <div>
             {% if settings_obj and settings_obj.rib %}<div><strong>RIB:</strong> {{ settings_obj.rib }}</div>{% endif %}
+            {% if settings_obj and settings_obj.iban %}<div><strong>IBAN:</strong> {{ settings_obj.iban }}</div>{% endif %}
           </div>
         </div>
         <div class="footer-legal">
