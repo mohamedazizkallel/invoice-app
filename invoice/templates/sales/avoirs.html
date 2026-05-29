@@ -74,6 +74,7 @@
           <th class="text-end">TVA %</th>
           <th class="text-end">Total TTC</th>
           <th>Date</th>
+          <th>Généré le</th>
           <th class="text-end">Actions</th>
         </tr>
       </thead>
@@ -104,6 +105,7 @@
           <td class="text-end">{{ avoir.tva|floatformat:2 }}%</td>
           <td class="text-end fw-semibold">{{ avoir.calculate_total|floatformat:3 }}</td>
           <td>{{ avoir.date_created|date:"d/m/Y" }}</td>
+          <td>{{ avoir.last_updated|default:avoir.date_created|date:"d/m/Y"|default:"—" }}</td>
           <td class="text-end">
             <div class="btn-group btn-group-sm">
               <a href="{% url 'avoir_detail' avoir.id %}" class="btn btn-outline-primary" title="Voir">

@@ -86,3 +86,10 @@ instance/
 
 # Migrations tracked intentionally
 # **/migrations/**
+
+# Local scratch / signing test artifacts (root)
+/1.8.9expl_withoutSig.xsd
+/invoice_2_nons.xml
+/invoice_2_unsigned.xml
+/invoice_2_unsigned-signed-xades-baseline-b*.xml
+/signature_electronique_apercu.pdf

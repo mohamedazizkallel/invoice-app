@@ -78,6 +78,7 @@
           <th>Client</th>
           <th>Statut</th>
           <th>Date</th>
+          <th>Généré le</th>
           <th>Facture liée</th>
           <th></th>
         </tr>
@@ -93,6 +94,7 @@
             {% else %}<span class="badge bg-warning text-dark">En attente</span>{% endif %}
           </td>
           <td>{{ d.date_created|date:"d/m/Y" }}</td>
+          <td>{{ d.last_updated|default:d.date_created|date:"d/m/Y"|default:"—" }}</td>
           <td>
             {% if d.converted_invoice %}
               <a href="{% url 'invoice_detail' d.converted_invoice.id %}">{{ d.converted_invoice.uniqueId }}</a>
@@ -104,7 +106,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" class="text-center text-muted py-4">Aucun devis trouvé.</td></tr>
+        <tr><td colspan="7" class="text-center text-muted py-4">Aucun devis trouvé.</td></tr>
         {% endfor %}
       </tbody>
     </table>

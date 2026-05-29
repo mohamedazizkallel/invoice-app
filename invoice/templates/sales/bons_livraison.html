@@ -84,6 +84,7 @@
           <th>N° BL</th>
           <th>Client</th>
           <th>Date</th>
+          <th>Généré le</th>
           <th>Statut</th>
           <th class="text-end">Total HT</th>
           <th class="text-end">TVA</th>
@@ -102,6 +103,7 @@
           </td>
           <td>{{ bon.client.clientname|default:"—" }}</td>
           <td>{{ bon.date_created|date:"d/m/Y"|default:"—" }}</td>
+          <td>{{ bon.last_updated|default:bon.date_created|date:"d/m/Y"|default:"—" }}</td>
           <td>
             <span class="badge-modern
               {% if bon.status == 'DELIVERED' %}badge-success

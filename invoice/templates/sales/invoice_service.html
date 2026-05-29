@@ -132,6 +132,7 @@
             <th>Facture n°</th>
             <th>Client</th>
             <th>Date</th>
+            <th>Généré le</th>
             <th>Statut</th>
             <th class="text-end">Actions</th>
           </tr>
@@ -146,6 +147,7 @@
             </td>
             <td>{{ invoice.client.clientname|default:"Aucun client" }}</td>
             <td>{{ invoice.date_created|date:"d/m/Y"|default:"N/A" }}</td>
+            <td>{{ invoice.last_updated|default:invoice.date_created|date:"d/m/Y"|default:"N/A" }}</td>
             <td>
               <span class="badge-modern {% if invoice.status == 'PAID' %}badge-success{% elif invoice.status == 'OVERDUE' %}badge-danger{% elif invoice.status == 'CURRENT' %}badge-info{% else %}badge-secondary{% endif %}">
                 {{ invoice.get_status_display }}
