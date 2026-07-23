@@ -427,6 +427,11 @@ class Invoice(models.Model):
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Discount percentage", null=True, blank=True)
     amount_paid = models.DecimalField(max_digits=15, decimal_places=3, default=Decimal('0.000'), help_text="Total amount paid so far (partial or full)")
 
+    show_quantity = models.BooleanField(
+        default=True,
+        help_text="Display the Quantité column on the invoice detail and printed version",
+    )
+
     is_locked = models.BooleanField(default=False)
     uniqueId = models.CharField(null=True, blank=True, max_length=100)
     slug = models.SlugField(max_length=500, unique=True, null=True)

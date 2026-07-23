@@ -664,7 +664,7 @@
               <th>Description</th>
               {% if total_fodec > 0 %}<th>FODEC</th>{% endif %}
               <th class="text-end">Prix unitaire HT</th>
-              <th class="text-end">Quantité</th>
+              {% if invoice.show_quantity %}<th class="text-end">Quantité</th>{% endif %}
               <th class="text-end">Montant HT</th>
             </tr>
           </thead>
@@ -683,13 +683,13 @@
                 </td>
                 {% endif %}
                 <td class="text-end">{{ item.service.currency|default:"TND" }} {{ item.unit_price|floatformat:3 }}</td>
-                <td class="text-end">{{ item.quantity|floatformat:"-3" }}</td>
+                {% if invoice.show_quantity %}<td class="text-end">{{ item.quantity|floatformat:"-3" }}</td>{% endif %}
                 <td class="text-end fw-bold">{{ item.service.currency|default:"TND" }} {{ item.line_total|floatformat:3 }}</td>
               </tr>
               {% endfor %}
             {% else %}
               <tr>
-                <td colspan="5" style="text-align:center; color:#9ca3af; padding:1.5rem;">Aucun service attribué à cette facture</td>
+                <td colspan="{% if invoice.show_quantity %}4{% else %}3{% endif %}" style="text-align:center; color:#9ca3af; padding:1.5rem;">Aucun service attribué à cette facture</td>
               </tr>
             {% endif %}
           </tbody>
@@ -854,6 +854,16 @@
               <input type="number" min="1" max="999" class="form-control" name="invoice_number" placeholder="Auto si vide">
             </div>
             {% endif %}
+
+            <div class="col-md-3 d-flex align-items-end">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="show_quantity" value="1"
+                       id="detailShowQuantity{{ invoice.id }}" {% if invoice.show_quantity %}checked{% endif %}>
+                <label class="form-check-label" for="detailShowQuantity{{ invoice.id }}">
+                  Afficher la colonne « Quantité »
+                </label>
+              </div>
+            </div>
 
             <div class="col-12">
               <label class="form-label fw-semibold">Remarques</label>

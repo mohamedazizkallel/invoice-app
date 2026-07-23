@@ -1248,6 +1248,7 @@ def invoice_create(request):
                 tva=tva,
                 timbre_fiscal=timbre_fiscal,
                 discount=discount,
+                show_quantity=request.POST.get('show_quantity') == '1',
                 uniqueId=unique_id,
             )
             if custom_datetime is not None:
@@ -1333,6 +1334,8 @@ def invoice_edit(request, invoice_id):
 
             if request.POST.get('discount'):
                 invoice.discount = float(request.POST['discount'])
+
+            invoice.show_quantity = request.POST.get('show_quantity') == '1'
 
             # Custom date / number — only when not locked and not paid
             if not invoice.is_locked and (status or invoice.status) != 'PAID':
@@ -1573,6 +1576,7 @@ def invoice_modal_data(request, invoice_id):
         'tva': str(invoice.tva) if invoice.tva is not None else '19.00',
         'timbre_fiscal': str(invoice.timbre_fiscal) if invoice.timbre_fiscal is not None else '1.000',
         'discount': str(invoice.discount) if invoice.discount is not None else '0.00',
+        'show_quantity': invoice.show_quantity,
         'notes': invoice.notes or '',
         'services': services,
     })

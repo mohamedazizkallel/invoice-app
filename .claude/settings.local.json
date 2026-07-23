@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(test:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(pg_isready)",
+      "Bash(sudo -u postgres psql -c \"SELECT current_user;\")",
+      "Bash(pg_lsclusters)",
+      "Read(//etc/postgresql/**)",
+      "Bash(sudo -n -u postgres createuser --superuser postgres)",
+      "Bash(sudo -n -u postgres psql -c \"\\\\du\")",
+      "Bash(venv/bin/python invoice/manage.py migrate_schemas --shared)",
+      "Bash(venv/bin/pytest tests/sales/test_models.py --no-cov -x)"
     ],
     "additionalDirectories": [
       "c:\\Users\\httyd\\Desktop\\project\\invoice app service\\docs"
