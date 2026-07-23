@@ -1,4 +1,5 @@
 {% extends 'partials/base.html' %}
+{% load sales_extras %}
 {% load static %}
 
 {% block title %}Bons de Livraison{% endblock %}
@@ -112,9 +113,9 @@
               {{ bon.get_status_display }}
             </span>
           </td>
-          <td class="text-end">{{ bon.calculate_total_ht|floatformat:3 }} D</td>
-          <td class="text-end">{{ bon.calculate_tva_amount|floatformat:3 }} D</td>
-          <td class="text-end fw-semibold">{{ bon.calculate_total_ttc|floatformat:3 }} D</td>
+          <td class="text-end">{{ bon.calculate_total_ht|money }} D</td>
+          <td class="text-end">{{ bon.calculate_tva_amount|money }} D</td>
+          <td class="text-end fw-semibold">{{ bon.calculate_total_ttc|money }} D</td>
           <td class="text-end">
             <div class="btn-group btn-group-sm">
               <a href="{% url 'bon_livraison_detail' bon.id %}"

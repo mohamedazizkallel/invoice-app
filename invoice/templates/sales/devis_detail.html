@@ -1,4 +1,5 @@
 {% extends 'partials/base.html' %}
+{% load sales_extras %}
 {% load static %}
 
 {% block title %}Devis #{{ devis.uniqueId }}{% endblock %}
@@ -568,7 +569,7 @@
             </div>
             <div class="info-item">
               <small>Timbre Fiscal</small>
-              <strong>{{ devis.get_timbre_fiscal|floatformat:3 }} DT</strong>
+              <strong>{{ devis.get_timbre_fiscal|money }} DT</strong>
             </div>
             {% if devis.discount > 0 %}
             <div class="info-item" style="grid-column: span 2;">
@@ -603,7 +604,7 @@
             {% for ds in devis.devis_services.all %}
             <tr>
               <td>{{ ds.service.title }}</td>
-              <td class="text-end">{{ ds.unit_price|floatformat:3 }}</td>
+              <td class="text-end">{{ ds.unit_price|money }}</td>
               <td class="text-end">
                 {% if ds.service.billing_type == 'hour' %}{{ ds.hours_used|default:1 }} h
                 {% elif ds.service.billing_type == 'day' %}{{ ds.days_used|default:1 }} j
@@ -617,7 +618,7 @@
                 <span style="font-size:0.7rem; color:#9ca3af;">—</span>
                 {% endif %}
               </td>
-              <td class="text-end fw-bold">{{ ds.get_line_ht|floatformat:3 }} DT</td>
+              <td class="text-end fw-bold">{{ ds.get_line_ht|money }} DT</td>
             </tr>
             {% empty %}
             <tr>
@@ -644,31 +645,31 @@
         <div class="totals-box">
           <div class="total-row">
             <span class="label">Sous-total HT</span>
-            <span class="value">{{ devis.calculate_service_subtotal|floatformat:3 }} DT</span>
+            <span class="value">{{ devis.calculate_service_subtotal|money }} DT</span>
           </div>
           {% if devis.calculate_total_fodec %}
           <div class="total-row">
             <span class="label">FODEC (1%)</span>
-            <span class="value">{{ devis.calculate_total_fodec|floatformat:3 }} DT</span>
+            <span class="value">{{ devis.calculate_total_fodec|money }} DT</span>
           </div>
           {% endif %}
           {% if devis.discount > 0 %}
           <div class="total-row">
             <span class="label">Reduction ({{ devis.discount }}%)</span>
-            <span class="value" style="color:#dc2626;">-{{ devis.calculate_discount_amount|floatformat:3 }} DT</span>
+            <span class="value" style="color:#dc2626;">-{{ devis.calculate_discount_amount|money }} DT</span>
           </div>
           {% endif %}
           <div class="total-row">
             <span class="label">TVA ({{ devis.get_tva|floatformat:2 }}%)</span>
-            <span class="value">{{ devis.calculate_tva_amount|floatformat:3 }} DT</span>
+            <span class="value">{{ devis.calculate_tva_amount|money }} DT</span>
           </div>
           <div class="total-row">
             <span class="label">Timbre Fiscal</span>
-            <span class="value">{{ devis.get_timbre_fiscal|floatformat:3 }} DT</span>
+            <span class="value">{{ devis.get_timbre_fiscal|money }} DT</span>
           </div>
           <div class="grand-total">
             <span class="label">Total TTC</span>
-            <span class="value">{{ devis.calculate_total|floatformat:3 }} DT</span>
+            <span class="value">{{ devis.calculate_total|money }} DT</span>
           </div>
         </div>
       </div>

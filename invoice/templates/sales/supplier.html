@@ -1,4 +1,5 @@
 {% extends 'partials/base.html' %}
+{% load sales_extras %}
 {% load static %}
 {% load crispy_forms_tags %}
 
@@ -66,7 +67,7 @@
           <td class="text-end">
             {% with balance=Supplier.get_balance %}
             <span class="badge-modern {% if balance > 0 %}badge-danger{% elif balance < 0 %}badge-success{% else %}badge-secondary{% endif %}">
-              {{ balance|floatformat:3 }} TND
+              {{ balance|money }} TND
             </span>
             {% endwith %}
           </td>

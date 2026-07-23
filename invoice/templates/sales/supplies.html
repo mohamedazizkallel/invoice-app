@@ -1,4 +1,5 @@
 {% extends 'partials/base.html' %}
+{% load sales_extras %}
 {% load static %}
 {% load crispy_forms_tags %}
 
@@ -76,15 +77,15 @@
           <td><strong>{{ supply.name }}</strong></td>
           <td>{{ supply.get_category_display }}</td>
           <td>{{ supply.unit }}</td>
-          <td class="text-end">{{ supply.unit_price|floatformat:3 }} TND</td>
+          <td class="text-end">{{ supply.unit_price|money }} TND</td>
           <td class="text-end">
             {% if supply.is_low_stock %}
-            <span class="badge-modern badge-danger">{{ supply.stock_quantity|floatformat:3 }}</span>
+            <span class="badge-modern badge-danger">{{ supply.stock_quantity|money }}</span>
             {% else %}
-            <span class="badge-modern badge-success">{{ supply.stock_quantity|floatformat:3 }}</span>
+            <span class="badge-modern badge-success">{{ supply.stock_quantity|money }}</span>
             {% endif %}
           </td>
-          <td class="text-end">{{ supply.min_stock|floatformat:3 }}</td>
+          <td class="text-end">{{ supply.min_stock|money }}</td>
           <td>{{ supply.preferred_supplier.name|default:"-" }}</td>
           <td class="text-end">
             <div class="btn-group btn-group-sm">

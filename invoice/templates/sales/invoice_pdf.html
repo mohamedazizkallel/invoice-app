@@ -1,3 +1,4 @@
+{% load sales_extras %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -459,7 +460,7 @@
           </div>
           <div class="info-item">
             <small>Timbre Fiscal</small>
-            <strong>{{ invoice.timbre_fiscal|floatformat:3 }} DT</strong>
+            <strong>{{ invoice.timbre_fiscal|money }} DT</strong>
           </div>
           {% if invoice.discount > 0 %}
           <div class="info-item" style="flex: 0 0 100%;">
@@ -501,8 +502,8 @@
               {% endif %}
             </td>
             {% endif %}
-            <td class="text-end">{{ invoiceCurrency|default:"TND" }} {{ item.unit_price|floatformat:3 }}</td>
-            <td class="text-end fw-bold">{{ invoiceCurrency|default:"TND" }} {{ item.line_total|floatformat:3 }}</td>
+            <td class="text-end">{{ invoiceCurrency|default:"TND" }} {{ item.unit_price|money }}</td>
+            <td class="text-end fw-bold">{{ invoiceCurrency|default:"TND" }} {{ item.line_total|money }}</td>
           </tr>
           {% empty %}
           <tr>
@@ -528,35 +529,35 @@
       <div class="totals-box">
         <div class="total-row">
           <span class="label">Sous-total HT</span>
-          <span class="value">{{ subtotal|floatformat:3 }} DT</span>
+          <span class="value">{{ subtotal|money }} DT</span>
         </div>
         {% if invoice.discount > 0 %}
         <div class="total-row">
           <span class="label">R&eacute;duction ({{ invoice.discount }}%)</span>
-          <span class="value total-discount">-{{ discount_amount|floatformat:3 }} DT</span>
+          <span class="value total-discount">-{{ discount_amount|money }} DT</span>
         </div>
         <div class="total-row">
           <span class="label">Sous-total apr&egrave;s remise</span>
-          <span class="value">{{ subtotal_after_discount|floatformat:3 }} DT</span>
+          <span class="value">{{ subtotal_after_discount|money }} DT</span>
         </div>
         {% endif %}
         {% if total_fodec > 0 %}
         <div class="total-row">
           <span class="label">FODEC (1%)</span>
-          <span class="value">{{ total_fodec|floatformat:3 }} DT</span>
+          <span class="value">{{ total_fodec|money }} DT</span>
         </div>
         {% endif %}
         <div class="total-row">
           <span class="label">TVA ({{ invoice.tva }}%)</span>
-          <span class="value">{{ tva_amount|floatformat:3 }} DT</span>
+          <span class="value">{{ tva_amount|money }} DT</span>
         </div>
         <div class="total-row">
           <span class="label">Timbre Fiscal</span>
-          <span class="value">{{ invoice.timbre_fiscal|floatformat:3 }} DT</span>
+          <span class="value">{{ invoice.timbre_fiscal|money }} DT</span>
         </div>
         <div class="grand-total">
           <span class="label">Total TTC</span>
-          <span class="value">{{ total|floatformat:3 }} DT</span>
+          <span class="value">{{ total|money }} DT</span>
         </div>
       </div>
     </div>

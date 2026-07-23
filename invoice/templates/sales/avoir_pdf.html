@@ -1,3 +1,4 @@
+{% load sales_extras %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -332,7 +333,7 @@
         <tbody>
           <tr>
             <td>{{ avoir.description }}</td>
-            <td class="text-end fw-bold">{{ avoir.amount_ht|floatformat:3 }} DT</td>
+            <td class="text-end fw-bold">{{ avoir.amount_ht|money }} DT</td>
           </tr>
         </tbody>
       </table>
@@ -349,15 +350,15 @@
       <div class="totals-box">
         <div class="total-row">
           <span class="label">Total HT</span>
-          <span class="value">{{ avoir.amount_ht|floatformat:3 }} DT</span>
+          <span class="value">{{ avoir.amount_ht|money }} DT</span>
         </div>
         <div class="total-row">
           <span class="label">TVA ({{ avoir.tva }}%)</span>
-          <span class="value">{{ avoir.calculate_tva_amount|floatformat:3 }} DT</span>
+          <span class="value">{{ avoir.calculate_tva_amount|money }} DT</span>
         </div>
         <div class="grand-total">
           <span class="label">Total TTC</span>
-          <span class="value">{{ avoir.calculate_total|floatformat:3 }} DT</span>
+          <span class="value">{{ avoir.calculate_total|money }} DT</span>
         </div>
       </div>
     </div>

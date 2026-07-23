@@ -1,4 +1,5 @@
 {% extends 'partials/base.html' %}
+{% load sales_extras %}
 {% load static %}
 
 {% block title %}Achats{% endblock %}
@@ -74,7 +75,7 @@
               {{ purchase.get_status_display }}
             </span>
           </td>
-          <td class="text-end">{{ purchase.calculate_total|floatformat:3 }} TND</td>
+          <td class="text-end">{{ purchase.calculate_total|money }} TND</td>
           <td class="text-end">
             <button type="button" class="btn btn-sm btn-outline-primary"
                     data-bs-toggle="modal" data-bs-target="#purchaseDetailModal"

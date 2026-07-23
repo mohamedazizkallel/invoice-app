@@ -1,4 +1,5 @@
 {% extends 'partials/base.html' %}
+{% load sales_extras %}
 {% load static %}
 
 {% block title %}Avoirs{% endblock %}
@@ -101,9 +102,9 @@
               {{ avoir.description }}
             </span>
           </td>
-          <td class="text-end">{{ avoir.amount_ht|floatformat:3 }}</td>
+          <td class="text-end">{{ avoir.amount_ht|money }}</td>
           <td class="text-end">{{ avoir.tva|floatformat:2 }}%</td>
-          <td class="text-end fw-semibold">{{ avoir.calculate_total|floatformat:3 }}</td>
+          <td class="text-end fw-semibold">{{ avoir.calculate_total|money }}</td>
           <td>{{ avoir.date_created|date:"d/m/Y" }}</td>
           <td>{{ avoir.last_updated|default:avoir.date_created|date:"d/m/Y"|default:"—" }}</td>
           <td class="text-end">
